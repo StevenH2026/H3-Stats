@@ -969,6 +969,16 @@
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
+                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #d4a100;">🚨 Strafen</div>
+                                <div class="stat-grid">
+                                    <button class="stat-btn" style="grid-column: span 1.5; font-size: 14px; padding: 0.75rem; background: #ffd700; color: #333;" onclick="updatePlayerStat('${player.id}', 'gelb', 1)">Gelb +1</button>
+                                    <button class="stat-btn" style="grid-column: span 1.5; font-size: 14px; padding: 0.75rem; background: #ff4444; color: white;" onclick="updatePlayerStat('${player.id}', 'rot', 1)">Rot +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 14px; padding: 0.75rem; background: #333; color: white;" onclick="updatePlayerStat('${player.id}', 'zwei_min', 1)">2min +1</button>
+                                </div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0}</div>
+                            </div>
+                            
+                            <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">⚠️ Fehler</div>
                                 <div class="stat-grid">
                                     <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tech_fehler', 1)">Tech.Fehler +1</button>
