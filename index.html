@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🏐 H3-Stats Handball</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; }
@@ -970,25 +970,42 @@
             const file = event.target.files[0];
             if (!file) return;
             
+            // Warte bis XLSX verfügbar ist
+            if (typeof XLSX === 'undefined') {
+                showToast('⏳ XLSX wird noch geladen...');
+                setTimeout(() => importExcel(event), 500);
+                return;
+            }
+            
             try {
                 const reader = new FileReader();
                 reader.onload = async (e) => {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    
-                    // Verarbeite "Spieler" Blatt
-                    if (workbook.SheetNames.includes('Spieler')) {
-                        const spielerSheet = XLSX.utils.sheet_to_json(workbook.Sheets['Spieler']);
-                        await importPlayers(spielerSheet);
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        
+                        // Verarbeite "Spieler" Blatt
+                        if (workbook.SheetNames.includes('Spieler')) {
+                            const spielerSheet = XLSX.utils.sheet_to_json(workbook.Sheets['Spieler']);
+                            await importPlayers(spielerSheet);
+                        }
+                        
+                        // Verarbeite "Betreuer" Blatt
+                        if (workbook.SheetNames.includes('Betreuer')) {
+                            const betreurerSheet = XLSX.utils.sheet_to_json(workbook.Sheets['Betreuer']);
+                            await importCoaches(betreurerSheet);
+                        }
+                        
+                        if (!workbook.SheetNames.includes('Spieler') && !workbook.SheetNames.includes('Betreuer')) {
+                            showToast('❌ Excel-Blätter "Spieler" oder "Betreuer" nicht gefunden');
+                            return;
+                        }
+                        
+                        loadPlayers();
+                    } catch (err) {
+                        console.error('Excel parsing error:', err);
+                        showToast('❌ Fehler beim Lesen der Excel-Datei');
                     }
-                    
-                    // Verarbeite "Betreuer" Blatt
-                    if (workbook.SheetNames.includes('Betreuer')) {
-                        const betreurerSheet = XLSX.utils.sheet_to_json(workbook.Sheets['Betreuer']);
-                        await importCoaches(betreurerSheet);
-                    }
-                    
-                    loadPlayers();
                 };
                 reader.readAsArrayBuffer(file);
             } catch (err) {
