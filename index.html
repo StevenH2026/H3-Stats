@@ -793,6 +793,12 @@
                 const totTore = (allStats.data || []).reduce((sum, s) => sum + (s.tore || 0) + (s.tore7m || 0), 0);
                 const totGegenTore = (allStats.data || []).reduce((sum, s) => sum + (s.fehlwurfe || 0), 0);
                 
+                // Lade PlayerStats BEVOR HTML gebaut wird
+                let playerStatsHtml = '';
+                if (selectedPlayer) {
+                    playerStatsHtml = await renderPlayerStats(selectedPlayer);
+                }
+                
                 let html = `
                     <div class="card" style="background: linear-gradient(135deg, #185fa5, #378add); color: white; margin-bottom: 1rem;">
                         <div style="display: flex; justify-content: space-around; align-items: center;">
@@ -828,7 +834,7 @@
                         </div>
                     </div>
                     
-                    ${selectedPlayer ? await renderPlayerStats(selectedPlayer) : ''}
+                    ${playerStatsHtml}
                     
                     <div class="card">
                         <div class="card-title">🎯 Gegner</div>
@@ -847,6 +853,7 @@
                 document.getElementById('erfassungContent').innerHTML = html;
             } catch (err) {
                 console.error('Error rendering erfassung:', err);
+                document.getElementById('erfassungContent').innerHTML = '<div class="card empty-state">Fehler beim Laden</div>';
             }
         }
         
