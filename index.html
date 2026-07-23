@@ -1288,6 +1288,7 @@
             if (!currentGame) return;
             
             try {
+                const coach = coaches.find(c => c.id === coachId);
                 const { data: existing } = await sbClient
                     .from('coach_stats')
                     .select('*')
@@ -1305,6 +1306,20 @@
                     const newStats = { game_id: currentGame.id, coach_id: coachId, gelb: 0, rot: 0, zwei_min: 0 };
                     newStats[statKey] = delta;
                     await sbClient.from('coach_stats').insert([newStats]);
+                }
+                
+                // Logge Aktion
+                const actionMap = {
+                    'gelb': '🟨 Gelb',
+                    'rot': '🟥 Rot',
+                    'zwei_min': '⏱️ 2min'
+                };
+                
+                if (delta > 0 && actionMap[statKey]) {
+                    gameActions.push({
+                        team: 'wir',
+                        text: `${coach?.designation}: ${actionMap[statKey]}`
+                    });
                 }
                 
                 renderErlassung();
@@ -1432,6 +1447,28 @@
                     </div>
                 `;
                 
+                // Lade Betreuer-Statistik
+                const { data: coachStatsData } = await sbClient
+                    .from('coach_stats')
+                    .select('*')
+                    .eq('game_id', currentGame.id);
+                
+                if (coachStatsData && coachStatsData.length > 0) {
+                    html += `
+                        <div class="card">
+                            <div class="card-title">👔 Betreuer-Statistik</div>
+                            <table style="font-size: 12px; width: 100%;">
+                                <tr style="background: #f5f5f5;"><th>Designation</th><th>Name</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
+                                ${coachStatsData.map(cs => {
+                                    const c = coaches.find(coach => coach.id === cs.coach_id);
+                                    if (!c) return '';
+                                    return `<tr><td><b>${c.designation}</b></td><td>${c.name}</td><td>${cs.gelb || 0}</td><td>${cs.rot || 0}</td><td>${cs.zwei_min || 0}</td></tr>`;
+                                }).join('')}
+                            </table>
+                        </div>
+                    `;
+                }
+                
                 container.innerHTML = html;
             } catch (err) {
                 console.error('Error rendering game stats:', err);
@@ -1537,6 +1574,37 @@
                         </table>
                     </div>
                 `;
+                
+                // Betreuer-Statistik gesamt
+                const { data: allCoachStats } = await sbClient
+                    .from('coach_stats')
+                    .select('*');
+                
+                if (allCoachStats && allCoachStats.length > 0) {
+                    const coachSummary = {};
+                    for (const cs of allCoachStats) {
+                        if (!coachSummary[cs.coach_id]) {
+                            coachSummary[cs.coach_id] = { gelb: 0, rot: 0, zwei_min: 0 };
+                        }
+                        coachSummary[cs.coach_id].gelb += cs.gelb || 0;
+                        coachSummary[cs.coach_id].rot += cs.rot || 0;
+                        coachSummary[cs.coach_id].zwei_min += cs.zwei_min || 0;
+                    }
+                    
+                    html += `
+                        <div class="card">
+                            <div class="card-title">👔 Betreuer-Saison-Statistik</div>
+                            <table style="font-size: 12px; width: 100%;">
+                                <tr style="background: #f5f5f5;"><th>Designation</th><th>Name</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
+                                ${Object.entries(coachSummary).map(([coachId, stats]) => {
+                                    const c = coaches.find(coach => coach.id === coachId);
+                                    if (!c) return '';
+                                    return `<tr><td><b>${c.designation}</b></td><td>${c.name}</td><td>${stats.gelb}</td><td>${stats.rot}</td><td>${stats.zwei_min}</td></tr>`;
+                                }).join('')}
+                            </table>
+                        </div>
+                    `;
+                }
                 
                 container.innerHTML = html;
             } catch (err) {
