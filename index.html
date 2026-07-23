@@ -574,6 +574,19 @@
                 games.push(newGame);
                 currentGame = newGame;
                 
+                // WICHTIG: Erstelle auch opponent_stats Zeile!
+                try {
+                    await sbClient
+                        .from('opponent_stats')
+                        .insert([{
+                            game_id: newGame.id,
+                            fehlwurfe: 0,
+                            tech_fehler: 0
+                        }]);
+                } catch (err) {
+                    console.log('opponent_stats bereits vorhanden');
+                }
+                
                 document.getElementById('gameOpponent').value = '';
                 document.getElementById('gameDate').value = '';
                 document.getElementById('gameTime').value = '';
@@ -767,10 +780,9 @@
                 const { data: oppStats } = await sbClient
                     .from('opponent_stats')
                     .select('*')
-                    .eq('game_id', currentGame.id)
-                    .single();
+                    .eq('game_id', currentGame.id);
                 
-                const opponentStats = oppStats || { fehlwurfe: 0, tech_fehler: 0 };
+                const opponentStats = (oppStats && oppStats.length > 0) ? oppStats[0] : { fehlwurfe: 0, tech_fehler: 0 };
                 
                 // Berechne aktuelle Tore
                 const allStats = await sbClient
@@ -1001,14 +1013,13 @@
                     .select('*')
                     .eq('game_id', currentGame.id);
                 
-                const { data: oppStats } = await sbClient
+                const { data: oppData } = await sbClient
                     .from('opponent_stats')
                     .select('*')
-                    .eq('game_id', currentGame.id)
-                    .single();
+                    .eq('game_id', currentGame.id);
                 
                 const stats = allStats || [];
-                const opponent = oppStats || { fehlwurfe: 0, tech_fehler: 0 };
+                const opponent = (oppData && oppData.length > 0) ? oppData[0] : { fehlwurfe: 0, tech_fehler: 0 };
                 
                 const totTore = stats.reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0), 0);
                 const totGegenTore = stats.reduce((s, st) => s + (st.fehlwurfe || 0), 0);
