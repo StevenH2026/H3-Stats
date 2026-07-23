@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏐 Handball Statistik</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; }
+        
+        .header { background: linear-gradient(135deg, #185fa5, #378add); color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; }
+        .nav { display: flex; background: white; border-bottom: 2px solid #ddd; }
+        .nav button { flex: 1; padding: 1rem; border: none; background: none; cursor: pointer; font-size: 14px; border-bottom: 3px solid transparent; }
+        .nav button.active { color: #185fa5; border-bottom-color: #185fa5; font-weight: bold; }
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+        .tab { display: none; }
+        .tab.active { display: block; }
+        
+        .card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card-title { font-size: 16px; font-weight: bold; color: #185fa5; margin-bottom: 1rem; }
+        
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-size: 12px; font-weight: 600; color: #333; margin-bottom: 0.5rem; }
+        input, select { width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        
+        .btn { padding: 0.75rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px; min-height: 40px; }
+        .btn-primary { background: #185fa5; color: white; }
+        .btn-success { background: #639922; color: white; }
+        .btn-danger { background: #e24b4a; color: white; }
+        .btn:hover { opacity: 0.9; }
+        
+        .player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.5rem; margin: 1rem 0; }
+        .player-btn { padding: 1rem 0.5rem; background: #f9f9f9; border: 2px solid #ddd; border-radius: 4px; cursor: pointer; text-align: center; font-size: 12px; }
+        .player-btn.selected { background: #185fa5; color: white; border-color: #185fa5; }
+        .player-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .player-name { font-size: 13px !important; font-weight: 500; margin-top: 0.25rem; }
+        
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem; }
+        .stat-btn { padding: 0.75rem; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .stat-btn:hover { background: #e8e8e8; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { background: #f5f5f5; padding: 0.75rem; text-align: left; font-weight: 600; border-bottom: 2px solid #ddd; }
+        td { padding: 0.75rem; border-bottom: 1px solid #eee; }
+        
+        .toast { position: fixed; bottom: 1rem; right: 1rem; background: #639922; color: white; padding: 1rem; border-radius: 4px; display: none; z-index: 1000; }
+        .toast.show { display: block; }
+        
+        .empty-state { text-align: center; padding: 2rem; color: #999; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏐 Handball Statistik</h1>
+        <div id="userInfo"></div>
+    </div>
+    
+    <div class="nav">
+        <button class="nav-btn active" onclick="switchTab(this, 'spiele')">📋 Spiele</button>
+        <button class="nav-btn" onclick="switchTab(this, 'erfassung')">📊 Erfassung</button>
+        <button class="nav-btn" onclick="switchTab(this, 'statistik')">📈 Statistik</button>
+        <button class="nav-btn" onclick="switchTab(this, 'spieler')">👥 Mannschaft</button>
+    </div>
+    
+    <div class="container">
+        <!-- TAB: SPIELE -->
+        <div id="spiele" class="tab active">
+            <div class="card">
+                <div class="card-title">➕ Neues Spiel</div>
+                <div class="form-group">
+                    <label>Gegner</label>
+                    <input type="text" id="gameOpponent" placeholder="z.B. TSV Hannover">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Datum</label>
+                        <input type="date" id="gameDate">
+                    </div>
+                    <div class="form-group">
+                        <label>Uhrzeit</label>
+                        <input type="time" id="gameTime">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Ort</label>
+                        <input type="text" id="gameLocation" placeholder="z.B. Viernheim">
+                    </div>
+                    <div class="form-group">
+                        <label>Liga</label>
+                        <input type="text" id="gameLeague" placeholder="z.B. 3. Liga">
+                    </div>
+                </div>
+                <button class="btn btn-primary" style="width: 100%;" onclick="startNewGame()">🆕 Spiel erstellen</button>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">📋 Meine Spiele</div>
+                <div id="gamesList"></div>
+            </div>
+        </div>
+        
+        <!-- TAB: STATISTIK -->
+        <div id="statistik" class="tab">
+            <div id="statistikContent"></div>
+        </div>
+        
+        <!-- TAB: ERFASSUNG -->
+        <div id="erfassung" class="tab">
+            <div id="erfassungContent"></div>
+        </div>
+        
+        <!-- TAB: SPIELER -->
+        <div id="spieler" class="tab">
+            <div class="card">
+                <div class="card-title">👥 Spielerverwaltung</div>
+                <div id="playersList"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        // =====================================================
+        // SUPABASE CONFIG
+        // =====================================================
+        const SUPABASE_URL = 'https://hlhvipsfpamicwilmusw.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_58jhuq4EIWrYT-lpQ_Hrxw_e5sqNaUE';
+        
+        let supabase = null;
+        
+        function initSupabase() {
+            return new Promise((resolve) => {
+                if (supabase) {
+                    resolve();
+                    return;
+                }
+                
+                // Warte bis window.supabase verfügbar ist
+                const checkSupabase = setInterval(() => {
+                    if (window.supabase) {
+                        clearInterval(checkSupabase);
+                        const { createClient } = window.supabase;
+                        supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+                        console.log('✅ Supabase initialized');
+                        resolve();
+                    }
+                }, 100);
+                
+                // Timeout nach 5 Sekunden
+                setTimeout(() => {
+                    clearInterval(checkSupabase);
+                    console.warn('⚠️ Supabase konnte nicht initialisiert werden - nutze lokal');
+                    resolve();
+                }, 5000);
+            });
+        }
+        
+        // =====================================================
+        // GLOBAL STATE
+        // =====================================================
+        let players = [];           // Alle Spieler der Mannschaft
+        let games = [];             // Alle Spiele
+        let currentGame = null;     // Aktuell bearbeitetes Spiel
+        let gameKader = {};         // Spieler im Kader für aktuelles Spiel
+        let selectedPlayer = null;  // Ausgewählter Spieler zur Erfassung
+        let db = null;
+        
+        // =====================================================
+        // INIT
+        // =====================================================
+        window.addEventListener('load', async () => {
+            await initSupabase();
+            initDB();
+            loadPlayers();
+            loadGames();
+            setDefaultDate();
+            renderPlayersList();
+        });
+        
+        // =====================================================
+        // DATABASE
+        // =====================================================
+        function initDB() {
+            return new Promise((resolve) => {
+                const req = indexedDB.open('HandballDB', 1);
+                
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('games')) {
+                        db.createObjectStore('games', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('players')) {
+                        db.createObjectStore('players', { keyPath: 'id' });
+                    }
+                };
+                
+                req.onsuccess = () => {
+                    db = req.result;
+                    resolve();
+                };
+            });
+        }
+        
+        function saveToDb(storeName, data) {
+            return new Promise((resolve) => {
+                const tx = db.transaction([storeName], 'readwrite');
+                tx.objectStore(storeName).put(data);
+                tx.oncomplete = resolve;
+            });
+        }
+        
+        function loadFromDb(storeName) {
+            return new Promise((resolve) => {
+                const tx = db.transaction([storeName], 'readonly');
+                const req = tx.objectStore(storeName).getAll();
+                req.onsuccess = () => resolve(req.result);
+            });
+        }
+        
+        async function loadPlayers() {
+            try {
+                const { data, error } = await supabase
+                    .from('players')
+                    .select('*')
+                    .order('number', { ascending: true });
+                
+                if (error) throw error;
+                players = data || [];
+                renderPlayersList();
+                showToast('✅ Spieler aus Cloud geladen');
+            } catch (err) {
+                console.error('Fehler beim Laden der Spieler:', err);
+                showToast('⚠️ Cloud nicht erreichbar - lokal nutzend');
+            }
+        }
+        
+        async function loadGames() {
+            try {
+                const { data, error } = await supabase
+                    .from('games')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                games = data || [];
+                renderGamesList();
+            } catch (err) {
+                console.error('Fehler beim Laden der Spiele:', err);
+            }
+        }
+        
+        // =====================================================
+        // SPIELE & KADER
+        // =====================================================
+        async function startNewGame() {
+            if (players.length === 0) {
+                showToast('❌ Zuerst Spieler in der Mannschaft erfassen');
+                switchTab('spieler');
+                return;
+            }
+            
+            const opponent = document.getElementById('gameOpponent').value;
+            const date = document.getElementById('gameDate').value;
+            const time = document.getElementById('gameTime').value;
+            const location = document.getElementById('gameLocation').value;
+            const league = document.getElementById('gameLeague').value;
+            
+            if (!opponent || !date) {
+                showToast('❌ Gegner und Datum erforderlich');
+                return;
+            }
+            
+            try {
+                const gameId = 'game_' + Date.now();
+                
+                // Setze leere Stats für alle Spieler
+                const stats = {};
+                players.forEach(p => {
+                    stats[p.id] = {
+                        tore: 0, tore7m: 0, assists: 0, turnovers: 0,
+                        fehlwurfe: 0, fehlwurfe7m: 0, techFehler: 0,
+                        fehlpasse: 0, einzueins: 0, siebenMgeholt: 0,
+                        zweiMinGeholt: 0, siebeMverursacht: 0, roteKarte: 0
+                    };
+                });
+                
+                const newGame = {
+                    id: gameId,
+                    opponent, date, time, location, league,
+                    created_at: new Date().toISOString(),
+                    kader: [],
+                    stats: stats,
+                    opponent_stats: { fehlwurfe: 0, techFehler: 0 }
+                };
+                
+                const { data, error } = await supabase
+                    .from('games')
+                    .insert([newGame])
+                    .select();
+                
+                if (error) throw error;
+                
+                games.push(newGame);
+                currentGame = newGame;
+                gameKader = {};
+                
+                document.getElementById('gameOpponent').value = '';
+                document.getElementById('gameDate').value = '';
+                document.getElementById('gameTime').value = '';
+                document.getElementById('gameLocation').value = '';
+                document.getElementById('gameLeague').value = '';
+                
+                renderGamesList();
+                showToast('✅ Spiel in Cloud erstellt!');
+                switchTab('erfassung');
+                renderKaderSelection();
+            } catch (err) {
+                console.error('Fehler beim Erstellen des Spiels:', err);
+                showToast('❌ Fehler beim Erstellen des Spiels');
+            }
+        }
+        
+        function selectGame(gameId) {
+            currentGame = games.find(g => g.id === gameId);
+            gameKader = {};
+            if (currentGame.kader && currentGame.kader.length > 0) {
+                currentGame.kader.forEach(pId => gameKader[pId] = true);
+            }
+            selectedPlayer = null;
+            switchTab('erfassung');
+            renderErlassung();
+        }
+        
+        function renderKaderSelection() {
+            if (!currentGame) {
+                document.getElementById('erfassungContent').innerHTML = '<div class="card"><div class="empty-state">Kein Spiel erstellt</div></div>';
+                return;
+            }
+            
+            const feldspieler = players.filter(p => p.position === 'Feld').sort((a,b) => a.number - b.number);
+            const torwarte = players.filter(p => p.position === 'Torwart').sort((a,b) => a.number - b.number);
+            
+            const kaderFeld = Object.keys(gameKader).filter(pId => players.find(p => p.id === pId && p.position === 'Feld'));
+            const kaderTW = Object.keys(gameKader).filter(pId => players.find(p => p.id === pId && p.position === 'Torwart'));
+            
+            let html = `
+                <div class="card">
+                    <div class="card-title">🎯 ${currentGame.opponent} - Kader auswählen</div>
+                    <div style="font-size: 12px; margin-bottom: 1rem;">
+                        Feldspieler: ${kaderFeld.length}/16 | Torwarte: ${kaderTW.length}/3
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">⚽ Feldspieler (max. 16)</div>
+                    <div class="player-grid">
+                        ${feldspieler.map(p => `
+                            <button class="player-btn ${gameKader[p.id] ? 'selected' : ''}" 
+                                    onclick="toggleKaderPlayer('${p.id}')"
+                                    ${kaderFeld.length >= 16 && !gameKader[p.id] ? 'disabled' : ''}>
+                                <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
+                                <div class="player-name">${p.name}</div>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">🥅 Torwarte (max. 3)</div>
+                    <div class="player-grid">
+                        ${torwarte.map(p => `
+                            <button class="player-btn ${gameKader[p.id] ? 'selected' : ''}" 
+                                    onclick="toggleKaderPlayer('${p.id}')"
+                                    ${kaderTW.length >= 3 && !gameKader[p.id] ? 'disabled' : ''}>
+                                <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
+                                <div class="player-name">${p.name}</div>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+                    <button class="btn btn-success" style="flex: 1;" onclick="confirmKader()">✅ Kader speichern</button>
+                    <button class="btn btn-primary" style="flex: 1;" onclick="switchTab('spiele')">← Abbrechen</button>
+                </div>
+            `;
+            
+            document.getElementById('erfassungContent').innerHTML = html;
+        }
+        
+        function toggleKaderPlayer(playerId) {
+            const player = players.find(p => p.id === playerId);
+            if (!player) return;
+            
+            if (gameKader[playerId]) {
+                delete gameKader[playerId];
+            } else {
+                if (player.position === 'Feld') {
+                    const kaderFeld = Object.keys(gameKader).filter(pId => players.find(p => p.id === pId && p.position === 'Feld'));
+                    if (kaderFeld.length >= 16) {
+                        showToast('❌ Max. 16 Feldspieler erlaubt');
+                        return;
+                    }
+                } else if (player.position === 'Torwart') {
+                    const kaderTW = Object.keys(gameKader).filter(pId => players.find(p => p.id === pId && p.position === 'Torwart'));
+                    if (kaderTW.length >= 3) {
+                        showToast('❌ Max. 3 Torwarte erlaubt');
+                        return;
+                    }
+                }
+                gameKader[playerId] = true;
+            }
+            
+            renderKaderSelection();
+        }
+        
+        async function confirmKader() {
+            if (Object.keys(gameKader).length === 0) {
+                showToast('❌ Wähle mindestens einen Spieler aus');
+                return;
+            }
+            
+            currentGame.kader = Object.keys(gameKader);
+            await saveToDb('games', currentGame);
+            
+            selectedPlayer = null;
+            showToast('✅ Kader speichert!');
+            switchTab('erfassung');
+            renderErlassung();
+        }
+        
+        function renderGamesList() {
+            const container = document.getElementById('gamesList');
+            
+            if (games.length === 0) {
+                container.innerHTML = '<div class="empty-state">Noch keine Spiele</div>';
+                return;
+            }
+            
+            container.innerHTML = games.map(game => `
+                <div class="card" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="selectGame('${game.id}')">
+                    <div>
+                        <div style="font-weight: bold;">${game.opponent}</div>
+                        <div style="font-size: 12px; color: #999;">📅 ${new Date(game.date).toLocaleDateString('de-DE')} ${game.time || ''}</div>
+                    </div>
+                    <div>
+                        <button class="btn btn-danger" style="padding: 0.5rem;" onclick="event.stopPropagation(); deleteGame('${game.id}')">Löschen</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function deleteGame(gameId) {
+            if (!confirm('Spiel wirklich löschen?')) return;
+            
+            try {
+                const { error } = await supabase
+                    .from('games')
+                    .delete()
+                    .eq('id', gameId);
+                
+                if (error) throw error;
+                
+                games = games.filter(g => g.id !== gameId);
+                if (currentGame?.id === gameId) currentGame = null;
+                renderGamesList();
+                showToast('✅ Spiel gelöscht');
+            } catch (err) {
+                console.error('Fehler beim Löschen:', err);
+                showToast('❌ Fehler beim Löschen');
+            }
+        }
+        
+        // =====================================================
+        // ERFASSUNG
+        // =====================================================
+        function renderErlassung() {
+            if (!currentGame) {
+                document.getElementById('erfassungContent').innerHTML = '<div class="card"><div class="empty-state">Kein Spiel ausgewählt</div></div>';
+                return;
+            }
+            
+            if (!currentGame.kader || currentGame.kader.length === 0) {
+                document.getElementById('erfassungContent').innerHTML = '<div class="card"><div class="empty-state">Kein Kader für dieses Spiel ausgewählt</div></div>';
+                return;
+            }
+            
+            const kaderSpieler = currentGame.kader.map(pId => players.find(p => p.id === pId)).filter(p => p);
+            
+            let html = `
+                <div class="card">
+                    <div class="card-title">⚽ ${currentGame.opponent}</div>
+                    <div style="font-size: 12px; color: #666;">
+                        📅 ${new Date(currentGame.date).toLocaleDateString('de-DE')} 
+                        ${currentGame.time ? '⏰ ' + currentGame.time : ''}
+                        ${currentGame.location ? '📍 ' + currentGame.location : ''}
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">👥 Spieler (Kader: ${kaderSpieler.length})</div>
+                    <div class="player-grid">
+                        ${kaderSpieler.map(p => `
+                            <button class="player-btn ${selectedPlayer?.id === p.id ? 'selected' : ''}" onclick="selectPlayerStat('${p.id}')">
+                                <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
+                                <div class="player-name">${p.name}</div>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            if (selectedPlayer && currentGame) {
+                html += renderPlayerStats();
+            }
+            
+            html += `
+                <div class="card">
+                    <div class="card-title">🎯 Gegner-Statistik</div>
+                    <div style="font-size: 12px; color: #666; margin-bottom: 1rem;">
+                        (Gegentore werden automatisch aus den Torwart-Gegentoren berechnet)
+                    </div>
+                    <div class="stat-grid">
+                        <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="incOpponentStat('fehlwurfe')">
+                            Fehlwurf +1
+                        </button>
+                        <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="incOpponentStat('techFehler')">
+                            Tech.Fehler +1
+                        </button>
+                    </div>
+                    <div style="font-size: 14px; margin-top: 1rem; font-weight: bold;">
+                        Fehlwürfe: <span style="color: #e24b4a; font-size: 18px;">${currentGame.opponentStats.fehlwurfe}</span> | 
+                        Tech.Fehler: <span style="color: #e24b4a; font-size: 18px;">${currentGame.opponentStats.techFehler}</span>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+                    <button class="btn btn-success" style="flex: 1;" onclick="saveCurrentGame()">💾 Speichern</button>
+                    <button class="btn btn-primary" style="flex: 1;" onclick="switchTab('spiele')">← Zurück</button>
+                </div>
+            `;
+            
+            document.getElementById('erfassungContent').innerHTML = html;
+        }
+        
+        function selectPlayerStat(playerId) {
+            selectedPlayer = players.find(p => p.id === playerId);
+            renderErlassung();
+        }
+        
+        function renderPlayerStats() {
+            if (!selectedPlayer || !currentGame) return '';
+            
+            const stats = currentGame.stats[selectedPlayer.id];
+            const isTorwart = selectedPlayer.position === 'Torwart';
+            
+            if (isTorwart) {
+                return renderTorwartStats(stats);
+            } else {
+                return renderFeldspielerStats(stats);
+            }
+        }
+        
+        function renderTorwartStats(stats) {
+            return `
+                <div class="card">
+                    <div class="card-title">🥅 ${selectedPlayer.name} (#${selectedPlayer.number}) - Torwart</div>
+                    
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">🛡️ Paraden</div>
+                        <div class="stat-grid">
+                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="incStat('tore', 1)">Parade +1</button>
+                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="incStat('tore7m', 1)">7m-Parade +1</button>
+                        </div>
+                        <div style="font-size: 14px; margin-top: 0.5rem; font-weight: bold;">
+                            Paraden: <span style="color: #639922; font-size: 18px;">${stats.tore}</span> | 
+                            7m-Paraden: <span style="color: #639922; font-size: 18px;">${stats.tore7m}</span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="font-weight: bold; margin-bottom: 0.5rem; color: #e24b4a;">⚽ Gegentore</div>
+                        <div class="stat-grid">
+                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="incStat('fehlwurfe', 1)">Gegentor +1</button>
+                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="incStat('fehlwurfe7m', 1)">7m-Gegentor +1</button>
+                        </div>
+                        <div style="font-size: 14px; margin-top: 0.5rem; font-weight: bold;">
+                            Gegentore: <span style="color: #e24b4a; font-size: 18px;">${stats.fehlwurfe}</span> | 
+                            7m-Gegentore: <span style="color: #e24b4a; font-size: 18px;">${stats.fehlwurfe7m}</span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🚨 Strafen</div>
+                        <div class="stat-grid">
+                            <button class="stat-btn" onclick="incStat('assists', 1)">🟡 Gelb +</button>
+                            <button class="stat-btn" onclick="incStat('turnovers', 1)">⏱️ 2min +</button>
+                            <button class="stat-btn" onclick="incStat('techFehler', 1)">🔴 Rot +</button>
+                        </div>
+                    </div>
+                    
+                    <table style="font-size: 12px;">
+                        <tr style="background: #f5f5f5;">
+                            <th>Statistik</th>
+                            <th>Wert</th>
+                        </tr>
+                        <tr><td>Paraden gesamt</td><td style="font-weight: bold; font-size: 14px;">${stats.tore + stats.tore7m}</td></tr>
+                        <tr><td>Gegentore gesamt</td><td style="font-weight: bold; font-size: 14px;">${stats.fehlwurfe + stats.fehlwurfe7m}</td></tr>
+                        <tr><td>Quote</td><td style="font-weight: bold; font-size: 14px; color: #639922;">${stats.tore + stats.tore7m > 0 ? Math.round((stats.tore + stats.tore7m) / (stats.tore + stats.tore7m + stats.fehlwurfe + stats.fehlwurfe7m) * 100) : 0}%</td></tr>
+                        <tr><td>🟡 Gelbe Karten</td><td>${stats.assists}</td></tr>
+                        <tr><td>⏱️ 2min Strafen</td><td>${stats.turnovers}</td></tr>
+                        <tr><td>🔴 Rote Karten</td><td>${stats.techFehler}</td></tr>
+                    </table>
+                </div>
+            `;
+        }
+        
+        function renderFeldspielerStats(stats) {
+            return `
+                <div class="card">
+                    <div class="card-title">📊 ${selectedPlayer.name} (#${selectedPlayer.number})</div>
+                    
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">⚽ Tore</div>
+                        <div class="stat-grid">
+                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="incStat('tore', 1)">Feld-Tor +1</button>
+                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="incStat('tore7m', 1)">7m-Tor +1</button>
+                        </div>
+                        <div style="font-size: 14px; margin-top: 0.5rem; font-weight: bold;">
+                            Feld: <span style="color: #639922; font-size: 18px;">${stats.tore}</span> | 
+                            7m: <span style="color: #639922; font-size: 18px;">${stats.tore7m}</span> | 
+                            Gesamt: <span style="color: #639922; font-size: 18px;">${stats.tore + stats.tore7m}</span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="font-weight: bold; margin-bottom: 0.5rem; color: #e24b4a;">❌ Fehlwürfe</div>
+                        <div class="stat-grid">
+                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="incStat('fehlwurfe', 1)">Feld-Fehlwurf +1</button>
+                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="incStat('fehlwurfe7m', 1)">7m-Fehlwurf +1</button>
+                        </div>
+                        <div style="font-size: 14px; margin-top: 0.5rem; font-weight: bold;">
+                            Feld: <span style="color: #e24b4a; font-size: 18px;">${stats.fehlwurfe}</span> | 
+                            7m: <span style="color: #e24b4a; font-size: 18px;">${stats.fehlwurfe7m}</span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🤝 Sonstige</div>
+                        <div class="stat-grid">
+                            <button class="stat-btn" onclick="incStat('assists', 1)">Assist +</button>
+                            <button class="stat-btn" onclick="incStat('turnovers', 1)">Fehler +</button>
+                            <button class="stat-btn" onclick="incStat('techFehler', 1)">Tech.Fehler +</button>
+                            <button class="stat-btn" onclick="incStat('fehlpasse', 1)">Fehlpass +</button>
+                            <button class="stat-btn" onclick="incStat('siebenMgeholt', 1)">7m geholt +</button>
+                            <button class="stat-btn" onclick="incStat('siebeMverursacht', 1)">7m verursacht +</button>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🚨 Strafen</div>
+                        <div class="stat-grid">
+                            <button class="stat-btn" onclick="incStat('assists', 1)">🟡 Gelb +</button>
+                            <button class="stat-btn" onclick="incStat('turnovers', 1)">⏱️ 2min +</button>
+                            <button class="stat-btn" onclick="incStat('einzueins', 1)">🔴 Rot +</button>
+                        </div>
+                    </div>
+                    
+                    <table style="font-size: 12px;">
+                        <tr style="background: #f5f5f5;">
+                            <th>Statistik</th>
+                            <th>Wert</th>
+                        </tr>
+                        <tr><td>Tore gesamt</td><td style="font-weight: bold; font-size: 14px;">${stats.tore + stats.tore7m}</td></tr>
+                        <tr><td>Würfe gesamt</td><td>${(stats.tore + stats.tore7m) + (stats.fehlwurfe + stats.fehlwurfe7m)}</td></tr>
+                        <tr><td>Wurfquote</td><td style="font-weight: bold; color: #639922; font-size: 14px;">${(stats.tore + stats.tore7m) > 0 ? Math.round((stats.tore + stats.tore7m) / ((stats.tore + stats.tore7m) + (stats.fehlwurfe + stats.fehlwurfe7m)) * 100) : 0}%</td></tr>
+                        <tr><td>Fehlwürfe gesamt</td><td>${stats.fehlwurfe + stats.fehlwurfe7m}</td></tr>
+                        <tr><td>Assists</td><td>${stats.assists}</td></tr>
+                        <tr><td>Fehler/Turnover</td><td>${stats.turnovers}</td></tr>
+                        <tr><td>Tech. Fehler</td><td>${stats.techFehler}</td></tr>
+                        <tr><td>Fehlpässe</td><td>${stats.fehlpasse}</td></tr>
+                        <tr><td>7m geholt</td><td>${stats.siebenMgeholt}</td></tr>
+                        <tr><td>7m verursacht</td><td>${stats.siebeMverursacht}</td></tr>
+                    </table>
+                </div>
+            `;
+        }
+        
+        function incStat(stat, delta) {
+            if (!selectedPlayer || !currentGame) return;
+            currentGame.stats[selectedPlayer.id][stat] = Math.max(0, currentGame.stats[selectedPlayer.id][stat] + delta);
+            renderErlassung();
+        }
+        
+        function incOpponentStat(stat) {
+            if (!currentGame) return;
+            currentGame.opponentStats[stat]++;
+            renderErlassung();
+        }
+        
+        async function saveCurrentGame() {
+            if (!currentGame) return;
+            
+            try {
+                const { error } = await supabase
+                    .from('games')
+                    .update({
+                        kader: currentGame.kader,
+                        stats: currentGame.stats,
+                        opponent_stats: currentGame.opponentStats
+                    })
+                    .eq('id', currentGame.id);
+                
+                if (error) throw error;
+                showToast('✅ Spiel in Cloud gespeichert');
+            } catch (err) {
+                console.error('Fehler beim Speichern:', err);
+                showToast('⚠️ Fehler beim Speichern in Cloud');
+            }
+        }
+        
+        // =====================================================
+        // SPIELER VERWALTUNG (globale Mannschaft)
+        // =====================================================
+        function renderPlayersList() {
+            const container = document.getElementById('playersList');
+            
+            if (!container) return;
+            
+            let html = `
+                <div class="card">
+                    <div class="card-title">➕ Neuen Spieler/Torwart hinzufügen</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Rückennummer</label>
+                            <input type="number" id="newPlayerNumber" min="1" max="99" placeholder="z.B. 7">
+                        </div>
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" id="newPlayerName" placeholder="z.B. Max Mustermann">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Position</label>
+                        <select id="newPlayerPosition">
+                            <option value="Feld">Feldspieler</option>
+                            <option value="Torwart">Torwart</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%;" onclick="addPlayer()">➕ Hinzufügen</button>
+                </div>
+            `;
+            
+            if (players.length === 0) {
+                html += '<div class="card empty-state">Noch keine Spieler erfasst</div>';
+            } else {
+                const feldspieler = players.filter(p => p.position === 'Feld').sort((a,b) => a.number - b.number);
+                const torwarte = players.filter(p => p.position === 'Torwart').sort((a,b) => a.number - b.number);
+                
+                html += `
+                    <div class="card">
+                        <div class="card-title">⚽ Feldspieler (${feldspieler.length})</div>
+                        <table style="font-size: 13px;">
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Aktion</th></tr>
+                            ${feldspieler.map(p => `
+                                <tr>
+                                    <td style="font-weight: bold;">${p.number}</td>
+                                    <td>${p.name}</td>
+                                    <td><button class="btn btn-danger" style="padding: 0.5rem; font-size: 11px;" onclick="deletePlayer('${p.id}')">🗑️</button></td>
+                                </tr>
+                            `).join('')}
+                        </table>
+                    </div>
+                `;
+                
+                if (torwarte.length > 0) {
+                    html += `
+                        <div class="card">
+                            <div class="card-title">🥅 Torwarte (${torwarte.length})</div>
+                            <table style="font-size: 13px;">
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Aktion</th></tr>
+                                ${torwarte.map(p => `
+                                    <tr>
+                                        <td style="font-weight: bold;">${p.number}</td>
+                                        <td>${p.name}</td>
+                                        <td><button class="btn btn-danger" style="padding: 0.5rem; font-size: 11px;" onclick="deletePlayer('${p.id}')">🗑️</button></td>
+                                    </tr>
+                                `).join('')}
+                            </table>
+                        </div>
+                    `;
+                }
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        async function addPlayer() {
+            const number = document.getElementById('newPlayerNumber').value;
+            const name = document.getElementById('newPlayerName').value;
+            const position = document.getElementById('newPlayerPosition').value;
+            
+            if (!number || !name) {
+                showToast('❌ Nummer und Name erforderlich');
+                return;
+            }
+            
+            if (players.some(p => p.number == number)) {
+                showToast('❌ Diese Nummer existiert bereits');
+                return;
+            }
+            
+            try {
+                const newPlayer = {
+                    id: 'p_' + Date.now(),
+                    number: parseInt(number),
+                    name: name,
+                    position: position
+                };
+                
+                const { data, error } = await supabase
+                    .from('players')
+                    .insert([newPlayer])
+                    .select();
+                
+                if (error) throw error;
+                
+                players.push(newPlayer);
+                players.sort((a,b) => a.number - b.number);
+                
+                document.getElementById('newPlayerNumber').value = '';
+                document.getElementById('newPlayerName').value = '';
+                document.getElementById('newPlayerPosition').value = 'Feld';
+                
+                renderPlayersList();
+                showToast('✅ Spieler in Cloud gespeichert');
+            } catch (err) {
+                console.error('Fehler beim Speichern:', err);
+                showToast('❌ Fehler beim Speichern');
+            }
+        }
+        
+        async function deletePlayer(playerId) {
+            if (!confirm('Spieler wirklich löschen? (Spiel-Statistiken werden nicht gelöscht)')) return;
+            
+            try {
+                const { error } = await supabase
+                    .from('players')
+                    .delete()
+                    .eq('id', playerId);
+                
+                if (error) throw error;
+                
+                players = players.filter(p => p.id !== playerId);
+                renderPlayersList();
+                showToast('✅ Spieler gelöscht');
+            } catch (err) {
+                console.error('Fehler beim Löschen:', err);
+                showToast('❌ Fehler beim Löschen');
+            }
+        }
+        
+        // =====================================================
+        // STATISTIK
+        // =====================================================
+        function renderStatistik() {
+            if (!currentGame) {
+                document.getElementById('statistikContent').innerHTML = '<div class="card"><div class="empty-state">Kein Spiel ausgewählt</div></div>';
+                return;
+            }
+            
+            // Berechne Gegentore aus Torwart-Gegentoren
+            let gegentoreGesamt = 0;
+            let gegentore7mGesamt = 0;
+            currentGame.kader.forEach(pId => {
+                const spieler = players.find(p => p.id === pId);
+                if (spieler && spieler.position === 'Torwart') {
+                    gegentoreGesamt += currentGame.stats[pId].fehlwurfe;
+                    gegentore7mGesamt += currentGame.stats[pId].fehlwurfe7m;
+                }
+            });
+            
+            // Sammle Spieler-Stats
+            const kaderSpieler = currentGame.kader.map(pId => players.find(p => p.id === pId)).filter(p => p);
+            const feldspieler = kaderSpieler.filter(p => p.position === 'Feld');
+            const torwarte = kaderSpieler.filter(p => p.position === 'Torwart');
+            
+            let html = `
+                <div class="card">
+                    <div class="card-title">⚽ ${currentGame.opponent}</div>
+                    <div style="font-size: 12px; color: #666;">
+                        📅 ${new Date(currentGame.date).toLocaleDateString('de-DE')} 
+                        ${currentGame.time ? '⏰ ' + currentGame.time : ''}
+                        ${currentGame.location ? '📍 ' + currentGame.location : ''}
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">🏆 Spiel-Übersicht</div>
+                    <table style="font-size: 13px;">
+                        <tr style="background: #f5f5f5;">
+                            <th>Kategorie</th>
+                            <th>Wir</th>
+                            <th>Gegner</th>
+                        </tr>
+            `;
+            
+            // Berechne unsere Tore
+            let unsereTofeGesamt = 0;
+            let unsereTofe7mGesamt = 0;
+            feldspieler.forEach(p => {
+                unsereTofeGesamt += currentGame.stats[p.id].tore;
+                unsereTofe7mGesamt += currentGame.stats[p.id].tore7m;
+            });
+            
+            html += `
+                        <tr>
+                            <td><strong>Tore gesamt</strong></td>
+                            <td style="font-weight: bold; color: #639922; font-size: 14px;">${unsereTofeGesamt + unsereTofe7mGesamt}</td>
+                            <td style="font-weight: bold; color: #e24b4a; font-size: 14px;">${gegentoreGesamt + gegentore7mGesamt}</td>
+                        </tr>
+                        <tr style="background: #f9f9f9;">
+                            <td>davon Feldtore</td>
+                            <td>${unsereTofeGesamt}</td>
+                            <td>${gegentoreGesamt}</td>
+                        </tr>
+                        <tr style="background: #f9f9f9;">
+                            <td>davon 7m-Tore</td>
+                            <td>${unsereTofe7mGesamt}</td>
+                            <td>${gegentore7mGesamt}</td>
+                        </tr>
+            `;
+            
+            // Fehlwürfe
+            let unsereFehlwuerfe = 0;
+            feldspieler.forEach(p => {
+                unsereFehlwuerfe += currentGame.stats[p.id].fehlwurfe + currentGame.stats[p.id].fehlwurfe7m;
+            });
+            
+            html += `
+                        <tr>
+                            <td><strong>Fehlwürfe</strong></td>
+                            <td>${unsereFehlwuerfe}</td>
+                            <td style="font-weight: bold;">${currentGame.opponentStats.fehlwurfe}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Wurfquote</strong></td>
+                            <td style="font-weight: bold; color: #639922;">${unsereTofeGesamt + unsereTofe7mGesamt > 0 ? Math.round((unsereTofeGesamt + unsereTofe7mGesamt) / ((unsereTofeGesamt + unsereTofe7mGesamt) + unsereFehlwuerfe) * 100) : 0}%</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Tech. Fehler</strong></td>
+                            <td>-</td>
+                            <td style="font-weight: bold;">${currentGame.opponentStats.techFehler}</td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+            
+            // Torwart-Statistik
+            if (torwarte.length > 0) {
+                html += `
+                    <div class="card">
+                        <div class="card-title">🥅 Torwart-Statistik</div>
+                        <table style="font-size: 12px;">
+                            <tr style="background: #f5f5f5;">
+                                <th>Spieler</th>
+                                <th>Paraden</th>
+                                <th>7m-Paraden</th>
+                                <th>Gegentore</th>
+                                <th>7m-Gegentore</th>
+                                <th>Quote</th>
+                            </tr>
+                            ${torwarte.map(p => {
+                                const stats = currentGame.stats[p.id];
+                                const paraden = stats.tore + stats.tore7m;
+                                const gegentore = stats.fehlwurfe + stats.fehlwurfe7m;
+                                const quote = paraden > 0 ? Math.round(paraden / (paraden + gegentore) * 100) : 0;
+                                return `
+                                    <tr>
+                                        <td><strong>#${p.number} ${p.name}</strong></td>
+                                        <td>${stats.tore}</td>
+                                        <td>${stats.tore7m}</td>
+                                        <td>${stats.fehlwurfe}</td>
+                                        <td>${stats.fehlwurfe7m}</td>
+                                        <td style="font-weight: bold; color: #639922;">${quote}%</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </table>
+                    </div>
+                `;
+            }
+            
+            // Feldspieler-Statistik (Tore)
+            html += `
+                <div class="card">
+                    <div class="card-title">⚽ Feldspieler - Tore</div>
+                    <table style="font-size: 12px;">
+                        <tr style="background: #f5f5f5;">
+                            <th>Spieler</th>
+                            <th>Feldtore</th>
+                            <th>7m-Tore</th>
+                            <th>Gesamt</th>
+                            <th>Assists</th>
+                            <th>Fehler</th>
+                        </tr>
+                        ${feldspieler.map(p => {
+                            const stats = currentGame.stats[p.id];
+                            return `
+                                <tr>
+                                    <td><strong>#${p.number} ${p.name}</strong></td>
+                                    <td>${stats.tore}</td>
+                                    <td>${stats.tore7m}</td>
+                                    <td style="font-weight: bold; color: #639922;">${stats.tore + stats.tore7m}</td>
+                                    <td>${stats.assists}</td>
+                                    <td>${stats.turnovers}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </table>
+                </div>
+            `;
+            
+            // Feldspieler-Statistik (Fehler)
+            html += `
+                <div class="card">
+                    <div class="card-title">❌ Feldspieler - Fehler & Strafen</div>
+                    <table style="font-size: 12px;">
+                        <tr style="background: #f5f5f5;">
+                            <th>Spieler</th>
+                            <th>Fehlwürfe</th>
+                            <th>Tech.Fehler</th>
+                            <th>Fehlpässe</th>
+                            <th>7m verursacht</th>
+                        </tr>
+                        ${feldspieler.map(p => {
+                            const stats = currentGame.stats[p.id];
+                            return `
+                                <tr>
+                                    <td><strong>#${p.number} ${p.name}</strong></td>
+                                    <td>${stats.fehlwurfe + stats.fehlwurfe7m}</td>
+                                    <td>${stats.techFehler}</td>
+                                    <td>${stats.fehlpasse}</td>
+                                    <td>${stats.siebeMverursacht}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </table>
+                </div>
+            `;
+            
+            html += `
+                <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+                    <button class="btn btn-primary" style="flex: 1;" onclick="switchTab(document.querySelector('[onclick*=spiele]'), 'spiele')">← Zurück zu Spiele</button>
+                </div>
+            `;
+            
+            document.getElementById('statistikContent').innerHTML = html;
+        }
+        function switchTab(buttonOrTab, tabName) {
+            let actualTabName = tabName;
+            let button = null;
+            
+            // Wenn nur ein Argument übergeben wurde, ist es der Tab-Name
+            if (typeof buttonOrTab === 'string') {
+                actualTabName = buttonOrTab;
+            } else {
+                // Sonst ist es das Button-Element
+                button = buttonOrTab;
+            }
+            
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(actualTabName).classList.add('active');
+            
+            if (button) {
+                button.classList.add('active');
+            } else {
+                document.querySelector(`[onclick*="switchTab"][onclick*="'${actualTabName}'"]`)?.classList.add('active');
+            }
+            
+            if (actualTabName === 'spieler') renderPlayersList();
+            if (actualTabName === 'erfassung') renderErlassung();
+            if (actualTabName === 'spiele') renderGamesList();
+            if (actualTabName === 'statistik') renderStatistik();
+        }
+        
+        function setDefaultDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('gameDate').value = today;
+        }
+        
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+    </script>
+</body>
+</html>
