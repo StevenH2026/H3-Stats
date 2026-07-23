@@ -797,11 +797,21 @@
                 // Berechne aktuelle Tore
                 const allStats = await sbClient
                     .from('player_stats')
-                    .select('tore, tore7m, fehlwurfe')
+                    .select('*')
                     .eq('game_id', currentGame.id);
                 
-                const totTore = (allStats.data || []).reduce((sum, s) => sum + (s.tore || 0) + (s.tore7m || 0), 0);
-                const totGegenTore = (allStats.data || []).reduce((sum, s) => sum + (s.fehlwurfe || 0), 0);
+                const allStatsData = allStats.data || [];
+                const feldspieler = allStatsData.filter(s => {
+                    const player = players.find(p => p.id === s.player_id);
+                    return player && player.position === 'Feld';
+                });
+                const torwarte = allStatsData.filter(s => {
+                    const player = players.find(p => p.id === s.player_id);
+                    return player && player.position === 'Torwart';
+                });
+                
+                const totTore = feldspieler.reduce((sum, s) => sum + (s.tore || 0) + (s.tore7m || 0), 0);
+                const totGegenTore = torwarte.reduce((sum, s) => sum + (s.gegentore || 0) + (s.gegentore_7m || 0), 0);
                 
                 // Lade PlayerStats BEVOR HTML gebaut wird
                 let playerStatsHtml = '';
