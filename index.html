@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🏐 H3-Stats Handball</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; }
@@ -59,7 +60,8 @@
     <div class="nav">
         <button class="nav-btn active" onclick="switchTab(this, 'spiele')">📋 Spiele</button>
         <button class="nav-btn" onclick="switchTab(this, 'erfassung')">📊 Erfassung</button>
-        <button class="nav-btn" onclick="switchTab(this, 'spieler')">👥 Mannschaft</button>
+        <button class="nav-btn" onclick="switchTab(this, 'spieler')">👥 Spieler</button>
+        <button class="nav-btn" onclick="switchTab(this, 'betreuer')">🎯 Betreuer</button>
     </div>
     
     <div class="container">
@@ -112,6 +114,14 @@
                 <div id="playersList"></div>
             </div>
         </div>
+        
+        <!-- TAB: BETREUER -->
+        <div id="betreuer" class="tab">
+            <div class="card">
+                <div class="card-title">🎯 Betreuer</div>
+                <div id="coachesList"></div>
+            </div>
+        </div>
     </div>
     
     <div class="toast" id="toast"></div>
@@ -119,6 +129,7 @@
     <script>
         let sbClient = null;
         let players = [];
+        let coaches = [];
         let games = [];
         let currentGame = null;
         let selectedPlayer = null;
@@ -141,6 +152,7 @@
         window.addEventListener('load', async () => {
             await initSupabase();
             loadPlayers();
+            loadCoaches();
             loadGames();
             setDefaultDate();
         });
@@ -229,8 +241,10 @@
             const container = document.getElementById('playersList');
             
             let html = `
-                <div style="margin-bottom: 1rem;">
-                    <button class="btn btn-primary" style="width: 100%;" onclick="toggleAddPlayerForm()">➕ Neuen Spieler hinzufügen</button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <button class="btn btn-primary" onclick="toggleAddPlayerForm()">➕ Einzeln hinzufügen</button>
+                    <button class="btn btn-success" onclick="document.getElementById('excelInput').click()">📊 Excel Import</button>
+                    <input type="file" id="excelInput" accept=".xlsx,.xls" style="display: none;" onchange="importExcel(event)">
                 </div>
                 
                 <div id="addPlayerForm" style="display:none; background:#f9f9f9; padding:1rem; border-radius:4px; margin-bottom:1rem;">
@@ -265,7 +279,7 @@
                     html += `<div style="margin-top: 1rem;"><h3 style="font-size: 14px; margin-bottom: 0.5rem;">⚽ Feldspieler (${feldspieler.length})</h3>
                     <table style="font-size: 13px;">
                         <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th></th></tr>
-                        ${feldspieler.map(p => `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td><button class="btn btn-danger" style="padding: 0.5rem; font-size: 11px;" onclick="deletePlayer('${p.id}')">🗑️</button></td></tr>`).join('')}
+                        ${feldspieler.map(p => `<tr><td><b>${p.number}</b></td><td><span id="name_${p.id}">${p.name}</span><input id="edit_${p.id}" type="text" value="${p.name}" style="display:none; width:100%; padding:0.25rem;"></td><td style="display:flex; gap:0.25rem;"><button class="btn btn-primary" style="padding: 0.35rem; font-size: 11px; flex:1;" onclick="toggleEditPlayer('${p.id}')">✏️</button><button class="btn btn-danger" style="padding: 0.35rem; font-size: 11px; flex:1;" onclick="deletePlayer('${p.id}')">🗑️</button></td></tr>`).join('')}
                     </table></div>`;
                 }
                 
@@ -273,7 +287,7 @@
                     html += `<div style="margin-top: 1rem;"><h3 style="font-size: 14px; margin-bottom: 0.5rem;">🥅 Torwarte (${torwarte.length})</h3>
                     <table style="font-size: 13px;">
                         <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th></th></tr>
-                        ${torwarte.map(p => `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td><button class="btn btn-danger" style="padding: 0.5rem; font-size: 11px;" onclick="deletePlayer('${p.id}')">🗑️</button></td></tr>`).join('')}
+                        ${torwarte.map(p => `<tr><td><b>${p.number}</b></td><td><span id="name_${p.id}">${p.name}</span><input id="edit_${p.id}" type="text" value="${p.name}" style="display:none; width:100%; padding:0.25rem;"></td><td style="display:flex; gap:0.25rem;"><button class="btn btn-primary" style="padding: 0.35rem; font-size: 11px; flex:1;" onclick="toggleEditPlayer('${p.id}')">✏️</button><button class="btn btn-danger" style="padding: 0.35rem; font-size: 11px; flex:1;" onclick="deletePlayer('${p.id}')">🗑️</button></td></tr>`).join('')}
                     </table></div>`;
                 }
             }
@@ -281,8 +295,225 @@
             container.innerHTML = html;
         }
         
+        function toggleEditPlayer(playerId) {
+            const nameSpan = document.getElementById('name_' + playerId);
+            const editInput = document.getElementById('edit_' + playerId);
+            
+            if (editInput.style.display === 'none') {
+                // Bearbeitungsmodus ein
+                nameSpan.style.display = 'none';
+                editInput.style.display = 'block';
+                editInput.focus();
+                
+                // Speichern bei Enter oder Fokus verlieren
+                editInput.onkeypress = (e) => {
+                    if (e.key === 'Enter') savePlayerName(playerId);
+                };
+                editInput.onblur = () => savePlayerName(playerId);
+            }
+        }
+        
+        async function savePlayerName(playerId) {
+            const editInput = document.getElementById('edit_' + playerId);
+            const newName = editInput.value.trim();
+            
+            if (!newName) {
+                showToast('❌ Name darf nicht leer sein');
+                renderPlayersList();
+                return;
+            }
+            
+            try {
+                const { error } = await sbClient
+                    .from('players')
+                    .update({ name: newName })
+                    .eq('id', playerId);
+                
+                if (error) throw error;
+                
+                const player = players.find(p => p.id === playerId);
+                if (player) player.name = newName;
+                
+                renderPlayersList();
+                showToast('✅ Name aktualisiert');
+            } catch (err) {
+                console.error('Error saving player name:', err);
+                showToast('❌ Fehler beim Speichern');
+                renderPlayersList();
+            }
+        }
+        
         function toggleAddPlayerForm() {
             const form = document.getElementById('addPlayerForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // =====================================================
+        // COACHES
+        // =====================================================
+        async function loadCoaches() {
+            try {
+                const { data, error } = await sbClient
+                    .from('coaches')
+                    .select('*')
+                    .order('designation', { ascending: true });
+                
+                if (error) throw error;
+                coaches = data || [];
+                renderCoachesList();
+            } catch (err) {
+                console.error('Error loading coaches:', err);
+            }
+        }
+        
+        async function addCoach() {
+            const designation = document.getElementById('newCoachDesignation').value;
+            const name = document.getElementById('newCoachName').value;
+            
+            if (!designation || !name) {
+                showToast('❌ Bezeichnung und Name erforderlich');
+                return;
+            }
+            
+            if (coaches.some(c => c.designation === designation)) {
+                showToast('❌ Diese Bezeichnung existiert bereits');
+                return;
+            }
+            
+            try {
+                const newCoach = {
+                    id: 'c_' + Date.now(),
+                    designation: designation.toUpperCase(),
+                    name: name
+                };
+                
+                const { data, error } = await sbClient
+                    .from('coaches')
+                    .insert([newCoach])
+                    .select();
+                
+                if (error) throw error;
+                
+                coaches.push(newCoach);
+                coaches.sort((a, b) => a.designation.localeCompare(b.designation));
+                
+                document.getElementById('newCoachDesignation').value = '';
+                document.getElementById('newCoachName').value = '';
+                
+                renderCoachesList();
+                showToast('✅ Betreuer gespeichert');
+            } catch (err) {
+                console.error('Error adding coach:', err);
+                showToast('❌ Fehler beim Speichern');
+            }
+        }
+        
+        async function deleteCoach(coachId) {
+            if (!confirm('Betreuer wirklich löschen?')) return;
+            
+            try {
+                const { error } = await sbClient
+                    .from('coaches')
+                    .delete()
+                    .eq('id', coachId);
+                
+                if (error) throw error;
+                coaches = coaches.filter(c => c.id !== coachId);
+                renderCoachesList();
+                showToast('✅ Betreuer gelöscht');
+            } catch (err) {
+                console.error('Error deleting coach:', err);
+                showToast('❌ Fehler beim Löschen');
+            }
+        }
+        
+        function renderCoachesList() {
+            const container = document.getElementById('coachesList');
+            
+            let html = `
+                <div style="margin-bottom: 1rem;">
+                    <button class="btn btn-primary" style="width: 100%;" onclick="toggleAddCoachForm()">➕ Neuen Betreuer hinzufügen</button>
+                </div>
+                
+                <div id="addCoachForm" style="display:none; background:#f9f9f9; padding:1rem; border-radius:4px; margin-bottom:1rem;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Bezeichnung (A/B/C/D)</label>
+                            <input type="text" id="newCoachDesignation" placeholder="z.B. A" maxlength="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" id="newCoachName" placeholder="z.B. Max Müller">
+                        </div>
+                    </div>
+                    <button class="btn btn-success" style="width: 100%;" onclick="addCoach()">✅ Hinzufügen</button>
+                </div>
+            `;
+            
+            if (coaches.length === 0) {
+                html += '<div class="empty-state">Noch keine Betreuer</div>';
+            } else {
+                html += `
+                    <table style="font-size: 13px;">
+                        <tr style="background: #f5f5f5;"><th>Bez.</th><th>Name</th><th></th></tr>
+                        ${coaches.map(c => `<tr><td><b>${c.designation}</b></td><td><span id="coach_name_${c.id}">${c.name}</span><input id="coach_edit_${c.id}" type="text" value="${c.name}" style="display:none; width:100%; padding:0.25rem;"></td><td style="display:flex; gap:0.25rem;"><button class="btn btn-primary" style="padding: 0.35rem; font-size: 11px; flex:1;" onclick="toggleEditCoach('${c.id}')">✏️</button><button class="btn btn-danger" style="padding: 0.35rem; font-size: 11px; flex:1;" onclick="deleteCoach('${c.id}')">🗑️</button></td></tr>`).join('')}
+                    </table>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        function toggleEditCoach(coachId) {
+            const nameSpan = document.getElementById('coach_name_' + coachId);
+            const editInput = document.getElementById('coach_edit_' + coachId);
+            
+            if (editInput.style.display === 'none') {
+                // Bearbeitungsmodus ein
+                nameSpan.style.display = 'none';
+                editInput.style.display = 'block';
+                editInput.focus();
+                
+                // Speichern bei Enter oder Fokus verlieren
+                editInput.onkeypress = (e) => {
+                    if (e.key === 'Enter') saveCoachName(coachId);
+                };
+                editInput.onblur = () => saveCoachName(coachId);
+            }
+        }
+        
+        async function saveCoachName(coachId) {
+            const editInput = document.getElementById('coach_edit_' + coachId);
+            const newName = editInput.value.trim();
+            
+            if (!newName) {
+                showToast('❌ Name darf nicht leer sein');
+                renderCoachesList();
+                return;
+            }
+            
+            try {
+                const { error } = await sbClient
+                    .from('coaches')
+                    .update({ name: newName })
+                    .eq('id', coachId);
+                
+                if (error) throw error;
+                
+                const coach = coaches.find(c => c.id === coachId);
+                if (coach) coach.name = newName;
+                
+                renderCoachesList();
+                showToast('✅ Name aktualisiert');
+            } catch (err) {
+                console.error('Error saving coach name:', err);
+                showToast('❌ Fehler beim Speichern');
+                renderCoachesList();
+            }
+        }
+        
+        function toggleAddCoachForm() {
+            const form = document.getElementById('addCoachForm');
             form.style.display = form.style.display === 'none' ? 'block' : 'none';
         }
         
@@ -716,6 +947,7 @@
             if (button && button.classList) button.classList.add('active');
             
             if (tabName === 'spieler') renderPlayersList();
+            if (tabName === 'betreuer') renderCoachesList();
             if (tabName === 'erfassung') renderErlassung();
         }
         
@@ -729,6 +961,109 @@
             toast.textContent = msg;
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+        
+        // =====================================================
+        // EXCEL IMPORT
+        // =====================================================
+        async function importExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            try {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Verarbeite "Spieler" Blatt
+                    if (workbook.SheetNames.includes('Spieler')) {
+                        const spielerSheet = XLSX.utils.sheet_to_json(workbook.Sheets['Spieler']);
+                        await importPlayers(spielerSheet);
+                    }
+                    
+                    // Verarbeite "Betreuer" Blatt
+                    if (workbook.SheetNames.includes('Betreuer')) {
+                        const betreurerSheet = XLSX.utils.sheet_to_json(workbook.Sheets['Betreuer']);
+                        await importCoaches(betreurerSheet);
+                    }
+                    
+                    loadPlayers();
+                };
+                reader.readAsArrayBuffer(file);
+            } catch (err) {
+                console.error('Excel import error:', err);
+                showToast('❌ Fehler beim Excel-Import');
+            }
+        }
+        
+        async function importPlayers(spielerData) {
+            if (!spielerData || spielerData.length === 0) {
+                showToast('❌ Keine Spieler in der Excel-Datei');
+                return;
+            }
+            
+            try {
+                const newPlayers = spielerData
+                    .filter(row => row.Nummer && row.Name && row.Position)
+                    .map(row => ({
+                        id: 'p_' + Date.now() + '_' + Math.random(),
+                        number: parseInt(row.Nummer),
+                        name: row.Name.trim(),
+                        position: row.Position.trim()
+                    }));
+                
+                if (newPlayers.length === 0) {
+                    showToast('❌ Keine gültigen Spieler gefunden (braucht: Nummer, Name, Position)');
+                    return;
+                }
+                
+                // Batch-Insert
+                const { error } = await sbClient
+                    .from('players')
+                    .insert(newPlayers);
+                
+                if (error) throw error;
+                
+                players = [...players, ...newPlayers];
+                players.sort((a, b) => a.number - b.number);
+                
+                showToast(`✅ ${newPlayers.length} Spieler importiert!`);
+            } catch (err) {
+                console.error('Error importing players:', err);
+                showToast('❌ Fehler beim Spieler-Import');
+            }
+        }
+        
+        async function importCoaches(coachesData) {
+            if (!coachesData || coachesData.length === 0) {
+                return;
+            }
+            
+            try {
+                const newCoaches = coachesData
+                    .filter(row => row.Designation && row.Name)
+                    .map(row => ({
+                        id: 'c_' + Date.now() + '_' + Math.random(),
+                        designation: row.Designation.trim(),
+                        name: row.Name.trim()
+                    }));
+                
+                if (newCoaches.length === 0) {
+                    return;
+                }
+                
+                const { error } = await sbClient
+                    .from('coaches')
+                    .insert(newCoaches);
+                
+                if (error) throw error;
+                
+                showToast(`✅ ${newCoaches.length} Betreuer importiert!`);
+            } catch (err) {
+                console.error('Error importing coaches:', err);
+                showToast('⚠️ Betreuer-Import fehlgeschlagen');
+            }
         }
     </script>
 </body>
