@@ -769,12 +769,20 @@
             }
             
             try {
+                // Lade Kader
                 const { data: squadData } = await sbClient
                     .from('game_squads')
                     .select('player_id')
                     .eq('game_id', currentGame.id);
                 
                 const kaderIds = squadData ? squadData.map(s => s.player_id) : [];
+                
+                // Wenn kein Kader → zeige Kader-Auswahl
+                if (kaderIds.length === 0) {
+                    renderKaderSelection();
+                    return;
+                }
+                
                 const kaderSpieler = kaderIds.map(pId => players.find(p => p.id === pId)).filter(p => p);
                 
                 const { data: oppStats } = await sbClient
@@ -832,6 +840,9 @@
                                 </button>
                             `).join('')}
                         </div>
+                        <div style="margin-top: 1rem;">
+                            <button class="btn btn-primary" style="width: 100%;" onclick="renderKaderSelection()">🔄 Kader ändern</button>
+                        </div>
                     </div>
                     
                     ${playerStatsHtml}
@@ -846,7 +857,7 @@
                     </div>
                     
                     <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
-                        <button class="btn btn-primary" style="flex: 1;" onclick="switchTab(document.querySelector('[onclick*=spiele]'), 'spiele')">← Zurück</button>
+                        <button class="btn btn-primary" style="flex: 1;" onclick="switchTab(document.querySelector('[onclick*=spiele]'), 'spiele')">← Spiele</button>
                     </div>
                 `;
                 
