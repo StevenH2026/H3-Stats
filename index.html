@@ -967,7 +967,7 @@
                                         <div class="player-grid">
                                             ${feldspieler.map(p => `
                                                 <button class="player-btn ${selectedPlayer?.id === p.id ? 'selected' : ''}" 
-                                                        onclick="selectedPlayer = players.find(x => x.id === '${p.id}'); renderErlassung()">
+                                                        onclick="selectedPlayer = players.find(x => x.id === '${p.id}'); selectedCoach = null; renderErlassung()">
                                                     <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
                                                     <div class="player-name">${p.name}</div>
                                                 </button>
@@ -984,7 +984,7 @@
                                         <div class="player-grid">
                                             ${torwarte.map(p => `
                                                 <button class="player-btn ${selectedPlayer?.id === p.id ? 'selected' : ''}" 
-                                                        onclick="selectedPlayer = players.find(x => x.id === '${p.id}'); renderErlassung()">
+                                                        onclick="selectedPlayer = players.find(x => x.id === '${p.id}'); selectedCoach = null; renderErlassung()">
                                                     <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
                                                     <div class="player-name">${p.name}</div>
                                                 </button>
@@ -1003,7 +1003,7 @@
                                 <div class="player-grid">
                                     ${gameCoaches.map(c => `
                                         <button class="player-btn ${selectedCoach?.id === c.id ? 'selected' : ''}" 
-                                                onclick="selectedCoach = coaches.find(x => x.id === '${c.id}'); renderErlassung()">
+                                                onclick="selectedCoach = coaches.find(x => x.id === '${c.id}'); selectedPlayer = null; renderErlassung()">
                                             <div style="font-size: 14px; font-weight: bold;">${c.designation}</div>
                                             <div class="player-name">${c.name}</div>
                                         </button>
