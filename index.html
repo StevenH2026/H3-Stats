@@ -1132,18 +1132,25 @@
                     .select('*')
                     .eq('game_id', currentGame.id);
                 
-                const { data: oppData } = await sbClient
-                    .from('opponent_stats')
-                    .select('*')
-                    .eq('game_id', currentGame.id);
-                
                 const stats = allStats || [];
-                const opponent = (oppData && oppData.length > 0) ? oppData[0] : { fehlwurfe: 0, tech_fehler: 0 };
                 
-                const totTore = stats.reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0), 0);
-                const totGegenTore = stats.reduce((s, st) => s + (st.fehlwurfe || 0), 0);
-                const totFehlwurfe = stats.reduce((s, st) => s + (st.fehlwurfe || 0) + (st.fehlwurfe7m || 0), 0);
+                // Trenne Feldspieler und Torwarte
+                const feldspieler = stats.filter(s => {
+                    const player = players.find(p => p.id === s.player_id);
+                    return player && player.position === 'Feld';
+                });
+                
+                const torwarte = stats.filter(s => {
+                    const player = players.find(p => p.id === s.player_id);
+                    return player && player.position === 'Torwart';
+                });
+                
+                // Berechne Stats
+                const totTore = feldspieler.reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0), 0);
+                const totGegenTore = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0), 0);
+                const totFehlwurfe = feldspieler.reduce((s, st) => s + (st.fehlwurfe || 0) + (st.fehlwurfe7m || 0), 0);
                 const totTechFehler = stats.reduce((s, st) => s + (st.tech_fehler || 0), 0);
+                const totParaden = torwarte.reduce((s, st) => s + (st.paraden || 0) + (st.paraden_7m || 0), 0);
                 
                 let html = `
                     <div class="card" style="background: linear-gradient(135deg, #185fa5, #378add); color: white;">
@@ -1166,20 +1173,22 @@
                     <div class="card">
                         <div class="card-title">📊 Spiel-Übersicht</div>
                         <table style="font-size: 13px; width: 100%;">
-                            <tr><td><b>Feldtore:</b></td><td>${stats.reduce((s, st) => s + (st.tore || 0), 0)}</td></tr>
-                            <tr><td><b>7m-Tore:</b></td><td>${stats.reduce((s, st) => s + (st.tore7m || 0), 0)}</td></tr>
+                            <tr><td><b>Feldtore:</b></td><td>${feldspieler.reduce((s, st) => s + (st.tore || 0), 0)}</td></tr>
+                            <tr><td><b>7m-Tore:</b></td><td>${feldspieler.reduce((s, st) => s + (st.tore7m || 0), 0)}</td></tr>
                             <tr><td><b>Fehlwürfe:</b></td><td>${totFehlwurfe}</td></tr>
-                            <tr><td><b>Tech.Fehler (Wir):</b></td><td>${totTechFehler}</td></tr>
-                            <tr><td><b>Tech.Fehler (Gegner):</b></td><td>${opponent.tech_fehler}</td></tr>
                             <tr><td><b>Wurfquote:</b></td><td>${((totTore / (totTore + totFehlwurfe) * 100) || 0).toFixed(1)}%</td></tr>
+                            <tr style="border-top: 1px solid #ddd;"><td><b>Paraden (TW):</b></td><td>${totParaden}</td></tr>
+                            <tr><td><b>Gegentore (TW):</b></td><td>${totGegenTore}</td></tr>
+                            <tr><td><b>Tech.Fehler:</b></td><td>${totTechFehler}</td></tr>
                         </table>
                     </div>
                     
                     <div class="card">
-                        <div class="card-title">👥 Spieler-Ranking</div>
+                        <div class="card-title">⚽ Feldspieler-Ranking</div>
                         <table style="font-size: 12px; width: 100%;">
                             <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehler</th><th>Quote</th></tr>
-                            ${stats
+                            ${feldspieler
+                                .sort((a, b) => ((b.tore || 0) + (b.tore7m || 0)) - ((a.tore || 0) + (a.tore7m || 0)))
                                 .map(s => {
                                     const p = players.find(pl => pl.id === s.player_id);
                                     if (!p) return '';
@@ -1187,6 +1196,25 @@
                                     const fehler = (s.fehlwurfe || 0) + (s.fehlwurfe7m || 0);
                                     const quote = ((tore / (tore + fehler) * 100) || 0).toFixed(0);
                                     return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${fehler}</td><td>${quote}%</td></tr>`;
+                                })
+                                .join('')}
+                        </table>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">🥅 Torwart-Statistik</div>
+                        <table style="font-size: 12px; width: 100%;">
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Gegentore</th><th>Quote</th></tr>
+                            ${torwarte
+                                .sort((a, b) => ((b.paraden || 0) + (b.paraden_7m || 0)) - ((a.paraden || 0) + (a.paraden_7m || 0)))
+                                .map(s => {
+                                    const p = players.find(pl => pl.id === s.player_id);
+                                    if (!p) return '';
+                                    const paraden = (s.paraden || 0) + (s.paraden_7m || 0);
+                                    const gegentore = (s.gegentore || 0) + (s.gegentore_7m || 0);
+                                    const gesamtschuesse = paraden + gegentore;
+                                    const quote = ((paraden / gesamtschuesse * 100) || 0).toFixed(0);
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${gegentore}</td><td>${quote}%</td></tr>`;
                                 })
                                 .join('')}
                         </table>
@@ -1223,11 +1251,22 @@
                 for (const game of gameList) {
                     const { data: stats } = await sbClient
                         .from('player_stats')
-                        .select('tore, tore7m, fehlwurfe')
+                        .select('*')
                         .eq('game_id', game.id);
                     
-                    const totTore = (stats || []).reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0), 0);
-                    const totGegenTore = (stats || []).reduce((s, st) => s + (st.fehlwurfe || 0), 0);
+                    const allStats = stats || [];
+                    const torwarte = allStats.filter(s => {
+                        const p = players.find(pl => pl.id === s.player_id);
+                        return p && p.position === 'Torwart';
+                    });
+                    
+                    const feldspieler = allStats.filter(s => {
+                        const p = players.find(pl => pl.id === s.player_id);
+                        return p && p.position === 'Feld';
+                    });
+                    
+                    const totTore = feldspieler.reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0), 0);
+                    const totGegenTore = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0), 0);
                     
                     let result = totTore > totGegenTore ? '✅ Gewonnen' : (totTore < totGegenTore ? '❌ Verloren' : '🔄 Unentschieden');
                     
@@ -1248,11 +1287,22 @@
                 for (const game of gameList) {
                     const { data: stats } = await sbClient
                         .from('player_stats')
-                        .select('tore, tore7m, fehlwurfe')
+                        .select('*')
                         .eq('game_id', game.id);
                     
-                    const totTore = (stats || []).reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0), 0);
-                    const totGegenTore = (stats || []).reduce((s, st) => s + (st.fehlwurfe || 0), 0);
+                    const allStats = stats || [];
+                    const torwarte = allStats.filter(s => {
+                        const p = players.find(pl => pl.id === s.player_id);
+                        return p && p.position === 'Torwart';
+                    });
+                    
+                    const feldspieler = allStats.filter(s => {
+                        const p = players.find(pl => pl.id === s.player_id);
+                        return p && p.position === 'Feld';
+                    });
+                    
+                    const totTore = feldspieler.reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0), 0);
+                    const totGegenTore = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0), 0);
                     
                     totalTore += totTore;
                     totalGegenTore += totGegenTore;
