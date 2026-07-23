@@ -59,6 +59,8 @@
     <div class="nav">
         <button class="nav-btn active" onclick="switchTab(this, 'spiele')">📋 Spiele</button>
         <button class="nav-btn" onclick="switchTab(this, 'erfassung')">📊 Erfassung</button>
+        <button class="nav-btn" onclick="switchTab(this, 'spielstat')">📈 Spiel-Statistik</button>
+        <button class="nav-btn" onclick="switchTab(this, 'saisonstat')">🏆 Saison-Statistik</button>
         <button class="nav-btn" onclick="switchTab(this, 'spieler')">👥 Spieler</button>
         <button class="nav-btn" onclick="switchTab(this, 'betreuer')">🎯 Betreuer</button>
     </div>
@@ -82,15 +84,9 @@
                         <input type="time" id="gameTime">
                     </div>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div class="form-group">
-                        <label>Ort</label>
-                        <input type="text" id="gameLocation" placeholder="z.B. Viernheim">
-                    </div>
-                    <div class="form-group">
-                        <label>Liga</label>
-                        <input type="text" id="gameLeague" placeholder="z.B. 3. Liga">
-                    </div>
+                <div class="form-group">
+                    <label>Ort</label>
+                    <input type="text" id="gameLocation" placeholder="z.B. Viernheim">
                 </div>
                 <button class="btn btn-primary" style="width: 100%;" onclick="startNewGame()">🆕 Spiel erstellen</button>
             </div>
@@ -104,6 +100,16 @@
         <!-- TAB: ERFASSUNG -->
         <div id="erfassung" class="tab">
             <div id="erfassungContent"></div>
+        </div>
+        
+        <!-- TAB: SPIEL-STATISTIK -->
+        <div id="spielstat" class="tab">
+            <div id="spielstatContent"></div>
+        </div>
+        
+        <!-- TAB: SAISON-STATISTIK -->
+        <div id="saisonstat" class="tab">
+            <div id="saisonstatContent"></div>
         </div>
         
         <!-- TAB: SPIELER -->
@@ -545,7 +551,6 @@
             const date = document.getElementById('gameDate').value;
             const time = document.getElementById('gameTime').value;
             const location = document.getElementById('gameLocation').value;
-            const league = document.getElementById('gameLeague').value;
             
             if (!opponent || !date) {
                 showToast('❌ Gegner und Datum erforderlich');
@@ -555,7 +560,7 @@
             try {
                 const newGame = {
                     id: 'game_' + Date.now(),
-                    opponent, date, time, location, league,
+                    opponent, date, time, location,
                     created_at: new Date().toISOString()
                 };
                 
@@ -573,7 +578,6 @@
                 document.getElementById('gameDate').value = '';
                 document.getElementById('gameTime').value = '';
                 document.getElementById('gameLocation').value = '';
-                document.getElementById('gameLeague').value = '';
                 
                 renderGamesList();
                 showToast('✅ Spiel erstellt!');
@@ -768,7 +772,33 @@
                 
                 const opponentStats = oppStats || { fehlwurfe: 0, tech_fehler: 0 };
                 
+                // Berechne aktuelle Tore
+                const allStats = await sbClient
+                    .from('player_stats')
+                    .select('tore, tore7m, fehlwurfe')
+                    .eq('game_id', currentGame.id);
+                
+                const totTore = (allStats.data || []).reduce((sum, s) => sum + (s.tore || 0) + (s.tore7m || 0), 0);
+                const totGegenTore = (allStats.data || []).reduce((sum, s) => sum + (s.fehlwurfe || 0), 0);
+                
                 let html = `
+                    <div class="card" style="background: linear-gradient(135deg, #185fa5, #378add); color: white; margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-around; align-items: center;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 32px; font-weight: bold;">${totTore}</div>
+                                <div style="font-size: 12px;">Wir</div>
+                            </div>
+                            <div style="text-align: center; font-size: 14px;">
+                                <div style="font-size: 14px; opacity: 0.8;">vs</div>
+                                <div style="font-size: 14px; font-weight: bold;">${currentGame.opponent}</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 32px; font-weight: bold;">${totGegenTore}</div>
+                                <div style="font-size: 12px;">Gegner</div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="card">
                         <div class="card-title">⚽ ${currentGame.opponent}</div>
                     </div>
@@ -950,6 +980,178 @@
             if (tabName === 'spieler') renderPlayersList();
             if (tabName === 'betreuer') renderCoachesList();
             if (tabName === 'erfassung') renderErlassung();
+            if (tabName === 'spielstat') renderSpielStatistik();
+            if (tabName === 'saisonstat') renderSaisonStatistik();
+        }
+        
+        // =====================================================
+        // STATISTIK - EINZELNES SPIEL
+        // =====================================================
+        async function renderSpielStatistik() {
+            const container = document.getElementById('spielstatContent');
+            
+            if (!currentGame) {
+                container.innerHTML = '<div class="card empty-state">Kein Spiel ausgewählt</div>';
+                return;
+            }
+            
+            try {
+                const { data: allStats } = await sbClient
+                    .from('player_stats')
+                    .select('*')
+                    .eq('game_id', currentGame.id);
+                
+                const { data: oppStats } = await sbClient
+                    .from('opponent_stats')
+                    .select('*')
+                    .eq('game_id', currentGame.id)
+                    .single();
+                
+                const stats = allStats || [];
+                const opponent = oppStats || { fehlwurfe: 0, tech_fehler: 0 };
+                
+                const totTore = stats.reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0), 0);
+                const totGegenTore = stats.reduce((s, st) => s + (st.fehlwurfe || 0), 0);
+                const totFehlwurfe = stats.reduce((s, st) => s + (st.fehlwurfe || 0) + (st.fehlwurfe7m || 0), 0);
+                const totTechFehler = stats.reduce((s, st) => s + (st.tech_fehler || 0), 0);
+                
+                let html = `
+                    <div class="card" style="background: linear-gradient(135deg, #185fa5, #378add); color: white;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 14px; opacity: 0.9;">${currentGame.opponent}</div>
+                            <div style="display: flex; justify-content: space-around; align-items: center; margin-top: 1rem;">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 36px; font-weight: bold;">${totTore}</div>
+                                    <div style="font-size: 12px;">Tore</div>
+                                </div>
+                                <div style="text-align: center; opacity: 0.7;">vs</div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 36px; font-weight: bold;">${totGegenTore}</div>
+                                    <div style="font-size: 12px;">Gegentore</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">📊 Spiel-Übersicht</div>
+                        <table style="font-size: 13px; width: 100%;">
+                            <tr><td><b>Feldtore:</b></td><td>${stats.reduce((s, st) => s + (st.tore || 0), 0)}</td></tr>
+                            <tr><td><b>7m-Tore:</b></td><td>${stats.reduce((s, st) => s + (st.tore7m || 0), 0)}</td></tr>
+                            <tr><td><b>Fehlwürfe:</b></td><td>${totFehlwurfe}</td></tr>
+                            <tr><td><b>Tech.Fehler (Wir):</b></td><td>${totTechFehler}</td></tr>
+                            <tr><td><b>Tech.Fehler (Gegner):</b></td><td>${opponent.tech_fehler}</td></tr>
+                            <tr><td><b>Wurfquote:</b></td><td>${((totTore / (totTore + totFehlwurfe) * 100) || 0).toFixed(1)}%</td></tr>
+                        </table>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">👥 Spieler-Ranking</div>
+                        <table style="font-size: 12px; width: 100%;">
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehler</th><th>Quote</th></tr>
+                            ${stats
+                                .map(s => {
+                                    const p = players.find(pl => pl.id === s.player_id);
+                                    if (!p) return '';
+                                    const tore = (s.tore || 0) + (s.tore7m || 0);
+                                    const fehler = (s.fehlwurfe || 0) + (s.fehlwurfe7m || 0);
+                                    const quote = ((tore / (tore + fehler) * 100) || 0).toFixed(0);
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${fehler}</td><td>${quote}%</td></tr>`;
+                                })
+                                .join('')}
+                        </table>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+            } catch (err) {
+                console.error('Error rendering game stats:', err);
+                container.innerHTML = '<div class="card empty-state">Fehler beim Laden</div>';
+            }
+        }
+        
+        // =====================================================
+        // STATISTIK - SAISON
+        // =====================================================
+        async function renderSaisonStatistik() {
+            const container = document.getElementById('saisonstatContent');
+            
+            try {
+                const { data: allGames } = await sbClient
+                    .from('games')
+                    .select('*');
+                
+                const gameList = allGames || [];
+                
+                let html = `
+                    <div class="card">
+                        <div class="card-title">🏆 Saison-Statistik</div>
+                        <table style="font-size: 12px;">
+                            <tr style="background: #f5f5f5;"><th>Gegner</th><th>Datum</th><th>Tore</th><th>Gegentore</th><th>Ergebnis</th></tr>
+                `;
+                
+                for (const game of gameList) {
+                    const { data: stats } = await sbClient
+                        .from('player_stats')
+                        .select('tore, tore7m, fehlwurfe')
+                        .eq('game_id', game.id);
+                    
+                    const totTore = (stats || []).reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0), 0);
+                    const totGegenTore = (stats || []).reduce((s, st) => s + (st.fehlwurfe || 0), 0);
+                    
+                    let result = totTore > totGegenTore ? '✅ Gewonnen' : (totTore < totGegenTore ? '❌ Verloren' : '🔄 Unentschieden');
+                    
+                    html += `<tr>
+                        <td><b>${game.opponent}</b></td>
+                        <td>${new Date(game.date).toLocaleDateString('de-DE')}</td>
+                        <td>${totTore}</td>
+                        <td>${totGegenTore}</td>
+                        <td>${result}</td>
+                    </tr>`;
+                }
+                
+                html += `</table></div>`;
+                
+                // Zusammenfassung
+                let totalWins = 0, totalLoss = 0, totalDraw = 0, totalTore = 0, totalGegenTore = 0;
+                
+                for (const game of gameList) {
+                    const { data: stats } = await sbClient
+                        .from('player_stats')
+                        .select('tore, tore7m, fehlwurfe')
+                        .eq('game_id', game.id);
+                    
+                    const totTore = (stats || []).reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0), 0);
+                    const totGegenTore = (stats || []).reduce((s, st) => s + (st.fehlwurfe || 0), 0);
+                    
+                    totalTore += totTore;
+                    totalGegenTore += totGegenTore;
+                    
+                    if (totTore > totGegenTore) totalWins++;
+                    else if (totTore < totGegenTore) totalLoss++;
+                    else totalDraw++;
+                }
+                
+                html += `
+                    <div class="card">
+                        <div class="card-title">📈 Übersicht</div>
+                        <table style="font-size: 13px;">
+                            <tr><td><b>Spiele:</b></td><td>${gameList.length}</td></tr>
+                            <tr><td><b>Siege:</b></td><td>${totalWins}</td></tr>
+                            <tr><td><b>Niederlagen:</b></td><td>${totalLoss}</td></tr>
+                            <tr><td><b>Unentschieden:</b></td><td>${totalDraw}</td></tr>
+                            <tr><td><b>Tore gesamt:</b></td><td>${totalTore}</td></tr>
+                            <tr><td><b>Gegentore gesamt:</b></td><td>${totalGegenTore}</td></tr>
+                            <tr><td><b>Torquote:</b></td><td>${(totalTore / gameList.length).toFixed(1)} pro Spiel</td></tr>
+                        </table>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+            } catch (err) {
+                console.error('Error rendering season stats:', err);
+                container.innerHTML = '<div class="card empty-state">Fehler beim Laden</div>';
+            }
         }
         
         function setDefaultDate() {
