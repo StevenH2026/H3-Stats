@@ -943,19 +943,27 @@
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">🛡️ Paraden</div>
                                 <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore', 1)">Parade +1</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore7m', 1)">7m-Parade +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'paraden', 1)">Parade +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'paraden_7m', 1)">7m-Parade +1</button>
                                 </div>
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Paraden: ${stats.tore} | 7m: ${stats.tore7m}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Paraden: ${stats.paraden || 0} | 7m: ${stats.paraden_7m || 0}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
-                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #e24b4a;">⚽ Gegentore</div>
+                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #e24b4a;">❌ Gegentore</div>
                                 <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe', 1)">Gegentor +1</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe7m', 1)">7m-Gegentor +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'gegentore', 1)">Gegentor +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'gegentore_7m', 1)">7m-Gegentor +1</button>
                                 </div>
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Gegentore: ${stats.fehlwurfe} | 7m: ${stats.fehlwurfe7m}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gegentore: ${stats.gegentore || 0} | 7m: ${stats.gegentore_7m || 0}</div>
+                            </div>
+                            
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">⚠️ Fehler</div>
+                                <div class="stat-grid">
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tech_fehler', 1)">Tech.Fehler +1</button>
+                                </div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0}</div>
                             </div>
                         </div>
                     `;
@@ -1021,7 +1029,14 @@
                     .eq('player_id', playerId);
                 
                 // Logge Aktion
-                const actionMap = {
+                const isTorwart = player?.position === 'Torwart';
+                const actionMap = isTorwart ? {
+                    'paraden': '🛡️ Parade',
+                    'gegentore': '❌ Gegentor',
+                    'paraden_7m': '7️⃣ 7m-Parade',
+                    'gegentore_7m': '7️⃣ 7m-Gegentor',
+                    'tech_fehler': '🚫 Tech.Fehler'
+                } : {
                     'tore': '⚽ Tor',
                     'tore7m': '7️⃣ 7m-Tor',
                     'assists': '🤝 Assist',
