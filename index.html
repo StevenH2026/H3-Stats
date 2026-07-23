@@ -49,19 +49,16 @@
         .toast.show { display: block; }
         
         .empty-state { text-align: center; padding: 2rem; color: #999; }
-        .loading { text-align: center; padding: 2rem; color: #999; }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>🏐 H3-Stats</h1>
-        <div id="userInfo"></div>
     </div>
     
     <div class="nav">
         <button class="nav-btn active" onclick="switchTab(this, 'spiele')">📋 Spiele</button>
         <button class="nav-btn" onclick="switchTab(this, 'erfassung')">📊 Erfassung</button>
-        <button class="nav-btn" onclick="switchTab(this, 'statistik')">📈 Statistik</button>
         <button class="nav-btn" onclick="switchTab(this, 'spieler')">👥 Mannschaft</button>
     </div>
     
@@ -99,7 +96,7 @@
             
             <div class="card">
                 <div class="card-title">📋 Meine Spiele</div>
-                <div id="gamesList" class="loading">Laden...</div>
+                <div id="gamesList"></div>
             </div>
         </div>
         
@@ -108,16 +105,11 @@
             <div id="erfassungContent"></div>
         </div>
         
-        <!-- TAB: STATISTIK -->
-        <div id="statistik" class="tab">
-            <div id="statistikContent"></div>
-        </div>
-        
         <!-- TAB: SPIELER -->
         <div id="spieler" class="tab">
             <div class="card">
                 <div class="card-title">👥 Spielerverwaltung</div>
-                <div id="playersList" class="loading">Laden...</div>
+                <div id="playersList"></div>
             </div>
         </div>
     </div>
@@ -125,20 +117,11 @@
     <div class="toast" id="toast"></div>
     
     <script>
-        // =====================================================
-        // STATE
-        // =====================================================
-        let db = null;
+        let sbClient = null;
         let players = [];
         let games = [];
         let currentGame = null;
-        let gameKader = {};
         let selectedPlayer = null;
-        
-        // =====================================================
-        // SUPABASE
-        // =====================================================
-        let sbClient = null;
         
         async function initSupabase() {
             try {
@@ -147,104 +130,35 @@
                     'https://hlhvipsfpamicwilmusw.supabase.co',
                     'sb_publishable_58jhuq4EIWrYT-lpQ_Hrxw_e5sqNaUE'
                 );
-                console.log('✅ Supabase ready');
+                console.log('✅ Supabase connected');
+                return true;
             } catch (err) {
-                console.error('Supabase init error:', err);
+                console.error('Supabase error:', err);
+                return false;
             }
         }
         
-        // =====================================================
-        // INIT
-        // =====================================================
         window.addEventListener('load', async () => {
             await initSupabase();
-            initDB();
             loadPlayers();
             loadGames();
             setDefaultDate();
         });
         
-        // =====================================================
-        // INDEXEDDB
-        // =====================================================
-        function initDB() {
-            return new Promise((resolve) => {
-                const req = indexedDB.open('HandballDB', 1);
-                req.onupgradeneeded = (e) => {
-                    const db = e.target.result;
-                    if (!db.objectStoreNames.contains('games')) {
-                        db.createObjectStore('games', { keyPath: 'id' });
-                    }
-                    if (!db.objectStoreNames.contains('players')) {
-                        db.createObjectStore('players', { keyPath: 'id' });
-                    }
-                };
-                req.onsuccess = () => {
-                    db = req.result;
-                    resolve();
-                };
-            });
-        }
-        
-        function saveToDb(storeName, data) {
-            return new Promise((resolve) => {
-                const tx = db.transaction([storeName], 'readwrite');
-                tx.objectStore(storeName).put(data);
-                tx.oncomplete = resolve;
-            });
-        }
-        
-        function loadFromDb(storeName) {
-            return new Promise((resolve) => {
-                const tx = db.transaction([storeName], 'readonly');
-                const req = tx.objectStore(storeName).getAll();
-                req.onsuccess = () => resolve(req.result);
-            });
-        }
-        
-        // =====================================================
-        // PLAYERS
-        // =====================================================
         async function loadPlayers() {
             try {
-                if (sbClient) {
-                    const { data, error } = await sbClient
-                        .from('players')
-                        .select('*')
-                        .order('number', { ascending: true });
-                    if (!error && data) {
-                        players = data;
-                    }
-                }
+                const { data, error } = await sbClient
+                    .from('players')
+                    .select('*')
+                    .order('number', { ascending: true });
+                
+                if (error) throw error;
+                players = data || [];
+                renderPlayersList();
             } catch (err) {
-                console.log('Cloud load failed, using local');
+                console.error('Error loading players:', err);
+                showToast('⚠️ Fehler beim Laden der Spieler');
             }
-            
-            if (players.length === 0) {
-                players = await loadFromDb('players');
-            }
-            renderPlayersList();
-        }
-        
-        async function loadGames() {
-            try {
-                if (sbClient) {
-                    const { data, error } = await sbClient
-                        .from('games')
-                        .select('*')
-                        .order('created_at', { ascending: false });
-                    if (!error && data) {
-                        games = data;
-                    }
-                }
-            } catch (err) {
-                console.log('Cloud load failed, using local');
-            }
-            
-            if (games.length === 0) {
-                games = await loadFromDb('games');
-            }
-            renderGamesList();
         }
         
         async function addPlayer() {
@@ -262,50 +176,53 @@
                 return;
             }
             
-            const newPlayer = {
-                id: 'p_' + Date.now(),
-                number: parseInt(number),
-                name: name,
-                position: position
-            };
-            
-            // Speichere lokal
-            players.push(newPlayer);
-            players.sort((a,b) => a.number - b.number);
-            await saveToDb('players', newPlayer);
-            
-            // Versuche zu Supabase zu speichern
-            if (sbClient) {
-                try {
-                    await sbClient.from('players').insert([newPlayer]);
-                } catch (err) {
-                    console.log('Cloud save failed, local only');
-                }
+            try {
+                const newPlayer = {
+                    id: 'p_' + Date.now(),
+                    number: parseInt(number),
+                    name: name,
+                    position: position
+                };
+                
+                const { data, error } = await sbClient
+                    .from('players')
+                    .insert([newPlayer])
+                    .select();
+                
+                if (error) throw error;
+                
+                players.push(newPlayer);
+                players.sort((a, b) => a.number - b.number);
+                
+                document.getElementById('newPlayerNumber').value = '';
+                document.getElementById('newPlayerName').value = '';
+                document.getElementById('newPlayerPosition').value = 'Feld';
+                
+                renderPlayersList();
+                showToast('✅ Spieler gespeichert');
+            } catch (err) {
+                console.error('Error adding player:', err);
+                showToast('❌ Fehler beim Speichern');
             }
-            
-            document.getElementById('newPlayerNumber').value = '';
-            document.getElementById('newPlayerName').value = '';
-            document.getElementById('newPlayerPosition').value = 'Feld';
-            
-            renderPlayersList();
-            showToast('✅ Spieler gespeichert');
         }
         
         async function deletePlayer(playerId) {
             if (!confirm('Spieler wirklich löschen?')) return;
             
-            players = players.filter(p => p.id !== playerId);
-            const tx = db.transaction(['players'], 'readwrite');
-            tx.objectStore('players').delete(playerId);
-            
-            if (sbClient) {
-                try {
-                    await sbClient.from('players').delete().eq('id', playerId);
-                } catch (err) {}
+            try {
+                const { error } = await sbClient
+                    .from('players')
+                    .delete()
+                    .eq('id', playerId);
+                
+                if (error) throw error;
+                players = players.filter(p => p.id !== playerId);
+                renderPlayersList();
+                showToast('✅ Spieler gelöscht');
+            } catch (err) {
+                console.error('Error deleting player:', err);
+                showToast('❌ Fehler beim Löschen');
             }
-            
-            renderPlayersList();
-            showToast('✅ Spieler gelöscht');
         }
         
         function renderPlayersList() {
@@ -313,18 +230,18 @@
             
             let html = `
                 <div style="margin-bottom: 1rem;">
-                    <button class="btn btn-primary" style="width: 100%;" onclick="document.getElementById('addPlayerForm').style.display='block'">➕ Neuen Spieler hinzufügen</button>
+                    <button class="btn btn-primary" style="width: 100%;" onclick="toggleAddPlayerForm()">➕ Neuen Spieler hinzufügen</button>
                 </div>
                 
                 <div id="addPlayerForm" style="display:none; background:#f9f9f9; padding:1rem; border-radius:4px; margin-bottom:1rem;">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                         <div class="form-group">
                             <label>Rückennummer</label>
-                            <input type="number" id="newPlayerNumber" min="1" max="99" placeholder="z.B. 7">
+                            <input type="number" id="newPlayerNumber" min="1" max="99">
                         </div>
                         <div class="form-group">
                             <label>Name</label>
-                            <input type="text" id="newPlayerName" placeholder="z.B. Max Mustermann">
+                            <input type="text" id="newPlayerName">
                         </div>
                     </div>
                     <div class="form-group">
@@ -339,58 +256,56 @@
             `;
             
             if (players.length === 0) {
-                html += '<div class="empty-state">Noch keine Spieler erfasst</div>';
+                html += '<div class="empty-state">Noch keine Spieler</div>';
             } else {
                 const feldspieler = players.filter(p => p.position === 'Feld').sort((a,b) => a.number - b.number);
                 const torwarte = players.filter(p => p.position === 'Torwart').sort((a,b) => a.number - b.number);
                 
                 if (feldspieler.length > 0) {
-                    html += `
-                        <div style="margin-top: 1rem;">
-                            <h3 style="font-size: 14px; margin-bottom: 0.5rem;">⚽ Feldspieler (${feldspieler.length})</h3>
-                            <table style="font-size: 13px;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Aktion</th></tr>
-                                ${feldspieler.map(p => `
-                                    <tr>
-                                        <td style="font-weight: bold;">${p.number}</td>
-                                        <td>${p.name}</td>
-                                        <td><button class="btn btn-danger" style="padding: 0.5rem; font-size: 11px;" onclick="deletePlayer('${p.id}')">🗑️</button></td>
-                                    </tr>
-                                `).join('')}
-                            </table>
-                        </div>
-                    `;
+                    html += `<div style="margin-top: 1rem;"><h3 style="font-size: 14px; margin-bottom: 0.5rem;">⚽ Feldspieler (${feldspieler.length})</h3>
+                    <table style="font-size: 13px;">
+                        <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th></th></tr>
+                        ${feldspieler.map(p => `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td><button class="btn btn-danger" style="padding: 0.5rem; font-size: 11px;" onclick="deletePlayer('${p.id}')">🗑️</button></td></tr>`).join('')}
+                    </table></div>`;
                 }
                 
                 if (torwarte.length > 0) {
-                    html += `
-                        <div style="margin-top: 1rem;">
-                            <h3 style="font-size: 14px; margin-bottom: 0.5rem;">🥅 Torwarte (${torwarte.length})</h3>
-                            <table style="font-size: 13px;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Aktion</th></tr>
-                                ${torwarte.map(p => `
-                                    <tr>
-                                        <td style="font-weight: bold;">${p.number}</td>
-                                        <td>${p.name}</td>
-                                        <td><button class="btn btn-danger" style="padding: 0.5rem; font-size: 11px;" onclick="deletePlayer('${p.id}')">🗑️</button></td>
-                                    </tr>
-                                `).join('')}
-                            </table>
-                        </div>
-                    `;
+                    html += `<div style="margin-top: 1rem;"><h3 style="font-size: 14px; margin-bottom: 0.5rem;">🥅 Torwarte (${torwarte.length})</h3>
+                    <table style="font-size: 13px;">
+                        <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th></th></tr>
+                        ${torwarte.map(p => `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td><button class="btn btn-danger" style="padding: 0.5rem; font-size: 11px;" onclick="deletePlayer('${p.id}')">🗑️</button></td></tr>`).join('')}
+                    </table></div>`;
                 }
             }
             
             container.innerHTML = html;
         }
         
-        // =====================================================
-        // GAMES
-        // =====================================================
+        function toggleAddPlayerForm() {
+            const form = document.getElementById('addPlayerForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        async function loadGames() {
+            try {
+                const { data, error } = await sbClient
+                    .from('games')
+                    .select('*')
+                    .order('date', { ascending: false });
+                
+                if (error) throw error;
+                games = data || [];
+                renderGamesList();
+            } catch (err) {
+                console.error('Error loading games:', err);
+                showToast('⚠️ Fehler beim Laden der Spiele');
+            }
+        }
+        
         async function startNewGame() {
             if (players.length === 0) {
                 showToast('❌ Zuerst Spieler erfassen');
-                switchTab(document.querySelector('[onclick*="spieler"]') || {}, 'spieler');
+                switchTab(document.querySelector('[onclick*="spieler"]'), 'spieler');
                 return;
             }
             
@@ -405,76 +320,64 @@
                 return;
             }
             
-            const gameId = 'game_' + Date.now();
-            const stats = {};
-            players.forEach(p => {
-                stats[p.id] = {
-                    tore: 0, tore7m: 0, assists: 0, turnovers: 0,
-                    fehlwurfe: 0, fehlwurfe7m: 0, techFehler: 0,
-                    fehlpasse: 0, einzueins: 0, siebenMgeholt: 0,
-                    zweiMinGeholt: 0, siebeMverursacht: 0, roteKarte: 0
+            try {
+                const newGame = {
+                    id: 'game_' + Date.now(),
+                    opponent, date, time, location, league,
+                    created_at: new Date().toISOString()
                 };
-            });
-            
-            const newGame = {
-                id: gameId, opponent, date, time, location, league,
-                created_at: new Date().toISOString(),
-                kader: [], stats: stats,
-                opponent_stats: { fehlwurfe: 0, techFehler: 0 }
-            };
-            
-            games.push(newGame);
-            await saveToDb('games', newGame);
-            
-            if (sbClient) {
-                try {
-                    await sbClient.from('games').insert([newGame]);
-                } catch (err) {
-                    console.log('Cloud save failed');
-                }
+                
+                const { data, error } = await sbClient
+                    .from('games')
+                    .insert([newGame])
+                    .select();
+                
+                if (error) throw error;
+                
+                games.push(newGame);
+                currentGame = newGame;
+                
+                document.getElementById('gameOpponent').value = '';
+                document.getElementById('gameDate').value = '';
+                document.getElementById('gameTime').value = '';
+                document.getElementById('gameLocation').value = '';
+                document.getElementById('gameLeague').value = '';
+                
+                renderGamesList();
+                showToast('✅ Spiel erstellt!');
+                switchTab(document.querySelector('[onclick*="erfassung"]'), 'erfassung');
+                renderKaderSelection();
+            } catch (err) {
+                console.error('Error creating game:', err);
+                showToast('❌ Fehler beim Erstellen des Spiels');
             }
-            
-            currentGame = newGame;
-            gameKader = {};
-            
-            document.getElementById('gameOpponent').value = '';
-            document.getElementById('gameDate').value = '';
-            document.getElementById('gameTime').value = '';
-            document.getElementById('gameLocation').value = '';
-            document.getElementById('gameLeague').value = '';
-            
-            renderGamesList();
-            showToast('✅ Spiel erstellt!');
-            switchTab(document.querySelector('[onclick*="erfassung"]') || {}, 'erfassung');
-            renderKaderSelection();
         }
         
         function selectGame(gameId) {
             currentGame = games.find(g => g.id === gameId);
-            gameKader = {};
-            if (currentGame.kader && currentGame.kader.length > 0) {
-                currentGame.kader.forEach(pId => gameKader[pId] = true);
-            }
             selectedPlayer = null;
-            switchTab(document.querySelector('[onclick*="erfassung"]') || {}, 'erfassung');
+            switchTab(document.querySelector('[onclick*="erfassung"]'), 'erfassung');
             renderErlassung();
         }
         
         async function deleteGame(gameId) {
             if (!confirm('Spiel wirklich löschen?')) return;
-            games = games.filter(g => g.id !== gameId);
-            const tx = db.transaction(['games'], 'readwrite');
-            tx.objectStore('games').delete(gameId);
-            if (currentGame?.id === gameId) currentGame = null;
             
-            if (sbClient) {
-                try {
-                    await sbClient.from('games').delete().eq('id', gameId);
-                } catch (err) {}
+            try {
+                const { error } = await sbClient
+                    .from('games')
+                    .delete()
+                    .eq('id', gameId);
+                
+                if (error) throw error;
+                games = games.filter(g => g.id !== gameId);
+                if (currentGame?.id === gameId) currentGame = null;
+                renderGamesList();
+                showToast('✅ Spiel gelöscht');
+            } catch (err) {
+                console.error('Error deleting game:', err);
+                showToast('❌ Fehler beim Löschen');
             }
-            
-            renderGamesList();
-            showToast('✅ Spiel gelöscht');
         }
         
         function renderGamesList() {
@@ -491,184 +394,321 @@
                         <div style="font-weight: bold;">${game.opponent}</div>
                         <div style="font-size: 12px; color: #999;">📅 ${new Date(game.date).toLocaleDateString('de-DE')} ${game.time || ''}</div>
                     </div>
-                    <div>
-                        <button class="btn btn-danger" style="padding: 0.5rem;" onclick="event.stopPropagation(); deleteGame('${game.id}')">Löschen</button>
-                    </div>
+                    <button class="btn btn-danger" style="padding: 0.5rem;" onclick="event.stopPropagation(); deleteGame('${game.id}')">Löschen</button>
                 </div>
             `).join('');
         }
         
-        // =====================================================
-        // KADER & ERFASSUNG
-        // =====================================================
-        function renderKaderSelection() {
+        async function renderKaderSelection() {
             if (!currentGame) {
                 document.getElementById('erfassungContent').innerHTML = '<div class="card empty-state">Kein Spiel</div>';
                 return;
             }
             
-            const feldspieler = players.filter(p => p.position === 'Feld').sort((a,b) => a.number - b.number);
-            const torwarte = players.filter(p => p.position === 'Torwart').sort((a,b) => a.number - b.number);
-            
-            const kaderFeld = Object.keys(gameKader).filter(pId => players.find(p => p.id === pId && p.position === 'Feld'));
-            const kaderTW = Object.keys(gameKader).filter(pId => players.find(p => p.id === pId && p.position === 'Torwart'));
-            
-            let html = `
-                <div class="card">
-                    <div class="card-title">🎯 ${currentGame.opponent} - Kader auswählen</div>
-                    <div style="font-size: 12px; margin-bottom: 1rem;">
-                        Feldspieler: ${kaderFeld.length}/16 | Torwarte: ${kaderTW.length}/3
-                    </div>
-                </div>
+            try {
+                const { data: squadData, error: squadError } = await sbClient
+                    .from('game_squads')
+                    .select('player_id')
+                    .eq('game_id', currentGame.id);
                 
-                <div class="card">
-                    <div class="card-title">⚽ Feldspieler (max. 16)</div>
-                    <div class="player-grid">
-                        ${feldspieler.map(p => `
-                            <button class="player-btn ${gameKader[p.id] ? 'selected' : ''}" 
-                                    onclick="toggleKaderPlayer('${p.id}')"
-                                    ${kaderFeld.length >= 16 && !gameKader[p.id] ? 'disabled' : ''}>
-                                <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
-                                <div class="player-name">${p.name}</div>
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
+                const currentKader = squadData ? squadData.map(s => s.player_id) : [];
                 
-                <div class="card">
-                    <div class="card-title">🥅 Torwarte (max. 3)</div>
-                    <div class="player-grid">
-                        ${torwarte.map(p => `
-                            <button class="player-btn ${gameKader[p.id] ? 'selected' : ''}" 
-                                    onclick="toggleKaderPlayer('${p.id}')"
-                                    ${kaderTW.length >= 3 && !gameKader[p.id] ? 'disabled' : ''}>
-                                <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
-                                <div class="player-name">${p.name}</div>
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
+                const feldspieler = players.filter(p => p.position === 'Feld').sort((a,b) => a.number - b.number);
+                const torwarte = players.filter(p => p.position === 'Torwart').sort((a,b) => a.number - b.number);
                 
-                <div style="display: flex; gap: 1rem;">
-                    <button class="btn btn-success" style="flex: 1;" onclick="confirmKader()">✅ Kader speichern</button>
-                    <button class="btn btn-primary" style="flex: 1;" onclick="switchTab(document.querySelector('[onclick*=spiele]'), 'spiele')">← Abbrechen</button>
-                </div>
-            `;
-            
-            document.getElementById('erfassungContent').innerHTML = html;
+                const kaderFeld = currentKader.filter(pId => feldspieler.find(p => p.id === pId));
+                const kaderTW = currentKader.filter(pId => torwarte.find(p => p.id === pId));
+                
+                let html = `
+                    <div class="card">
+                        <div class="card-title">🎯 ${currentGame.opponent} - Kader auswählen</div>
+                        <div style="font-size: 12px; margin-bottom: 1rem;">
+                            Feldspieler: ${kaderFeld.length}/16 | Torwarte: ${kaderTW.length}/3
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">⚽ Feldspieler</div>
+                        <div class="player-grid">
+                            ${feldspieler.map(p => `
+                                <button class="player-btn ${currentKader.includes(p.id) ? 'selected' : ''}" 
+                                        onclick="toggleSquadPlayer('${p.id}')"
+                                        ${kaderFeld.length >= 16 && !currentKader.includes(p.id) ? 'disabled' : ''}>
+                                    <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
+                                    <div class="player-name">${p.name}</div>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">🥅 Torwarte</div>
+                        <div class="player-grid">
+                            ${torwarte.map(p => `
+                                <button class="player-btn ${currentKader.includes(p.id) ? 'selected' : ''}" 
+                                        onclick="toggleSquadPlayer('${p.id}')"
+                                        ${kaderTW.length >= 3 && !currentKader.includes(p.id) ? 'disabled' : ''}>
+                                    <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
+                                    <div class="player-name">${p.name}</div>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem;">
+                        <button class="btn btn-success" style="flex: 1;" onclick="renderErlassung()">✅ Weiter zur Erfassung</button>
+                    </div>
+                `;
+                
+                document.getElementById('erfassungContent').innerHTML = html;
+            } catch (err) {
+                console.error('Error loading squad:', err);
+            }
         }
         
-        function toggleKaderPlayer(playerId) {
-            const player = players.find(p => p.id === playerId);
-            if (!player) return;
-            
-            if (gameKader[playerId]) {
-                delete gameKader[playerId];
-            } else {
-                if (player.position === 'Feld') {
-                    const kaderFeld = Object.keys(gameKader).filter(pId => players.find(p => p.id === pId && p.position === 'Feld'));
-                    if (kaderFeld.length >= 16) {
-                        showToast('❌ Max. 16 Feldspieler');
-                        return;
-                    }
-                } else if (player.position === 'Torwart') {
-                    const kaderTW = Object.keys(gameKader).filter(pId => players.find(p => p.id === pId && p.position === 'Torwart'));
-                    if (kaderTW.length >= 3) {
-                        showToast('❌ Max. 3 Torwarte');
-                        return;
-                    }
-                }
-                gameKader[playerId] = true;
-            }
-            renderKaderSelection();
-        }
-        
-        async function confirmKader() {
-            if (Object.keys(gameKader).length === 0) {
-                showToast('❌ Wähle mindestens einen Spieler');
-                return;
-            }
-            
-            currentGame.kader = Object.keys(gameKader);
-            await saveToDb('games', currentGame);
-            
-            if (sbClient) {
-                try {
-                    await sbClient.from('games').update({ kader: currentGame.kader }).eq('id', currentGame.id);
-                } catch (err) {}
-            }
-            
-            selectedPlayer = null;
-            showToast('✅ Kader gespeichert!');
-            renderErlassung();
-        }
-        
-        function renderErlassung() {
-            if (!currentGame) {
-                document.getElementById('erfassungContent').innerHTML = '<div class="card empty-state">Kein Spiel</div>';
-                return;
-            }
-            
-            if (!currentGame.kader || currentGame.kader.length === 0) {
-                document.getElementById('erfassungContent').innerHTML = '<div class="card empty-state">Kader nicht ausgewählt</div>';
-                return;
-            }
-            
-            const kaderSpieler = currentGame.kader.map(pId => players.find(p => p.id === pId)).filter(p => p);
-            
-            let html = `
-                <div class="card">
-                    <div class="card-title">⚽ ${currentGame.opponent}</div>
-                </div>
-                
-                <div class="card">
-                    <div class="card-title">👥 Spieler (${kaderSpieler.length})</div>
-                    <div class="player-grid">
-                        ${kaderSpieler.map(p => `
-                            <button class="player-btn ${selectedPlayer?.id === p.id ? 'selected' : ''}" onclick="selectedPlayer = players.find(x => x.id === '${p.id}'); renderErlassung()">
-                                <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
-                                <div class="player-name">${p.name}</div>
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
-                
-                <div class="card">
-                    <div class="card-title">🎯 Gegner</div>
-                    <div class="stat-grid">
-                        <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="currentGame.opponent_stats.fehlwurfe++; renderErlassung()">Fehlwurf +1</button>
-                        <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="currentGame.opponent_stats.techFehler++; renderErlassung()">Tech.Fehler +1</button>
-                    </div>
-                    <div style="font-size: 14px; margin-top: 1rem;">Fehlwürfe: ${currentGame.opponent_stats.fehlwurfe} | Tech.Fehler: ${currentGame.opponent_stats.techFehler}</div>
-                </div>
-                
-                <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
-                    <button class="btn btn-success" style="flex: 1;" onclick="saveCurrentGame()">💾 Speichern</button>
-                    <button class="btn btn-primary" style="flex: 1;" onclick="switchTab(document.querySelector('[onclick*=spiele]'), 'spiele')">← Zurück</button>
-                </div>
-            `;
-            
-            document.getElementById('erfassungContent').innerHTML = html;
-        }
-        
-        async function saveCurrentGame() {
+        async function toggleSquadPlayer(playerId) {
             if (!currentGame) return;
-            await saveToDb('games', currentGame);
             
-            if (sbClient) {
-                try {
-                    await sbClient.from('games').update({
-                        stats: currentGame.stats,
-                        opponent_stats: currentGame.opponent_stats
-                    }).eq('id', currentGame.id);
-                } catch (err) {}
+            const player = players.find(p => p.id === playerId);
+            
+            try {
+                const { data: existing } = await sbClient
+                    .from('game_squads')
+                    .select('id')
+                    .eq('game_id', currentGame.id)
+                    .eq('player_id', playerId);
+                
+                if (existing && existing.length > 0) {
+                    await sbClient
+                        .from('game_squads')
+                        .delete()
+                        .eq('game_id', currentGame.id)
+                        .eq('player_id', playerId);
+                    
+                    await sbClient
+                        .from('player_stats')
+                        .delete()
+                        .eq('game_id', currentGame.id)
+                        .eq('player_id', playerId);
+                } else {
+                    await sbClient
+                        .from('game_squads')
+                        .insert([{ game_id: currentGame.id, player_id: playerId }]);
+                    
+                    await sbClient
+                        .from('player_stats')
+                        .insert([{
+                            game_id: currentGame.id,
+                            player_id: playerId,
+                            tore: 0, tore7m: 0, assists: 0, turnovers: 0,
+                            fehlwurfe: 0, fehlwurfe7m: 0, tech_fehler: 0,
+                            fehlpasse: 0, einzueins: 0, sieben_m_geholt: 0,
+                            zwei_min_geholt: 0, sieben_m_verursacht: 0, rote_karte: 0
+                        }]);
+                }
+                
+                renderKaderSelection();
+            } catch (err) {
+                console.error('Error toggling squad player:', err);
             }
-            showToast('✅ Spiel gespeichert');
         }
         
-        // =====================================================
-        // UI
-        // =====================================================
+        async function renderErlassung() {
+            if (!currentGame) {
+                document.getElementById('erfassungContent').innerHTML = '<div class="card empty-state">Kein Spiel</div>';
+                return;
+            }
+            
+            try {
+                const { data: squadData } = await sbClient
+                    .from('game_squads')
+                    .select('player_id')
+                    .eq('game_id', currentGame.id);
+                
+                const kaderIds = squadData ? squadData.map(s => s.player_id) : [];
+                const kaderSpieler = kaderIds.map(pId => players.find(p => p.id === pId)).filter(p => p);
+                
+                const { data: oppStats } = await sbClient
+                    .from('opponent_stats')
+                    .select('*')
+                    .eq('game_id', currentGame.id)
+                    .single();
+                
+                const opponentStats = oppStats || { fehlwurfe: 0, tech_fehler: 0 };
+                
+                let html = `
+                    <div class="card">
+                        <div class="card-title">⚽ ${currentGame.opponent}</div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">👥 Spieler (${kaderSpieler.length})</div>
+                        <div class="player-grid">
+                            ${kaderSpieler.map(p => `
+                                <button class="player-btn ${selectedPlayer?.id === p.id ? 'selected' : ''}" 
+                                        onclick="selectedPlayer = players.find(x => x.id === '${p.id}'); renderErlassung()">
+                                    <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
+                                    <div class="player-name">${p.name}</div>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    ${selectedPlayer ? await renderPlayerStats(selectedPlayer) : ''}
+                    
+                    <div class="card">
+                        <div class="card-title">🎯 Gegner</div>
+                        <div class="stat-grid">
+                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updateOpponentStat('fehlwurfe', 1)">Fehlwurf +1</button>
+                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updateOpponentStat('tech_fehler', 1)">Tech.Fehler +1</button>
+                        </div>
+                        <div style="font-size: 14px; margin-top: 1rem;">Fehlwürfe: ${opponentStats.fehlwurfe} | Tech.Fehler: ${opponentStats.tech_fehler}</div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+                        <button class="btn btn-primary" style="flex: 1;" onclick="switchTab(document.querySelector('[onclick*=spiele]'), 'spiele')">← Zurück</button>
+                    </div>
+                `;
+                
+                document.getElementById('erfassungContent').innerHTML = html;
+            } catch (err) {
+                console.error('Error rendering erfassung:', err);
+            }
+        }
+        
+        async function renderPlayerStats(player) {
+            if (!player || !currentGame) return '';
+            
+            try {
+                const { data: stats } = await sbClient
+                    .from('player_stats')
+                    .select('*')
+                    .eq('game_id', currentGame.id)
+                    .eq('player_id', player.id)
+                    .single();
+                
+                if (!stats) return '';
+                
+                const isTorwart = player.position === 'Torwart';
+                
+                if (isTorwart) {
+                    return `
+                        <div class="card">
+                            <div class="card-title">🥅 ${player.name} (#${player.number})</div>
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">🛡️ Paraden</div>
+                                <div class="stat-grid">
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore', 1)">Parade +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore7m', 1)">7m-Parade +1</button>
+                                </div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Paraden: ${stats.tore} | 7m: ${stats.tore7m}</div>
+                            </div>
+                            
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #e24b4a;">⚽ Gegentore</div>
+                                <div class="stat-grid">
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe', 1)">Gegentor +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe7m', 1)">7m-Gegentor +1</button>
+                                </div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gegentore: ${stats.fehlwurfe} | 7m: ${stats.fehlwurfe7m}</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="card">
+                            <div class="card-title">📊 ${player.name} (#${player.number})</div>
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">⚽ Tore</div>
+                                <div class="stat-grid">
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore', 1)">Feld-Tor +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore7m', 1)">7m-Tor +1</button>
+                                </div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.tore} | 7m: ${stats.tore7m} | Gesamt: ${stats.tore + stats.tore7m}</div>
+                            </div>
+                            
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #e24b4a;">❌ Fehlwürfe</div>
+                                <div class="stat-grid">
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe', 1)">Feld-Fehlwurf +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe7m', 1)">7m-Fehlwurf +1</button>
+                                </div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.fehlwurfe} | 7m: ${stats.fehlwurfe7m}</div>
+                            </div>
+                            
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🤝 Sonstige</div>
+                                <div class="stat-grid">
+                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'assists', 1)">Assist +</button>
+                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'turnovers', 1)">Fehler +</button>
+                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'tech_fehler', 1)">Tech. +</button>
+                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'fehlpasse', 1)">Fehlpass +</button>
+                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_geholt', 1)">7m geholt +</button>
+                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_verursacht', 1)">7m verursacht +</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                console.error('Error rendering stats:', err);
+                return '';
+            }
+        }
+        
+        async function updatePlayerStat(playerId, statKey, delta) {
+            if (!currentGame) return;
+            
+            try {
+                const { data: currentStats } = await sbClient
+                    .from('player_stats')
+                    .select(statKey)
+                    .eq('game_id', currentGame.id)
+                    .eq('player_id', playerId)
+                    .single();
+                
+                const newValue = Math.max(0, (currentStats[statKey] || 0) + delta);
+                
+                await sbClient
+                    .from('player_stats')
+                    .update({ [statKey]: newValue })
+                    .eq('game_id', currentGame.id)
+                    .eq('player_id', playerId);
+                
+                renderErlassung();
+            } catch (err) {
+                console.error('Error updating stat:', err);
+            }
+        }
+        
+        async function updateOpponentStat(statKey, delta) {
+            if (!currentGame) return;
+            
+            try {
+                const { data: existing } = await sbClient
+                    .from('opponent_stats')
+                    .select('*')
+                    .eq('game_id', currentGame.id)
+                    .single();
+                
+                if (existing) {
+                    const newValue = Math.max(0, (existing[statKey] || 0) + delta);
+                    await sbClient
+                        .from('opponent_stats')
+                        .update({ [statKey]: newValue })
+                        .eq('game_id', currentGame.id);
+                } else {
+                    const newStats = { game_id: currentGame.id, fehlwurfe: 0, tech_fehler: 0 };
+                    newStats[statKey] = delta;
+                    await sbClient.from('opponent_stats').insert([newStats]);
+                }
+                
+                renderErlassung();
+            } catch (err) {
+                console.error('Error updating opponent stat:', err);
+            }
+        }
+        
         function switchTab(button, tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
