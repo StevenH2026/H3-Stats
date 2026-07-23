@@ -785,48 +785,50 @@
             }
         }
         
-        async function toggleGameCoach(coachId) {
+        function toggleGameCoach(coachId) {
             if (!currentGame) return;
             
-            try {
-                const { data: existing } = await sbClient
-                    .from('game_coaches')
-                    .select('id')
-                    .eq('game_id', currentGame.id)
-                    .eq('coach_id', coachId);
-                
-                if (existing && existing.length > 0) {
-                    await sbClient
+            (async () => {
+                try {
+                    const { data: existing } = await sbClient
                         .from('game_coaches')
-                        .delete()
+                        .select('id')
                         .eq('game_id', currentGame.id)
                         .eq('coach_id', coachId);
                     
-                    await sbClient
-                        .from('coach_stats')
-                        .delete()
-                        .eq('game_id', currentGame.id)
-                        .eq('coach_id', coachId);
-                } else {
-                    await sbClient
-                        .from('game_coaches')
-                        .insert([{ game_id: currentGame.id, coach_id: coachId }]);
+                    if (existing && existing.length > 0) {
+                        await sbClient
+                            .from('game_coaches')
+                            .delete()
+                            .eq('game_id', currentGame.id)
+                            .eq('coach_id', coachId);
+                        
+                        await sbClient
+                            .from('coach_stats')
+                            .delete()
+                            .eq('game_id', currentGame.id)
+                            .eq('coach_id', coachId);
+                    } else {
+                        await sbClient
+                            .from('game_coaches')
+                            .insert([{ game_id: currentGame.id, coach_id: coachId }]);
+                        
+                        await sbClient
+                            .from('coach_stats')
+                            .insert([{
+                                game_id: currentGame.id,
+                                coach_id: coachId,
+                                gelb: 0,
+                                rot: 0,
+                                zwei_min: 0
+                            }]);
+                    }
                     
-                    await sbClient
-                        .from('coach_stats')
-                        .insert([{
-                            game_id: currentGame.id,
-                            coach_id: coachId,
-                            gelb: 0,
-                            rot: 0,
-                            zwei_min: 0
-                        }]);
+                    renderKaderSelection();
+                } catch (err) {
+                    console.error('Error toggling game coach:', err);
                 }
-                
-                renderKaderSelection();
-            } catch (err) {
-                console.error('Error toggling game coach:', err);
-            }
+            })();
         }
         
         async function renderErlassung() {
