@@ -138,6 +138,7 @@
         let games = [];
         let currentGame = null;
         let selectedPlayer = null;
+        let gameActions = []; // Action-Log für aktuelle Session
         
         async function initSupabase() {
             try {
@@ -605,6 +606,7 @@
         function selectGame(gameId) {
             currentGame = games.find(g => g.id === gameId);
             selectedPlayer = null;
+            gameActions = []; // Reset Action-Log für neues Spiel
             switchTab(document.querySelector('[onclick*="erfassung"]'), 'erfassung');
             renderErlassung();
         }
@@ -809,7 +811,7 @@
                 
                 let html = `
                     <div class="card" style="background: linear-gradient(135deg, #185fa5, #378add); color: white; margin-bottom: 1rem;">
-                        <div style="display: flex; justify-content: space-around; align-items: center;">
+                        <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 1.5rem;">
                             <div style="text-align: center;">
                                 <div style="font-size: 32px; font-weight: bold;">${totTore}</div>
                                 <div style="font-size: 12px;">Wir</div>
@@ -823,6 +825,21 @@
                                 <div style="font-size: 12px;">Gegner</div>
                             </div>
                         </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 1rem;">
+                            <div style="text-align: center;">
+                                <div style="opacity: 0.8; margin-bottom: 0.5rem; font-weight: bold;">🔄 Aktionen</div>
+                                ${gameActions.slice().reverse().slice(0, 3).filter(a => a.team === 'wir').map(a => 
+                                    `<div style="padding: 0.35rem; background: rgba(255,255,255,0.1); margin-bottom: 0.3rem; border-radius: 3px;">${a.text}</div>`
+                                ).join('') || '<div style="opacity: 0.5;">-</div>'}
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="opacity: 0.8; margin-bottom: 0.5rem; font-weight: bold;">🔄 Aktionen</div>
+                                ${gameActions.slice().reverse().slice(0, 3).filter(a => a.team === 'gegner').map(a => 
+                                    `<div style="padding: 0.35rem; background: rgba(255,255,255,0.1); margin-bottom: 0.3rem; border-radius: 3px;">${a.text}</div>`
+                                ).join('') || '<div style="opacity: 0.5;">-</div>'}
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="card">
@@ -831,15 +848,50 @@
                     
                     <div class="card">
                         <div class="card-title">👥 Spieler (${kaderSpieler.length})</div>
-                        <div class="player-grid">
-                            ${kaderSpieler.map(p => `
-                                <button class="player-btn ${selectedPlayer?.id === p.id ? 'selected' : ''}" 
-                                        onclick="selectedPlayer = players.find(x => x.id === '${p.id}'); renderErlassung()">
-                                    <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
-                                    <div class="player-name">${p.name}</div>
-                                </button>
-                            `).join('')}
-                        </div>
+                        
+                        ${(() => {
+                            const feldspieler = kaderSpieler.filter(p => p.position === 'Feld').sort((a,b) => a.number - b.number);
+                            const torwarte = kaderSpieler.filter(p => p.position === 'Torwart').sort((a,b) => a.number - b.number);
+                            
+                            let html = '';
+                            
+                            if (feldspieler.length > 0) {
+                                html += `
+                                    <div style="margin-bottom: 1rem;">
+                                        <div style="font-size: 12px; font-weight: bold; color: #999; margin-bottom: 0.5rem;">⚽ FELDSPIELER</div>
+                                        <div class="player-grid">
+                                            ${feldspieler.map(p => `
+                                                <button class="player-btn ${selectedPlayer?.id === p.id ? 'selected' : ''}" 
+                                                        onclick="selectedPlayer = players.find(x => x.id === '${p.id}'); renderErlassung()">
+                                                    <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
+                                                    <div class="player-name">${p.name}</div>
+                                                </button>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                            
+                            if (torwarte.length > 0) {
+                                html += `
+                                    <div>
+                                        <div style="font-size: 12px; font-weight: bold; color: #999; margin-bottom: 0.5rem;">🥅 TORWARTE</div>
+                                        <div class="player-grid">
+                                            ${torwarte.map(p => `
+                                                <button class="player-btn ${selectedPlayer?.id === p.id ? 'selected' : ''}" 
+                                                        onclick="selectedPlayer = players.find(x => x.id === '${p.id}'); renderErlassung()">
+                                                    <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
+                                                    <div class="player-name">${p.name}</div>
+                                                </button>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                            
+                            return html;
+                        })()}
+                        
                         <div style="margin-top: 1rem;">
                             <button class="btn btn-primary" style="width: 100%;" onclick="renderKaderSelection()">🔄 Kader ändern</button>
                         </div>
@@ -953,20 +1005,41 @@
             if (!currentGame) return;
             
             try {
+                const player = players.find(p => p.id === playerId);
                 const { data: currentStats } = await sbClient
                     .from('player_stats')
                     .select(statKey)
                     .eq('game_id', currentGame.id)
-                    .eq('player_id', playerId)
-                    .single();
+                    .eq('player_id', playerId);
                 
-                const newValue = Math.max(0, (currentStats[statKey] || 0) + delta);
+                const newValue = Math.max(0, ((currentStats && currentStats[0] ? currentStats[0][statKey] : 0) || 0) + delta);
                 
                 await sbClient
                     .from('player_stats')
                     .update({ [statKey]: newValue })
                     .eq('game_id', currentGame.id)
                     .eq('player_id', playerId);
+                
+                // Logge Aktion
+                const actionMap = {
+                    'tore': '⚽ Tor',
+                    'tore7m': '7️⃣ 7m-Tor',
+                    'assists': '🤝 Assist',
+                    'turnovers': '❌ Fehler',
+                    'fehlwurfe': '💨 Fehlwurf',
+                    'fehlwurfe7m': '💨 7m-Fehlwurf',
+                    'tech_fehler': '🚫 Tech.Fehler',
+                    'fehlpasse': '❌ Fehlpass',
+                    'sieben_m_geholt': '7️⃣ 7m geholt',
+                    'sieben_m_verursacht': '7️⃣ 7m verursacht'
+                };
+                
+                if (delta > 0 && actionMap[statKey]) {
+                    gameActions.push({
+                        team: 'wir',
+                        text: `${player?.name}: ${actionMap[statKey]}`
+                    });
+                }
                 
                 renderErlassung();
             } catch (err) {
@@ -981,11 +1054,10 @@
                 const { data: existing } = await sbClient
                     .from('opponent_stats')
                     .select('*')
-                    .eq('game_id', currentGame.id)
-                    .single();
+                    .eq('game_id', currentGame.id);
                 
-                if (existing) {
-                    const newValue = Math.max(0, (existing[statKey] || 0) + delta);
+                if (existing && existing.length > 0) {
+                    const newValue = Math.max(0, (existing[0][statKey] || 0) + delta);
                     await sbClient
                         .from('opponent_stats')
                         .update({ [statKey]: newValue })
@@ -994,6 +1066,19 @@
                     const newStats = { game_id: currentGame.id, fehlwurfe: 0, tech_fehler: 0 };
                     newStats[statKey] = delta;
                     await sbClient.from('opponent_stats').insert([newStats]);
+                }
+                
+                // Logge Aktion
+                const actionMap = {
+                    'fehlwurfe': '💨 Fehlwurf',
+                    'tech_fehler': '🚫 Tech.Fehler'
+                };
+                
+                if (delta > 0 && actionMap[statKey]) {
+                    gameActions.push({
+                        team: 'gegner',
+                        text: actionMap[statKey]
+                    });
                 }
                 
                 renderErlassung();
