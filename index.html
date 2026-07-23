@@ -861,12 +861,13 @@
             if (!player || !currentGame) return '';
             
             try {
-                const { data: stats } = await sbClient
+                const { data: statsArray } = await sbClient
                     .from('player_stats')
                     .select('*')
                     .eq('game_id', currentGame.id)
-                    .eq('player_id', player.id)
-                    .single();
+                    .eq('player_id', player.id);
+                
+                const stats = (statsArray && statsArray.length > 0) ? statsArray[0] : null;
                 
                 if (!stats) return '';
                 
