@@ -138,6 +138,7 @@
         let games = [];
         let currentGame = null;
         let selectedPlayer = null;
+        let selectedCoach = null;
         let gameActions = []; // Action-Log für aktuelle Session
         
         async function initSupabase() {
@@ -662,7 +663,13 @@
                     .select('player_id')
                     .eq('game_id', currentGame.id);
                 
+                const { data: coachData } = await sbClient
+                    .from('game_coaches')
+                    .select('coach_id')
+                    .eq('game_id', currentGame.id);
+                
                 const currentKader = squadData ? squadData.map(s => s.player_id) : [];
+                const currentCoaches = coachData ? coachData.map(c => c.coach_id) : [];
                 
                 const feldspieler = players.filter(p => p.position === 'Feld').sort((a,b) => a.number - b.number);
                 const torwarte = players.filter(p => p.position === 'Torwart').sort((a,b) => a.number - b.number);
@@ -674,7 +681,7 @@
                     <div class="card">
                         <div class="card-title">🎯 ${currentGame.opponent} - Kader auswählen</div>
                         <div style="font-size: 12px; margin-bottom: 1rem;">
-                            Feldspieler: ${kaderFeld.length}/16 | Torwarte: ${kaderTW.length}/3
+                            Feldspieler: ${kaderFeld.length}/16 | Torwarte: ${kaderTW.length}/3 | Betreuer: ${currentCoaches.length}
                         </div>
                     </div>
                     
@@ -701,6 +708,19 @@
                                         ${kaderTW.length >= 3 && !currentKader.includes(p.id) ? 'disabled' : ''}>
                                     <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
                                     <div class="player-name">${p.name}</div>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">👔 Betreuer</div>
+                        <div class="player-grid">
+                            ${coaches.map(c => `
+                                <button class="player-btn ${currentCoaches.includes(c.id) ? 'selected' : ''}" 
+                                        onclick="toggleGameCoach('${c.id}')">
+                                    <div style="font-size: 16px; font-weight: bold;">${c.designation}</div>
+                                    <div class="player-name">${c.name}</div>
                                 </button>
                             `).join('')}
                         </div>
@@ -819,6 +839,33 @@
                     playerStatsHtml = await renderPlayerStats(selectedPlayer);
                 }
                 
+                // Lade CoachStats BEVOR HTML gebaut wird
+                let coachStatsData = null;
+                if (selectedCoach) {
+                    const { data: coachStats } = await sbClient
+                        .from('coach_stats')
+                        .select('*')
+                        .eq('game_id', currentGame.id)
+                        .eq('coach_id', selectedCoach.id);
+                    
+                    if (coachStats && coachStats.length > 0) {
+                        coachStatsData = coachStats[0];
+                    } else {
+                        // Erstelle einen Eintrag für diesen Betreuer
+                        const { data: newCoachStat } = await sbClient.from('coach_stats').insert([{
+                            game_id: currentGame.id,
+                            coach_id: selectedCoach.id,
+                            gelb: 0,
+                            rot: 0,
+                            zwei_min: 0
+                        }]).select();
+                        
+                        if (newCoachStat && newCoachStat.length > 0) {
+                            coachStatsData = newCoachStat[0];
+                        }
+                    }
+                }
+                
                 let html = `
                     <div class="card" style="background: linear-gradient(135deg, #185fa5, #378add); color: white; margin-bottom: 1rem;">
                         <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 1.5rem;">
@@ -918,6 +965,32 @@
                         <div style="font-size: 14px; margin-top: 1rem;">Fehlwürfe: ${opponentStats.fehlwurfe} | Tech.Fehler: ${opponentStats.tech_fehler}</div>
                     </div>
                     
+                    <div class="card">
+                        <div class="card-title">👔 Betreuer</div>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1rem;">
+                            ${coaches.map(coach => `
+                                <button class="player-btn ${selectedCoach?.id === coach.id ? 'selected' : ''}" 
+                                        onclick="selectedCoach = coaches.find(x => x.id === '${coach.id}'); renderErlassung()">
+                                    <div style="font-size: 14px; font-weight: bold;">${coach.designation}</div>
+                                    <div class="player-name">${coach.name}</div>
+                                </button>
+                            `).join('')}
+                        </div>
+                        
+                        ${selectedCoach && coachStatsData ? `
+                            <div style="margin-bottom: 1rem;">
+                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #d4a100;">🚨 Strafen</div>
+                                <div class="stat-grid">
+                                    <button class="stat-btn" style="grid-column: span 1.5; font-size: 14px; padding: 0.75rem; background: #ffd700; color: #333;" onclick="updateCoachStat('${selectedCoach.id}', 'gelb', 1)">Gelb +1</button>
+                                    <button class="stat-btn" style="grid-column: span 1.5; font-size: 14px; padding: 0.75rem; background: #ff4444; color: white;" onclick="updateCoachStat('${selectedCoach.id}', 'rot', 1)">Rot +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 14px; padding: 0.75rem; background: #333; color: white;" onclick="updateCoachStat('${selectedCoach.id}', 'zwei_min', 1)">2min +1</button>
+                                </div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${coachStatsData.gelb || 0} | Rot: ${coachStatsData.rot || 0} | 2min: ${coachStatsData.zwei_min || 0}</div>
+                            </div>
+                        ` : '<div style="text-align: center; color: #999;">Betreuer auswählen</div>'}
+                    </div>
+                    </div>
+                    
                     <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
                         <button class="btn btn-primary" style="flex: 1;" onclick="switchTab(document.querySelector('[onclick*=spiele]'), 'spiele')">← Spiele</button>
                     </div>
@@ -1010,6 +1083,16 @@
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
+                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #d4a100;">🚨 Strafen</div>
+                                <div class="stat-grid">
+                                    <button class="stat-btn" style="grid-column: span 1.5; font-size: 14px; padding: 0.75rem; background: #ffd700; color: #333;" onclick="updatePlayerStat('${player.id}', 'gelb', 1)">Gelb +1</button>
+                                    <button class="stat-btn" style="grid-column: span 1.5; font-size: 14px; padding: 0.75rem; background: #ff4444; color: white;" onclick="updatePlayerStat('${player.id}', 'rot', 1)">Rot +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 14px; padding: 0.75rem; background: #333; color: white;" onclick="updatePlayerStat('${player.id}', 'zwei_min', 1)">2min +1</button>
+                                </div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0}</div>
+                            </div>
+                            
+                            <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🤝 Sonstige</div>
                                 <div class="stat-grid">
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'assists', 1)">Assist +</button>
@@ -1055,7 +1138,10 @@
                     'gegentore': '❌ Gegentor',
                     'paraden_7m': '7️⃣ 7m-Parade',
                     'gegentore_7m': '7️⃣ 7m-Gegentor',
-                    'tech_fehler': '🚫 Tech.Fehler'
+                    'tech_fehler': '🚫 Tech.Fehler',
+                    'gelb': '🟨 Gelb',
+                    'rot': '🟥 Rot',
+                    'zwei_min': '⏱️ 2min'
                 } : {
                     'tore': '⚽ Tor',
                     'tore7m': '7️⃣ 7m-Tor',
@@ -1066,7 +1152,10 @@
                     'tech_fehler': '🚫 Tech.Fehler',
                     'fehlpasse': '❌ Fehlpass',
                     'sieben_m_geholt': '7️⃣ 7m geholt',
-                    'sieben_m_verursacht': '7️⃣ 7m verursacht'
+                    'sieben_m_verursacht': '7️⃣ 7m verursacht',
+                    'gelb': '🟨 Gelb',
+                    'rot': '🟥 Rot',
+                    'zwei_min': '⏱️ 2min'
                 };
                 
                 if (delta > 0 && actionMap[statKey]) {
@@ -1119,6 +1208,35 @@
                 renderErlassung();
             } catch (err) {
                 console.error('Error updating opponent stat:', err);
+            }
+        }
+        
+        async function updateCoachStat(coachId, statKey, delta) {
+            if (!currentGame) return;
+            
+            try {
+                const { data: existing } = await sbClient
+                    .from('coach_stats')
+                    .select('*')
+                    .eq('game_id', currentGame.id)
+                    .eq('coach_id', coachId);
+                
+                if (existing && existing.length > 0) {
+                    const newValue = Math.max(0, (existing[0][statKey] || 0) + delta);
+                    await sbClient
+                        .from('coach_stats')
+                        .update({ [statKey]: newValue })
+                        .eq('game_id', currentGame.id)
+                        .eq('coach_id', coachId);
+                } else {
+                    const newStats = { game_id: currentGame.id, coach_id: coachId, gelb: 0, rot: 0, zwei_min: 0 };
+                    newStats[statKey] = delta;
+                    await sbClient.from('coach_stats').insert([newStats]);
+                }
+                
+                renderErlassung();
+            } catch (err) {
+                console.error('Error updating coach stat:', err);
             }
         }
         
