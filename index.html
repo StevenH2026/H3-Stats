@@ -51,7 +51,12 @@
         
         .empty-state { text-align: center; padding: 2rem; color: #999; }
         
-        .score-card-sticky { position: sticky; top: 0; z-index: 100; margin-bottom: 1rem; }
+        .score-card-sticky { 
+            position: sticky; 
+            top: 0; 
+            z-index: 50;
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -935,7 +940,7 @@
                                 </div>
                             </div>
                             
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 1rem;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 1rem; margin-bottom: 1rem;">
                                 <div style="text-align: center;">
                                     <div style="opacity: 0.8; margin-bottom: 0.5rem; font-weight: bold;">🔄 Aktionen</div>
                                     ${gameActions.slice().reverse().slice(0, 3).filter(a => a.team === 'wir').map(a => 
@@ -949,8 +954,9 @@
                                     ).join('') || '<div style="opacity: 0.5;">-</div>'}
                                 </div>
                             </div>
+                            
+                            <button class="btn btn-success" style="width: 100%; background: rgba(99, 153, 34, 0.95); margin: 0; border-radius: 4px;" onclick="endGame()">✅ Spiel beenden</button>
                         </div>
-                        <button class="btn btn-success" style="width: 100%; margin-bottom: 1rem;" onclick="endGame()">✅ Spiel beenden</button>
                     </div>
                     
                     <div class="card">
