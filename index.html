@@ -1132,12 +1132,18 @@
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
+                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">⚠️ Fehler</div>
+                                <div class="stat-grid">
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tech_fehler', 1)">Tech.Fehler +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlpasse', 1)">Fehlpass +1</button>
+                                </div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0} | Fehlpass: ${stats.fehlpasse || 0}</div>
+                            </div>
+                            
+                            <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🤝 Sonstige</div>
                                 <div class="stat-grid">
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'assists', 1)">Assist +</button>
-                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'turnovers', 1)">Fehler +</button>
-                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'tech_fehler', 1)">Tech. +</button>
-                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'fehlpasse', 1)">Fehlpass +</button>
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_geholt', 1)">7m geholt +</button>
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_verursacht', 1)">7m verursacht +</button>
                                 </div>
@@ -1412,16 +1418,14 @@
                     <div class="card">
                         <div class="card-title">⚽ Feldspieler-Ranking</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehler</th><th>Quote</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
                             ${feldspieler
                                 .sort((a, b) => ((b.tore || 0) + (b.tore7m || 0)) - ((a.tore || 0) + (a.tore7m || 0)))
                                 .map(s => {
                                     const p = players.find(pl => pl.id === s.player_id);
                                     if (!p) return '';
                                     const tore = (s.tore || 0) + (s.tore7m || 0);
-                                    const fehler = (s.fehlwurfe || 0) + (s.fehlwurfe7m || 0);
-                                    const quote = ((tore / (tore + fehler) * 100) || 0).toFixed(0);
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${fehler}</td><td>${quote}%</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td></tr>`;
                                 })
                                 .join('')}
                         </table>
@@ -1592,6 +1596,8 @@
                                 tore7m: 0,
                                 fehlwurfe: 0,
                                 fehlwurfe7m: 0,
+                                tech_fehler: 0,
+                                fehlpasse: 0,
                                 paraden: 0,
                                 paraden_7m: 0,
                                 gegentore: 0,
@@ -1605,6 +1611,8 @@
                         playerSeasonStats[stat.player_id].tore7m += stat.tore7m || 0;
                         playerSeasonStats[stat.player_id].fehlwurfe += stat.fehlwurfe || 0;
                         playerSeasonStats[stat.player_id].fehlwurfe7m += stat.fehlwurfe7m || 0;
+                        playerSeasonStats[stat.player_id].tech_fehler += stat.tech_fehler || 0;
+                        playerSeasonStats[stat.player_id].fehlpasse += stat.fehlpasse || 0;
                         playerSeasonStats[stat.player_id].paraden += stat.paraden || 0;
                         playerSeasonStats[stat.player_id].paraden_7m += stat.paraden_7m || 0;
                         playerSeasonStats[stat.player_id].gegentore += stat.gegentore || 0;
@@ -1632,14 +1640,12 @@
                         <div class="card">
                             <div class="card-title">⚽ Feldspieler-Saisonstatistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehler</th><th>Quote</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
                                 ${feldspielerSaisonStats.map(s => {
                                     const p = players.find(pl => pl.id === s.playerId);
                                     if (!p) return '';
                                     const tore = s.tore + s.tore7m;
-                                    const fehler = s.fehlwurfe + s.fehlwurfe7m;
-                                    const quote = ((tore / (tore + fehler) * 100) || 0).toFixed(0);
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${fehler}</td><td>${quote}%</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
