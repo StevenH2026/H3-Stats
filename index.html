@@ -886,7 +886,7 @@
                     .select('*')
                     .eq('game_id', currentGame.id);
                 
-                const opponentStats = (oppStats && oppStats.length > 0) ? oppStats[0] : { fehlwurfe: 0, tech_fehler: 0 };
+                const opponentStats = (oppStats && oppStats.length > 0) ? oppStats[0] : { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 };
                 
                 // Berechne aktuelle Tore
                 const allStats = await sbClient
@@ -1057,8 +1057,9 @@
                         <div class="stat-grid">
                             <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updateOpponentStat('fehlwurfe', 1)">Fehlwurf</button>
                             <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updateOpponentStat('tech_fehler', 1)">Technischer Fehler</button>
+                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updateOpponentStat('fehlpasse', 1)">Fehlpass</button>
                         </div>
-                        <div style="font-size: 14px; margin-top: 1rem;">Fehlwürfe: ${opponentStats.fehlwurfe} | Tech.Fehler: ${opponentStats.tech_fehler}</div>
+                        <div style="font-size: 14px; margin-top: 1rem;">Fehlwürfe: ${opponentStats.fehlwurfe} | Tech.Fehler: ${opponentStats.tech_fehler} | Fehlpass: ${opponentStats.fehlpasse}</div>
                     </div>
                     
                     <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
@@ -1302,7 +1303,7 @@
                         .update({ [statKey]: newValue })
                         .eq('game_id', currentGame.id);
                 } else {
-                    const newStats = { game_id: currentGame.id, fehlwurfe: 0, tech_fehler: 0 };
+                    const newStats = { game_id: currentGame.id, fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 };
                     newStats[statKey] = delta;
                     await sbClient.from('opponent_stats').insert([newStats]);
                 }
@@ -1310,7 +1311,8 @@
                 // Logge Aktion
                 const actionMap = {
                     'fehlwurfe': '💨 Fehlwurf',
-                    'tech_fehler': '🚫 Tech.Fehler'
+                    'tech_fehler': '🚫 Tech.Fehler',
+                    'fehlpasse': '❌ Fehlpass'
                 };
                 
                 if (delta > 0 && actionMap[statKey]) {
