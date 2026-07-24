@@ -628,8 +628,16 @@
             selectedPlayer = null;
             selectedCoach = null;
             gameActions = []; // Reset Action-Log für neues Spiel
-            switchTab(document.querySelector('[onclick*="erfassung"]'), 'erfassung');
-            renderErlassung();
+            
+            // Beendete Spiele → Spielstatistik (read-only)
+            // Aktive Spiele → Erfassung
+            if (currentGame?.ended) {
+                switchTab(document.querySelector('[onclick*="spielstat"]'), 'spielstat');
+                renderSpielStatistik();
+            } else {
+                switchTab(document.querySelector('[onclick*="erfassung"]'), 'erfassung');
+                renderErlassung();
+            }
         }
         
         async function deleteGame(gameId) {
@@ -661,7 +669,7 @@
             }
             
             container.innerHTML = games.map(game => `
-                <div class="card" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; ${game.ended ? 'background: #f0f0f0; opacity: 0.7;' : ''}" onclick="${!game.ended ? `selectGame('${game.id}')` : ''}">
+                <div class="card" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; ${game.ended ? 'background: #f0f0f0; opacity: 0.8;' : ''}" onclick="selectGame('${game.id}')">
                     <div>
                         <div style="font-weight: bold;">${game.opponent} ${game.ended ? '✅ Beendet' : ''}</div>
                         <div style="font-size: 12px; color: #999;">📅 ${new Date(game.date).toLocaleDateString('de-DE')} ${game.time || ''}</div>
@@ -1948,6 +1956,8 @@
                 return;
             }
             
+            const createPdf = confirm('Spielstatistik als PDF exportieren?');
+            
             try {
                 // Versuche Spiel als beendet zu markieren (optional - ignoriere Fehler wenn Spalte nicht existiert)
                 try {
@@ -1962,6 +1972,37 @@
                 
                 showToast('✅ Spiel beendet');
                 
+                // Generiere PDF wenn gewünscht
+                if (createPdf) {
+                    // Lade Statistik um sicherzustellen, dass HTML vorhanden ist
+                    await renderSpielStatistik();
+                    
+                    setTimeout(() => {
+                        const element = document.getElementById('spielstatContent');
+                        if (!element) {
+                            showToast('⚠️ Statistik konnte nicht geladen werden');
+                            return;
+                        }
+                        
+                        const opt = {
+                            margin: [8, 8, 8, 8],
+                            filename: `Spielstatistik_${currentGame.opponent}_${new Date(currentGame.date).toLocaleDateString('de-DE')}.pdf`,
+                            image: { type: 'jpeg', quality: 0.95 },
+                            html2canvas: { scale: 1.5, useCORS: true, logging: false },
+                            jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
+                            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                        };
+                        
+                        try {
+                            html2pdf().set(opt).from(element).save();
+                            showToast('✅ Spielstatistik PDF heruntergeladen');
+                        } catch (pdfErr) {
+                            console.error('PDF generation error:', pdfErr);
+                            showToast('⚠️ PDF-Generierung fehlgeschlagen');
+                        }
+                    }, 500);
+                }
+                
                 // Zurück zur Spiele-Übersicht
                 setTimeout(() => {
                     currentGame = null;
@@ -1970,7 +2011,7 @@
                     loadGames();
                     const spieleBtn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.textContent.includes('Spiele'));
                     switchTab(spieleBtn, 'spiele');
-                }, 1000);
+                }, createPdf ? 3000 : 1000);
                 
             } catch (err) {
                 console.error('Error ending game:', err);
