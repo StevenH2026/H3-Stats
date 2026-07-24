@@ -1410,26 +1410,50 @@
                         <div class="card-title">📊 Spiel-Übersicht</div>
                         <table style="font-size: 13px; width: 100%;">
                             <tr><td><b>Feldtore:</b></td><td>${feldspieler.reduce((s, st) => s + (st.tore || 0), 0)}</td></tr>
+                            <tr><td><b>Feldquote:</b></td><td>${(() => {
+                                const ft = feldspieler.reduce((s, st) => s + (st.tore || 0), 0);
+                                const ff = feldspieler.reduce((s, st) => s + (st.fehlwurfe || 0), 0);
+                                return ((ft / (ft + ff) * 100) || 0).toFixed(1) + '%';
+                            })()}</td></tr>
                             <tr><td><b>7m-Tore:</b></td><td>${feldspieler.reduce((s, st) => s + (st.tore7m || 0), 0)}</td></tr>
-                            <tr><td><b>Fehlwürfe:</b></td><td>${totFehlwurfe}</td></tr>
-                            <tr><td><b>Wurfquote:</b></td><td>${((totTore / (totTore + totFehlwurfe) * 100) || 0).toFixed(1)}%</td></tr>
-                            <tr style="border-top: 1px solid #ddd;"><td><b>Paraden (TW):</b></td><td>${totParaden}</td></tr>
-                            <tr><td><b>Gegentore (TW):</b></td><td>${totGegenTore}</td></tr>
-                            <tr><td><b>Tech.Fehler:</b></td><td>${totTechFehler}</td></tr>
+                            <tr><td><b>7m-Quote:</b></td><td>${(() => {
+                                const t7m = feldspieler.reduce((s, st) => s + (st.tore7m || 0), 0);
+                                const f7m = feldspieler.reduce((s, st) => s + (st.fehlwurfe7m || 0), 0);
+                                return ((t7m / (t7m + f7m) * 100) || 0).toFixed(1) + '%';
+                            })()}</td></tr>
+                            <tr style="border-top: 1px solid #ddd;"><td><b>Paraden (TW):</b></td><td>${torwarte.reduce((s, st) => s + (st.paraden || 0), 0)}</td></tr>
+                            <tr><td><b>Parade-Quote:</b></td><td>${(() => {
+                                const p = torwarte.reduce((s, st) => s + (st.paraden || 0), 0);
+                                const g = torwarte.reduce((s, st) => s + (st.gegentore || 0), 0);
+                                return ((p / (p + g) * 100) || 0).toFixed(1) + '%';
+                            })()}</td></tr>
+                            <tr><td><b>7m-Paraden (TW):</b></td><td>${torwarte.reduce((s, st) => s + (st.paraden_7m || 0), 0)}</td></tr>
+                            <tr><td><b>7m-Parade-Quote:</b></td><td>${(() => {
+                                const p7m = torwarte.reduce((s, st) => s + (st.paraden_7m || 0), 0);
+                                const g7m = torwarte.reduce((s, st) => s + (st.gegentore_7m || 0), 0);
+                                return ((p7m / (p7m + g7m) * 100) || 0).toFixed(1) + '%';
+                            })()}</td></tr>
+                            <tr><td><b>Gegentore (TW):</b></td><td>${torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0), 0)}</td></tr>
+                            <tr><td><b>Tech.Fehler:</b></td><td>${feldspieler.reduce((s, st) => s + (st.tech_fehler || 0), 0) + torwarte.reduce((s, st) => s + (st.tech_fehler || 0), 0)}</td></tr>
                         </table>
                     </div>
                     
                     <div class="card">
                         <div class="card-title">⚽ Feldspieler-Ranking</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Feldtore</th><th>Feldquote</th><th>7m-Tore</th><th>7m-Quote</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                             ${feldspieler
                                 .sort((a, b) => ((b.tore || 0) + (b.tore7m || 0)) - ((a.tore || 0) + (a.tore7m || 0)))
                                 .map(s => {
                                     const p = players.find(pl => pl.id === s.player_id);
                                     if (!p) return '';
-                                    const tore = (s.tore || 0) + (s.tore7m || 0);
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td></tr>`;
+                                    const feldtore = (s.tore || 0);
+                                    const feldfehl = (s.fehlwurfe || 0);
+                                    const feldquote = ((feldtore / (feldtore + feldfehl) * 100) || 0).toFixed(0);
+                                    const siebentore = (s.tore7m || 0);
+                                    const siebenfehl = (s.fehlwurfe7m || 0);
+                                    const siebenquote = ((siebentore / (siebentore + siebenfehl) * 100) || 0).toFixed(0);
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenquote}%</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td></tr>`;
                                 })
                                 .join('')}
                         </table>
@@ -1438,15 +1462,19 @@
                     <div class="card">
                         <div class="card-title">🥅 Torwart-Statistik</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Gegentore</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                             ${torwarte
                                 .sort((a, b) => ((b.paraden || 0) + (b.paraden_7m || 0)) - ((a.paraden || 0) + (a.paraden_7m || 0)))
                                 .map(s => {
                                     const p = players.find(pl => pl.id === s.player_id);
                                     if (!p) return '';
-                                    const paraden = (s.paraden || 0) + (s.paraden_7m || 0);
-                                    const gegentore = (s.gegentore || 0) + (s.gegentore_7m || 0);
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${gegentore}</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td></tr>`;
+                                    const paraden = (s.paraden || 0);
+                                    const gegentore = (s.gegentore || 0);
+                                    const parquote = ((paraden / (paraden + gegentore) * 100) || 0).toFixed(0);
+                                    const paraden7m = (s.paraden_7m || 0);
+                                    const gegentore7m = (s.gegentore_7m || 0);
+                                    const parquote7m = ((paraden7m / (paraden7m + gegentore7m) * 100) || 0).toFixed(0);
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td></tr>`;
                                 })
                                 .join('')}
                         </table>
@@ -1644,12 +1672,17 @@
                         <div class="card">
                             <div class="card-title">⚽ Feldspieler-Saisonstatistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Feldtore</th><th>Feldquote</th><th>7m-Tore</th><th>7m-Quote</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                                 ${feldspielerSaisonStats.map(s => {
                                     const p = players.find(pl => pl.id === s.playerId);
                                     if (!p) return '';
-                                    const tore = s.tore + s.tore7m;
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td></tr>`;
+                                    const feldtore = s.tore;
+                                    const feldfehl = s.fehlwurfe;
+                                    const feldquote = ((feldtore / (feldtore + feldfehl) * 100) || 0).toFixed(0);
+                                    const siebentore = s.tore7m;
+                                    const siebenfehl = s.fehlwurfe7m;
+                                    const siebenquote = ((siebentore / (siebentore + siebenfehl) * 100) || 0).toFixed(0);
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenquote}%</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
@@ -1673,13 +1706,17 @@
                         <div class="card">
                             <div class="card-title">🥅 Torwart-Saisonstatistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Gegentore</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                                 ${torwartSaisonStats.map(s => {
                                     const p = players.find(pl => pl.id === s.playerId);
                                     if (!p) return '';
-                                    const paraden = s.paraden + s.paraden_7m;
-                                    const gegentore = s.gegentore + s.gegentore_7m;
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${gegentore}</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td></tr>`;
+                                    const paraden = s.paraden;
+                                    const gegentore = s.gegentore;
+                                    const parquote = ((paraden / (paraden + gegentore) * 100) || 0).toFixed(0);
+                                    const paraden7m = s.paraden_7m;
+                                    const gegentore7m = s.gegentore_7m;
+                                    const parquote7m = ((paraden7m / (paraden7m + gegentore7m) * 100) || 0).toFixed(0);
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
