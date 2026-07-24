@@ -974,7 +974,10 @@
                                 </div>
                             </div>
                             
-                            <button class="btn btn-success" style="width: 100%; background: rgba(99, 153, 34, 0.95); margin: 0; border-radius: 4px;" onclick="endGame()">✅ Spiel beenden</button>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                                <button class="btn btn-secondary" style="background: rgba(100, 100, 100, 0.95); border-radius: 4px; font-size: 14px;" onclick="undo()">↩️ Undo</button>
+                                <button class="btn btn-success" style="background: rgba(99, 153, 34, 0.95); border-radius: 4px; font-size: 14px;" onclick="endGame()">✅ Spiel beenden</button>
+                            </div>
                         </div>
                     </div>
                     
@@ -1277,7 +1280,11 @@
                 if (delta > 0 && actionMap[statKey]) {
                     gameActions.push({
                         team: 'wir',
-                        text: `${player?.name}: ${actionMap[statKey]}`
+                        text: `${player?.name}: ${actionMap[statKey]}`,
+                        type: 'player',
+                        playerId: playerId,
+                        statKey: statKey,
+                        delta: delta
                     });
                 }
                 
@@ -1318,7 +1325,10 @@
                 if (delta > 0 && actionMap[statKey]) {
                     gameActions.push({
                         team: 'gegner',
-                        text: actionMap[statKey]
+                        text: actionMap[statKey],
+                        type: 'opponent',
+                        statKey: statKey,
+                        delta: delta
                     });
                 }
                 
@@ -1362,7 +1372,11 @@
                 if (delta > 0 && actionMap[statKey]) {
                     gameActions.push({
                         team: 'wir',
-                        text: `${coach?.designation}: ${actionMap[statKey]}`
+                        text: `${coach?.designation}: ${actionMap[statKey]}`,
+                        type: 'coach',
+                        coachId: coachId,
+                        statKey: statKey,
+                        delta: delta
                     });
                 }
                 
@@ -1950,6 +1964,72 @@
             } catch (err) {
                 console.error('Error importing coaches:', err);
                 showToast('⚠️ Betreuer-Import fehlgeschlagen');
+            }
+        }
+        
+        async function undo() {
+            if (gameActions.length === 0) {
+                showToast('❌ Nichts zum Rückgängigmachen');
+                return;
+            }
+            
+            const lastAction = gameActions.pop();
+            
+            try {
+                if (lastAction.type === 'player') {
+                    // Spieler-Stat rückgängig machen
+                    const { data: currentStats } = await sbClient
+                        .from('player_stats')
+                        .select('*')
+                        .eq('game_id', currentGame.id)
+                        .eq('player_id', lastAction.playerId);
+                    
+                    if (currentStats && currentStats.length > 0) {
+                        const newValue = Math.max(0, (currentStats[0][lastAction.statKey] || 0) - lastAction.delta);
+                        await sbClient
+                            .from('player_stats')
+                            .update({ [lastAction.statKey]: newValue })
+                            .eq('game_id', currentGame.id)
+                            .eq('player_id', lastAction.playerId);
+                    }
+                } else if (lastAction.type === 'opponent') {
+                    // Gegner-Stat rückgängig machen
+                    const { data: currentStats } = await sbClient
+                        .from('opponent_stats')
+                        .select('*')
+                        .eq('game_id', currentGame.id);
+                    
+                    if (currentStats && currentStats.length > 0) {
+                        const newValue = Math.max(0, (currentStats[0][lastAction.statKey] || 0) - lastAction.delta);
+                        await sbClient
+                            .from('opponent_stats')
+                            .update({ [lastAction.statKey]: newValue })
+                            .eq('game_id', currentGame.id);
+                    }
+                } else if (lastAction.type === 'coach') {
+                    // Coach-Stat rückgängig machen
+                    const { data: currentStats } = await sbClient
+                        .from('coach_stats')
+                        .select('*')
+                        .eq('game_id', currentGame.id)
+                        .eq('coach_id', lastAction.coachId);
+                    
+                    if (currentStats && currentStats.length > 0) {
+                        const newValue = Math.max(0, (currentStats[0][lastAction.statKey] || 0) - lastAction.delta);
+                        await sbClient
+                            .from('coach_stats')
+                            .update({ [lastAction.statKey]: newValue })
+                            .eq('game_id', currentGame.id)
+                            .eq('coach_id', lastAction.coachId);
+                    }
+                }
+                
+                showToast('↩️ Letzte Eingabe rückgängig gemacht');
+                renderErlassung();
+            } catch (err) {
+                console.error('Error undoing action:', err);
+                showToast('❌ Fehler beim Rückgängigmachen');
+                gameActions.push(lastAction); // Aktion wieder hinzufügen bei Fehler
             }
         }
         
