@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🏐 H3-Stats Handball</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; }
@@ -49,6 +50,8 @@
         .toast.show { display: block; }
         
         .empty-state { text-align: center; padding: 2rem; color: #999; }
+        
+        .score-card-sticky { position: sticky; top: 0; z-index: 100; margin-bottom: 1rem; }
     </style>
 </head>
 <body>
@@ -642,9 +645,9 @@
             }
             
             container.innerHTML = games.map(game => `
-                <div class="card" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="selectGame('${game.id}')">
+                <div class="card" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; ${game.ended ? 'background: #f0f0f0; opacity: 0.7;' : ''}" onclick="${!game.ended ? `selectGame('${game.id}')` : ''}">
                     <div>
-                        <div style="font-weight: bold;">${game.opponent}</div>
+                        <div style="font-weight: bold;">${game.opponent} ${game.ended ? '✅ Beendet' : ''}</div>
                         <div style="font-size: 12px; color: #999;">📅 ${new Date(game.date).toLocaleDateString('de-DE')} ${game.time || ''}</div>
                     </div>
                     <button class="btn btn-danger" style="padding: 0.5rem;" onclick="event.stopPropagation(); deleteGame('${game.id}')">Löschen</button>
@@ -1389,21 +1392,24 @@
                 const totParaden = torwarte.reduce((s, st) => s + (st.paraden || 0) + (st.paraden_7m || 0), 0);
                 
                 let html = `
-                    <div class="card" style="background: linear-gradient(135deg, #185fa5, #378add); color: white;">
-                        <div style="text-align: center;">
-                            <div style="font-size: 14px; opacity: 0.9;">${currentGame.opponent}</div>
-                            <div style="display: flex; justify-content: space-around; align-items: center; margin-top: 1rem;">
-                                <div style="text-align: center;">
-                                    <div style="font-size: 36px; font-weight: bold;">${totTore}</div>
-                                    <div style="font-size: 12px;">Tore</div>
-                                </div>
-                                <div style="text-align: center; opacity: 0.7;">vs</div>
-                                <div style="text-align: center;">
-                                    <div style="font-size: 36px; font-weight: bold;">${totGegenTore}</div>
-                                    <div style="font-size: 12px;">Gegentore</div>
+                    <div class="score-card-sticky">
+                        <div class="card" style="background: linear-gradient(135deg, #185fa5, #378add); color: white;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 14px; opacity: 0.9;">${currentGame.opponent}</div>
+                                <div style="display: flex; justify-content: space-around; align-items: center; margin-top: 1rem;">
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 36px; font-weight: bold;">${totTore}</div>
+                                        <div style="font-size: 12px;">Tore</div>
+                                    </div>
+                                    <div style="text-align: center; opacity: 0.7;">vs</div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 36px; font-weight: bold;">${totGegenTore}</div>
+                                        <div style="font-size: 12px;">Gegentore</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        <button class="btn btn-success" style="width: 100%; margin-top: 0.5rem;" onclick="endGame()">✅ Spiel beenden</button>
                     </div>
                     
                     <div class="card">
@@ -1890,6 +1896,66 @@
             } catch (err) {
                 console.error('Error importing coaches:', err);
                 showToast('⚠️ Betreuer-Import fehlgeschlagen');
+            }
+        async function endGame() {
+            if (!currentGame) {
+                showToast('❌ Kein aktives Spiel');
+                return;
+            }
+            
+            const createPdf = confirm('Spielstatistik als PDF speichern?');
+            
+            try {
+                // Markiere Spiel als beendet
+                const { error } = await sbClient
+                    .from('games')
+                    .update({ ended: true })
+                    .eq('id', currentGame.id);
+                
+                if (error) throw error;
+                
+                showToast('✅ Spiel beendet');
+                
+                // Generiere PDF wenn gewünscht
+                if (createPdf) {
+                    // Lade Statistik um sicherzustellen, dass HTML vorhanden ist
+                    await renderSpielStatistik();
+                    
+                    setTimeout(() => {
+                        const element = document.getElementById('spielstatContent');
+                        if (!element) {
+                            showToast('⚠️ Statistik konnte nicht geladen werden');
+                            return;
+                        }
+                        
+                        const opt = {
+                            margin: 10,
+                            filename: `Spielstatistik_${currentGame.opponent}_${new Date(currentGame.date).toLocaleDateString('de-DE')}.pdf`,
+                            image: { type: 'jpeg', quality: 0.98 },
+                            html2canvas: { scale: 2 },
+                            jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' }
+                        };
+                        
+                        try {
+                            html2pdf().set(opt).from(element).save();
+                            showToast('✅ PDF heruntergeladen');
+                        } catch (pdfErr) {
+                            console.error('PDF generation error:', pdfErr);
+                            showToast('⚠️ PDF-Generierung fehlgeschlagen');
+                        }
+                    }, 500);
+                }
+                
+                // Zurück zur Spiele-Übersicht
+                setTimeout(() => {
+                    loadGames();
+                    const spieleBtn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.textContent.includes('Spiele'));
+                    switchTab(spieleBtn, 'spiele');
+                }, createPdf ? 3000 : 1000);
+                
+            } catch (err) {
+                console.error('Error ending game:', err);
+                showToast('❌ Fehler beim Beenden des Spiels');
             }
         }
     </script>
