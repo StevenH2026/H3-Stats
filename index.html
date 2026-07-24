@@ -1419,7 +1419,10 @@
                     </div>
                     
                     <div class="card">
-                        <div class="card-title">📊 Spiel-Übersicht</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <div class="card-title" style="margin-bottom: 0;">📊 Spiel-Übersicht</div>
+                            <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 12px;" onclick="exportSpielStatisticPdf()">📥 PDF exportieren</button>
+                        </div>
                         <table style="font-size: 13px; width: 100%;">
                             <tr><td><b>Feldtore:</b></td><td>${feldspieler.reduce((s, st) => s + (st.tore || 0), 0)}</td></tr>
                             <tr><td><b>Feldquote:</b></td><td>${(() => {
@@ -1537,7 +1540,10 @@
                 
                 let html = `
                     <div class="card">
-                        <div class="card-title">🏆 Saison-Statistik</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <div class="card-title" style="margin-bottom: 0;">🏆 Saison-Statistik</div>
+                            <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 12px;" onclick="exportSaisonStatisticPdf()">📥 PDF exportieren</button>
+                        </div>
                         <table style="font-size: 12px;">
                             <tr style="background: #f5f5f5;"><th>Gegner</th><th>Datum</th><th>Tore</th><th>Gegentore</th><th>Ergebnis</th></tr>
                 `;
@@ -1911,8 +1917,6 @@
                 return;
             }
             
-            const createPdf = confirm('Spielstatistik als PDF speichern?');
-            
             try {
                 // Versuche Spiel als beendet zu markieren (optional - ignoriere Fehler wenn Spalte nicht existiert)
                 try {
@@ -1927,36 +1931,6 @@
                 
                 showToast('✅ Spiel beendet');
                 
-                // Generiere PDF wenn gewünscht
-                if (createPdf) {
-                    // Lade Statistik um sicherzustellen, dass HTML vorhanden ist
-                    await renderSpielStatistik();
-                    
-                    setTimeout(() => {
-                        const element = document.getElementById('spielstatContent');
-                        if (!element) {
-                            showToast('⚠️ Statistik konnte nicht geladen werden');
-                            return;
-                        }
-                        
-                        const opt = {
-                            margin: 10,
-                            filename: `Spielstatistik_${currentGame.opponent}_${new Date(currentGame.date).toLocaleDateString('de-DE')}.pdf`,
-                            image: { type: 'jpeg', quality: 0.98 },
-                            html2canvas: { scale: 2 },
-                            jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' }
-                        };
-                        
-                        try {
-                            html2pdf().set(opt).from(element).save();
-                            showToast('✅ PDF heruntergeladen');
-                        } catch (pdfErr) {
-                            console.error('PDF generation error:', pdfErr);
-                            showToast('⚠️ PDF-Generierung fehlgeschlagen');
-                        }
-                    }, 500);
-                }
-                
                 // Zurück zur Spiele-Übersicht
                 setTimeout(() => {
                     currentGame = null;
@@ -1965,11 +1939,65 @@
                     loadGames();
                     const spieleBtn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.textContent.includes('Spiele'));
                     switchTab(spieleBtn, 'spiele');
-                }, createPdf ? 3000 : 1000);
+                }, 1000);
                 
             } catch (err) {
                 console.error('Error ending game:', err);
                 showToast('❌ Fehler beim Beenden des Spiels');
+            }
+        }
+        
+        async function exportSpielStatisticPdf() {
+            try {
+                const element = document.getElementById('spielstatContent');
+                if (!element) {
+                    showToast('⚠️ Spielstatistik konnte nicht geladen werden');
+                    return;
+                }
+                
+                if (!currentGame) {
+                    showToast('⚠️ Kein aktives Spiel');
+                    return;
+                }
+                
+                const opt = {
+                    margin: 10,
+                    filename: `Spielstatistik_${currentGame.opponent}_${new Date(currentGame.date).toLocaleDateString('de-DE')}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' }
+                };
+                
+                html2pdf().set(opt).from(element).save();
+                showToast('✅ Spielstatistik PDF heruntergeladen');
+            } catch (err) {
+                console.error('PDF generation error:', err);
+                showToast('❌ PDF-Generierung fehlgeschlagen');
+            }
+        }
+        
+        async function exportSaisonStatisticPdf() {
+            try {
+                const element = document.getElementById('saisonstatContent');
+                if (!element) {
+                    showToast('⚠️ Saisonstatistik konnte nicht geladen werden');
+                    return;
+                }
+                
+                const today = new Date().toLocaleDateString('de-DE');
+                const opt = {
+                    margin: 10,
+                    filename: `Saisonstatistik_${today}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' }
+                };
+                
+                html2pdf().set(opt).from(element).save();
+                showToast('✅ Saisonstatistik PDF heruntergeladen');
+            } catch (err) {
+                console.error('PDF generation error:', err);
+                showToast('❌ PDF-Generierung fehlgeschlagen');
             }
         }
     </script>
