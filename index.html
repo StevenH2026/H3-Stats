@@ -57,6 +57,17 @@
             z-index: 50;
             display: block;
         }
+        
+        @media print {
+            body { font-size: 10px; }
+            table { font-size: 10px !important; page-break-inside: avoid; }
+            .card { page-break-inside: avoid; margin-bottom: 0.5rem; padding: 0.75rem; }
+            .card-title { font-size: 12px; margin-bottom: 0.5rem; }
+            th { padding: 0.35rem 0.25rem; font-size: 9px; }
+            td { padding: 0.35rem 0.25rem; font-size: 9px; }
+            button { display: none; }
+            .score-card-sticky { position: static; }
+        }
     </style>
 </head>
 <body>
@@ -1961,11 +1972,12 @@
                 }
                 
                 const opt = {
-                    margin: 10,
+                    margin: [8, 8, 8, 8],
                     filename: `Spielstatistik_${currentGame.opponent}_${new Date(currentGame.date).toLocaleDateString('de-DE')}.pdf`,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2 },
-                    jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' }
+                    image: { type: 'jpeg', quality: 0.95 },
+                    html2canvas: { scale: 1.5, useCORS: true, logging: false },
+                    jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
                 };
                 
                 html2pdf().set(opt).from(element).save();
@@ -1986,11 +1998,12 @@
                 
                 const today = new Date().toLocaleDateString('de-DE');
                 const opt = {
-                    margin: 10,
+                    margin: [8, 8, 8, 8],
                     filename: `Saisonstatistik_${today}.pdf`,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2 },
-                    jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' }
+                    image: { type: 'jpeg', quality: 0.95 },
+                    html2canvas: { scale: 1.5, useCORS: true, logging: false },
+                    jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
                 };
                 
                 html2pdf().set(opt).from(element).save();
