@@ -1412,7 +1412,7 @@
                     <div class="card">
                         <div class="card-title">⚽ Feldspieler-Ranking</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehler</th><th>Quote</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehler</th><th>Quote</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
                             ${feldspieler
                                 .sort((a, b) => ((b.tore || 0) + (b.tore7m || 0)) - ((a.tore || 0) + (a.tore7m || 0)))
                                 .map(s => {
@@ -1421,7 +1421,7 @@
                                     const tore = (s.tore || 0) + (s.tore7m || 0);
                                     const fehler = (s.fehlwurfe || 0) + (s.fehlwurfe7m || 0);
                                     const quote = ((tore / (tore + fehler) * 100) || 0).toFixed(0);
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${fehler}</td><td>${quote}%</td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${fehler}</td><td>${quote}%</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td></tr>`;
                                 })
                                 .join('')}
                         </table>
@@ -1430,7 +1430,7 @@
                     <div class="card">
                         <div class="card-title">🥅 Torwart-Statistik</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Gegentore</th><th>Quote</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Gegentore</th><th>Quote</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
                             ${torwarte
                                 .sort((a, b) => ((b.paraden || 0) + (b.paraden_7m || 0)) - ((a.paraden || 0) + (a.paraden_7m || 0)))
                                 .map(s => {
@@ -1440,7 +1440,7 @@
                                     const gegentore = (s.gegentore || 0) + (s.gegentore_7m || 0);
                                     const gesamtschuesse = paraden + gegentore;
                                     const quote = ((paraden / gesamtschuesse * 100) || 0).toFixed(0);
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${gegentore}</td><td>${quote}%</td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${gegentore}</td><td>${quote}%</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td></tr>`;
                                 })
                                 .join('')}
                         </table>
@@ -1574,6 +1574,109 @@
                         </table>
                     </div>
                 `;
+                
+                // Spieler-Saisonstatistik aggregieren
+                const playerSeasonStats = {};
+                
+                for (const game of gameList) {
+                    const { data: stats } = await sbClient
+                        .from('player_stats')
+                        .select('*')
+                        .eq('game_id', game.id);
+                    
+                    const allStats = stats || [];
+                    for (const stat of allStats) {
+                        if (!playerSeasonStats[stat.player_id]) {
+                            playerSeasonStats[stat.player_id] = {
+                                tore: 0,
+                                tore7m: 0,
+                                fehlwurfe: 0,
+                                fehlwurfe7m: 0,
+                                paraden: 0,
+                                paraden_7m: 0,
+                                gegentore: 0,
+                                gegentore_7m: 0,
+                                gelb: 0,
+                                rot: 0,
+                                zwei_min: 0
+                            };
+                        }
+                        playerSeasonStats[stat.player_id].tore += stat.tore || 0;
+                        playerSeasonStats[stat.player_id].tore7m += stat.tore7m || 0;
+                        playerSeasonStats[stat.player_id].fehlwurfe += stat.fehlwurfe || 0;
+                        playerSeasonStats[stat.player_id].fehlwurfe7m += stat.fehlwurfe7m || 0;
+                        playerSeasonStats[stat.player_id].paraden += stat.paraden || 0;
+                        playerSeasonStats[stat.player_id].paraden_7m += stat.paraden_7m || 0;
+                        playerSeasonStats[stat.player_id].gegentore += stat.gegentore || 0;
+                        playerSeasonStats[stat.player_id].gegentore_7m += stat.gegentore_7m || 0;
+                        playerSeasonStats[stat.player_id].gelb += stat.gelb || 0;
+                        playerSeasonStats[stat.player_id].rot += stat.rot || 0;
+                        playerSeasonStats[stat.player_id].zwei_min += stat.zwei_min || 0;
+                    }
+                }
+                
+                // Feldspieler-Saisonstatistik
+                const feldspielerSaisonStats = Object.entries(playerSeasonStats)
+                    .filter(([playerId]) => {
+                        const p = players.find(pl => pl.id === playerId);
+                        return p && p.position === 'Feld';
+                    })
+                    .map(([playerId, stats]) => ({
+                        playerId,
+                        ...stats
+                    }))
+                    .sort((a, b) => ((b.tore + b.tore7m) - (a.tore + a.tore7m)));
+                
+                if (feldspielerSaisonStats.length > 0) {
+                    html += `
+                        <div class="card">
+                            <div class="card-title">⚽ Feldspieler-Saisonstatistik</div>
+                            <table style="font-size: 12px; width: 100%;">
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehler</th><th>Quote</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
+                                ${feldspielerSaisonStats.map(s => {
+                                    const p = players.find(pl => pl.id === s.playerId);
+                                    if (!p) return '';
+                                    const tore = s.tore + s.tore7m;
+                                    const fehler = s.fehlwurfe + s.fehlwurfe7m;
+                                    const quote = ((tore / (tore + fehler) * 100) || 0).toFixed(0);
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${fehler}</td><td>${quote}%</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td></tr>`;
+                                }).join('')}
+                            </table>
+                        </div>
+                    `;
+                }
+                
+                // Torwart-Saisonstatistik
+                const torwartSaisonStats = Object.entries(playerSeasonStats)
+                    .filter(([playerId]) => {
+                        const p = players.find(pl => pl.id === playerId);
+                        return p && p.position === 'Torwart';
+                    })
+                    .map(([playerId, stats]) => ({
+                        playerId,
+                        ...stats
+                    }))
+                    .sort((a, b) => ((b.paraden + b.paraden_7m) - (a.paraden + a.paraden_7m)));
+                
+                if (torwartSaisonStats.length > 0) {
+                    html += `
+                        <div class="card">
+                            <div class="card-title">🥅 Torwart-Saisonstatistik</div>
+                            <table style="font-size: 12px; width: 100%;">
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Gegentore</th><th>Quote</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
+                                ${torwartSaisonStats.map(s => {
+                                    const p = players.find(pl => pl.id === s.playerId);
+                                    if (!p) return '';
+                                    const paraden = s.paraden + s.paraden_7m;
+                                    const gegentore = s.gegentore + s.gegentore_7m;
+                                    const gesamtschuesse = paraden + gegentore;
+                                    const quote = ((paraden / gesamtschuesse * 100) || 0).toFixed(0);
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${gegentore}</td><td>${quote}%</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td></tr>`;
+                                }).join('')}
+                            </table>
+                        </div>
+                    `;
+                }
                 
                 // Betreuer-Statistik gesamt
                 const { data: allCoachStats } = await sbClient
