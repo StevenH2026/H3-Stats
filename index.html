@@ -1024,8 +1024,8 @@
                     <div class="card">
                         <div class="card-title">🎯 Gegner</div>
                         <div class="stat-grid">
-                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updateOpponentStat('fehlwurfe', 1)">Fehlwurf +1</button>
-                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updateOpponentStat('tech_fehler', 1)">Tech.Fehler +1</button>
+                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updateOpponentStat('fehlwurfe', 1)">Fehlwurf</button>
+                            <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updateOpponentStat('tech_fehler', 1)">Technischer Fehler</button>
                         </div>
                         <div style="font-size: 14px; margin-top: 1rem;">Fehlwürfe: ${opponentStats.fehlwurfe} | Tech.Fehler: ${opponentStats.tech_fehler}</div>
                     </div>
@@ -1065,8 +1065,8 @@
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">🛡️ Paraden</div>
                                 <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'paraden', 1)">Parade +1</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'paraden_7m', 1)">7m-Parade +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'paraden', 1)">Parade</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'paraden_7m', 1)">7m Parade</button>
                                 </div>
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Paraden: ${stats.paraden || 0} | 7m: ${stats.paraden_7m || 0}</div>
                             </div>
@@ -1074,8 +1074,8 @@
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #e24b4a;">❌ Gegentore</div>
                                 <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'gegentore', 1)">Gegentor +1</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'gegentore_7m', 1)">7m-Gegentor +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'gegentore', 1)">Gegentor</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'gegentore_7m', 1)">7m Gegentor</button>
                                 </div>
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Gegentore: ${stats.gegentore || 0} | 7m: ${stats.gegentore_7m || 0}</div>
                             </div>
@@ -1083,19 +1083,21 @@
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #d4a100;">🚨 Strafen</div>
                                 <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 1.5; font-size: 14px; padding: 0.75rem; background: #ffd700; color: #333;" onclick="updatePlayerStat('${player.id}', 'gelb', 1)">Gelb +1</button>
-                                    <button class="stat-btn" style="grid-column: span 1.5; font-size: 14px; padding: 0.75rem; background: #ff4444; color: white;" onclick="updatePlayerStat('${player.id}', 'rot', 1)">Rot +1</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 14px; padding: 0.75rem; background: #333; color: white;" onclick="updatePlayerStat('${player.id}', 'zwei_min', 1)">2min +1</button>
+                                    <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #ffd700; color: #333;" onclick="updatePlayerStat('${player.id}', 'gelb', 1)">Gelb</button>
+                                    <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #ff4444; color: white;" onclick="updatePlayerStat('${player.id}', 'rot', 1)">Rot</button>
+                                    <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #333; color: white;" onclick="updatePlayerStat('${player.id}', 'zwei_min', 1)">2min</button>
+                                    <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #8B0000; color: white;" onclick="updatePlayerStat('${player.id}', 'disq', 1)">Disq</button>
                                 </div>
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">⚠️ Fehler</div>
                                 <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tech_fehler', 1)">Tech.Fehler +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tech_fehler', 1)">Technischer Fehler</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlpasse', 1)">Fehlpass</button>
                                 </div>
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0} | Fehlpass: ${stats.fehlpasse || 0}</div>
                             </div>
                         </div>
                     `;
@@ -1106,8 +1108,8 @@
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">⚽ Tore</div>
                                 <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore', 1)">Feld-Tor +1</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore7m', 1)">7m-Tor +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore', 1)">Feldtor</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore7m', 1)">7m Tor</button>
                                 </div>
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.tore} | 7m: ${stats.tore7m} | Gesamt: ${stats.tore + stats.tore7m}</div>
                             </div>
@@ -1115,8 +1117,8 @@
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #e24b4a;">❌ Fehlwürfe</div>
                                 <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe', 1)">Feld-Fehlwurf +1</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe7m', 1)">7m-Fehlwurf +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe', 1)">Fehlwurf</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe7m', 1)">7m Fehlwurf</button>
                                 </div>
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.fehlwurfe} | 7m: ${stats.fehlwurfe7m}</div>
                             </div>
@@ -1124,18 +1126,19 @@
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #d4a100;">🚨 Strafen</div>
                                 <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 1.5; font-size: 14px; padding: 0.75rem; background: #ffd700; color: #333;" onclick="updatePlayerStat('${player.id}', 'gelb', 1)">Gelb +1</button>
-                                    <button class="stat-btn" style="grid-column: span 1.5; font-size: 14px; padding: 0.75rem; background: #ff4444; color: white;" onclick="updatePlayerStat('${player.id}', 'rot', 1)">Rot +1</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 14px; padding: 0.75rem; background: #333; color: white;" onclick="updatePlayerStat('${player.id}', 'zwei_min', 1)">2min +1</button>
+                                    <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #ffd700; color: #333;" onclick="updatePlayerStat('${player.id}', 'gelb', 1)">Gelb</button>
+                                    <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #ff4444; color: white;" onclick="updatePlayerStat('${player.id}', 'rot', 1)">Rot</button>
+                                    <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #333; color: white;" onclick="updatePlayerStat('${player.id}', 'zwei_min', 1)">2min</button>
+                                    <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #8B0000; color: white;" onclick="updatePlayerStat('${player.id}', 'disq', 1)">Disq</button>
                                 </div>
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">⚠️ Fehler</div>
                                 <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tech_fehler', 1)">Tech.Fehler +1</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlpasse', 1)">Fehlpass +1</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tech_fehler', 1)">Technischer Fehler</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlpasse', 1)">Fehlpass</button>
                                 </div>
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0} | Fehlpass: ${stats.fehlpasse || 0}</div>
                             </div>
@@ -1143,9 +1146,9 @@
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🤝 Sonstige</div>
                                 <div class="stat-grid">
-                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'assists', 1)">Assist +</button>
-                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_geholt', 1)">7m geholt +</button>
-                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_verursacht', 1)">7m verursacht +</button>
+                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'assists', 1)">Assist</button>
+                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_geholt', 1)">7m geholt</button>
+                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_verursacht', 1)">7m verursacht</button>
                                 </div>
                             </div>
                         </div>
@@ -1177,11 +1180,12 @@
                         <div style="margin-bottom: 1.5rem;">
                             <div style="font-weight: bold; margin-bottom: 0.5rem; color: #d4a100;">🚨 Strafen</div>
                             <div class="stat-grid">
-                                <button class="stat-btn" style="grid-column: span 1.5; font-size: 14px; padding: 0.75rem; background: #ffd700; color: #333;" onclick="updateCoachStat('${coach.id}', 'gelb', 1)">Gelb +1</button>
-                                <button class="stat-btn" style="grid-column: span 1.5; font-size: 14px; padding: 0.75rem; background: #ff4444; color: white;" onclick="updateCoachStat('${coach.id}', 'rot', 1)">Rot +1</button>
-                                <button class="stat-btn" style="grid-column: span 2; font-size: 14px; padding: 0.75rem; background: #333; color: white;" onclick="updateCoachStat('${coach.id}', 'zwei_min', 1)">2min +1</button>
+                                <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #ffd700; color: #333;" onclick="updateCoachStat('${coach.id}', 'gelb', 1)">Gelb</button>
+                                <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #ff4444; color: white;" onclick="updateCoachStat('${coach.id}', 'rot', 1)">Rot</button>
+                                <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #333; color: white;" onclick="updateCoachStat('${coach.id}', 'zwei_min', 1)">2min</button>
+                                <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #8B0000; color: white;" onclick="updateCoachStat('${coach.id}', 'disq', 1)">Disq</button>
                             </div>
-                            <div style="font-size: 14px; margin-top: 0.5rem; text-align: center;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0}</div>
+                            <div style="font-size: 14px; margin-top: 0.5rem; text-align: center;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0}</div>
                         </div>
                     </div>
                 `;
@@ -1418,14 +1422,14 @@
                     <div class="card">
                         <div class="card-title">⚽ Feldspieler-Ranking</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                             ${feldspieler
                                 .sort((a, b) => ((b.tore || 0) + (b.tore7m || 0)) - ((a.tore || 0) + (a.tore7m || 0)))
                                 .map(s => {
                                     const p = players.find(pl => pl.id === s.player_id);
                                     if (!p) return '';
                                     const tore = (s.tore || 0) + (s.tore7m || 0);
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td></tr>`;
                                 })
                                 .join('')}
                         </table>
@@ -1434,7 +1438,7 @@
                     <div class="card">
                         <div class="card-title">🥅 Torwart-Statistik</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Gegentore</th><th>Quote</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Gegentore</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                             ${torwarte
                                 .sort((a, b) => ((b.paraden || 0) + (b.paraden_7m || 0)) - ((a.paraden || 0) + (a.paraden_7m || 0)))
                                 .map(s => {
@@ -1442,9 +1446,7 @@
                                     if (!p) return '';
                                     const paraden = (s.paraden || 0) + (s.paraden_7m || 0);
                                     const gegentore = (s.gegentore || 0) + (s.gegentore_7m || 0);
-                                    const gesamtschuesse = paraden + gegentore;
-                                    const quote = ((paraden / gesamtschuesse * 100) || 0).toFixed(0);
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${gegentore}</td><td>${quote}%</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${gegentore}</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td></tr>`;
                                 })
                                 .join('')}
                         </table>
@@ -1462,11 +1464,11 @@
                         <div class="card">
                             <div class="card-title">👔 Betreuer-Statistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Designation</th><th>Name</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Designation</th><th>Name</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                                 ${coachStatsData.map(cs => {
                                     const c = coaches.find(coach => coach.id === cs.coach_id);
                                     if (!c) return '';
-                                    return `<tr><td><b>${c.designation}</b></td><td>${c.name}</td><td>${cs.gelb || 0}</td><td>${cs.rot || 0}</td><td>${cs.zwei_min || 0}</td></tr>`;
+                                    return `<tr><td><b>${c.designation}</b></td><td>${c.name}</td><td>${cs.gelb || 0}</td><td>${cs.rot || 0}</td><td>${cs.zwei_min || 0}</td><td>${cs.disq || 0}</td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
@@ -1604,7 +1606,8 @@
                                 gegentore_7m: 0,
                                 gelb: 0,
                                 rot: 0,
-                                zwei_min: 0
+                                zwei_min: 0,
+                                disq: 0
                             };
                         }
                         playerSeasonStats[stat.player_id].tore += stat.tore || 0;
@@ -1620,6 +1623,7 @@
                         playerSeasonStats[stat.player_id].gelb += stat.gelb || 0;
                         playerSeasonStats[stat.player_id].rot += stat.rot || 0;
                         playerSeasonStats[stat.player_id].zwei_min += stat.zwei_min || 0;
+                        playerSeasonStats[stat.player_id].disq += stat.disq || 0;
                     }
                 }
                 
@@ -1640,12 +1644,12 @@
                         <div class="card">
                             <div class="card-title">⚽ Feldspieler-Saisonstatistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                                 ${feldspielerSaisonStats.map(s => {
                                     const p = players.find(pl => pl.id === s.playerId);
                                     if (!p) return '';
                                     const tore = s.tore + s.tore7m;
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${tore}</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
@@ -1669,15 +1673,13 @@
                         <div class="card">
                             <div class="card-title">🥅 Torwart-Saisonstatistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Gegentore</th><th>Quote</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Gegentore</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                                 ${torwartSaisonStats.map(s => {
                                     const p = players.find(pl => pl.id === s.playerId);
                                     if (!p) return '';
                                     const paraden = s.paraden + s.paraden_7m;
                                     const gegentore = s.gegentore + s.gegentore_7m;
-                                    const gesamtschuesse = paraden + gegentore;
-                                    const quote = ((paraden / gesamtschuesse * 100) || 0).toFixed(0);
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${gegentore}</td><td>${quote}%</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${gegentore}</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
@@ -1693,22 +1695,23 @@
                     const coachSummary = {};
                     for (const cs of allCoachStats) {
                         if (!coachSummary[cs.coach_id]) {
-                            coachSummary[cs.coach_id] = { gelb: 0, rot: 0, zwei_min: 0 };
+                            coachSummary[cs.coach_id] = { gelb: 0, rot: 0, zwei_min: 0, disq: 0 };
                         }
                         coachSummary[cs.coach_id].gelb += cs.gelb || 0;
                         coachSummary[cs.coach_id].rot += cs.rot || 0;
                         coachSummary[cs.coach_id].zwei_min += cs.zwei_min || 0;
+                        coachSummary[cs.coach_id].disq += cs.disq || 0;
                     }
                     
                     html += `
                         <div class="card">
                             <div class="card-title">👔 Betreuer-Saison-Statistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Designation</th><th>Name</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Designation</th><th>Name</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                                 ${Object.entries(coachSummary).map(([coachId, stats]) => {
                                     const c = coaches.find(coach => coach.id === coachId);
                                     if (!c) return '';
-                                    return `<tr><td><b>${c.designation}</b></td><td>${c.name}</td><td>${stats.gelb}</td><td>${stats.rot}</td><td>${stats.zwei_min}</td></tr>`;
+                                    return `<tr><td><b>${c.designation}</b></td><td>${c.name}</td><td>${stats.gelb}</td><td>${stats.rot}</td><td>${stats.zwei_min}</td><td>${stats.disq}</td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
