@@ -1448,6 +1448,7 @@
             document.getElementById(tabName).classList.add('active');
             if (button && button.classList) button.classList.add('active');
             
+            if (tabName === 'spiele') renderGamesList();
             if (tabName === 'spieler') renderPlayersList();
             if (tabName === 'betreuer') renderCoachesList();
             if (tabName === 'erfassung') renderErlassung();
