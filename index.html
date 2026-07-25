@@ -1105,17 +1105,20 @@
         }
         
         function calculateEffectiveness(stats) {
-            const positive = (stats.tore || 0) + (stats.tore7m || 0) + 
+            const positive = ((stats.tore || 0) * 3) + ((stats.tore7m || 0) * 3) + 
+                             ((stats.assists || 0) * 2) + 
                              (stats.sieben_m_geholt || 0) + (stats.zwei_min_geholt || 0);
-            const negative = (stats.fehlwurfe || 0) + (stats.tech_fehler || 0) + 
-                             (stats.fehlpasse || 0) + (stats.sieben_m_verursacht || 0) + 
-                             (stats.zwei_min || 0);
+            
+            const negative = ((stats.fehlwurfe || 0) * 2) + ((stats.fehlwurfe7m || 0) * 2) + 
+                             (stats.tech_fehler || 0) + (stats.fehlpasse || 0) + 
+                             (stats.sieben_m_verursacht || 0) + (stats.zwei_min || 0);
+            
             const total = positive + negative;
             
             if (total === 0) return { value: '–', detail: '0 Aktionen' };
             return { 
                 value: ((positive / total) * 100).toFixed(1) + '%',
-                detail: `${positive}/${total} Aktionen` 
+                detail: `${positive}/${total} Effektivitätspunkte` 
             };
         }
         
