@@ -660,7 +660,7 @@
             }
         }
         
-        function renderGamesList() {
+        async function renderGamesList() {
             const container = document.getElementById('gamesList');
             
             if (games.length === 0) {
@@ -668,15 +668,42 @@
                 return;
             }
             
-            container.innerHTML = games.map(game => `
-                <div class="card" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; ${game.ended ? 'background: #f0f0f0; opacity: 0.8;' : ''}" onclick="selectGame('${game.id}')">
-                    <div>
-                        <div style="font-weight: bold;">${game.opponent} ${game.ended ? '✅ Beendet' : ''}</div>
-                        <div style="font-size: 12px; color: #999;">📅 ${new Date(game.date).toLocaleDateString('de-DE')} ${game.time || ''}</div>
+            let html = '';
+            for (const game of games) {
+                // Lade Spielstände
+                const { data: allStats } = await sbClient
+                    .from('player_stats')
+                    .select('*')
+                    .eq('game_id', game.id);
+                
+                const stats = allStats || [];
+                const torwarte = stats.filter(s => {
+                    const p = players.find(pl => pl.id === s.player_id);
+                    return p && p.position === 'Torwart';
+                });
+                const feldspieler = stats.filter(s => {
+                    const p = players.find(pl => pl.id === s.player_id);
+                    return p && p.position === 'Feld';
+                });
+                
+                const totTore = feldspieler.reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0), 0);
+                const totGegenTore = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0), 0);
+                
+                const scoreLine = stats.length > 0 ? `<div style="font-size: 14px; font-weight: bold; color: #185fa5; margin-top: 0.25rem;">🏐 ${totTore} : ${totGegenTore}</div>` : '';
+                
+                html += `
+                    <div class="card" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; ${game.ended ? 'background: #f0f0f0; opacity: 0.8;' : ''}" onclick="selectGame('${game.id}')">
+                        <div style="flex: 1;">
+                            <div style="font-weight: bold;">${game.opponent} ${game.ended ? '✅ Beendet' : ''}</div>
+                            <div style="font-size: 12px; color: #999;">📅 ${new Date(game.date).toLocaleDateString('de-DE')} ${game.time || ''}</div>
+                            ${scoreLine}
+                        </div>
+                        <button class="btn btn-danger" style="padding: 0.5rem;" onclick="event.stopPropagation(); deleteGame('${game.id}')">Löschen</button>
                     </div>
-                    <button class="btn btn-danger" style="padding: 0.5rem;" onclick="event.stopPropagation(); deleteGame('${game.id}')">Löschen</button>
-                </div>
-            `).join('');
+                `;
+            }
+            
+            container.innerHTML = html;
         }
         
         async function renderKaderSelection() {
@@ -1156,13 +1183,13 @@
                     return `
                         <div class="card">
                             <div class="card-title">📊 ${player.name} (#${player.number})</div>
-                            <div style="margin-bottom: 1.5rem; background: linear-gradient(135deg, #e8f9f0, #c8f0e0); 
-                                        padding: 1rem; border-radius: 4px; border-left: 4px solid #639922;">
-                                <div style="font-weight: bold; margin-bottom: 0.75rem; color: #639922;">📊 Handlungseffektivität</div>
-                                <div style="font-size: 36px; font-weight: bold; text-align: center; color: #639922; margin-bottom: 0.5rem;">
+                            <div style="margin-bottom: 1rem; background: linear-gradient(135deg, #e8f9f0, #c8f0e0); 
+                                        padding: 0.75rem; border-radius: 4px; border-left: 4px solid #639922;">
+                                <div style="font-weight: bold; margin-bottom: 0.35rem; color: #639922; font-size: 13px;">📊 Handlungseffektivität</div>
+                                <div style="font-size: 24px; font-weight: bold; text-align: center; color: #639922; margin-bottom: 0.25rem;">
                                     ${effectiveness.value}
                                 </div>
-                                <div style="font-size: 11px; text-align: center; color: #666;">
+                                <div style="font-size: 10px; text-align: center; color: #666;">
                                     ${effectiveness.detail}
                                 </div>
                             </div>
