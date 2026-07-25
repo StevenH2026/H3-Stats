@@ -828,8 +828,11 @@
                             player_id: playerId,
                             tore: 0, tore7m: 0, assists: 0, turnovers: 0,
                             fehlwurfe: 0, fehlwurfe7m: 0, tech_fehler: 0,
-                            fehlpasse: 0, einzueins: 0, sieben_m_geholt: 0,
-                            zwei_min_geholt: 0, sieben_m_verursacht: 0, rote_karte: 0
+                            fehlpasse: 0, sieben_m_geholt: 0,
+                            zwei_min_geholt: 0, sieben_m_verursacht: 0,
+                            paraden: 0, paraden_7m: 0,
+                            gegentore: 0, gegentore_7m: 0,
+                            gelb: 0, rot: 0, zwei_min: 0, disq: 0
                         }]);
                 }
                 
@@ -1122,6 +1125,26 @@
             };
         }
         
+        function calculateGoalkeeperEffectiveness(stats) {
+            const paraden = (stats.paraden || 0) + (stats.paraden_7m || 0);
+            const gegentore = (stats.gegentore || 0) + (stats.gegentore_7m || 0);
+            
+            const positive = (paraden * 3) + ((stats.assists || 0) * 2) + 
+                             ((stats.turnovers || 0) * 2) + (stats.zwei_min_geholt || 0);
+            
+            const negative = (gegentore * 2) + (stats.fehlwurfe || 0) + 
+                             (stats.tech_fehler || 0) + (stats.fehlpasse || 0) + 
+                             (stats.sieben_m_verursacht || 0) + (stats.zwei_min || 0);
+            
+            const total = positive + negative;
+            
+            if (total === 0) return { value: '–', detail: '0 Aktionen' };
+            return { 
+                value: ((positive / total) * 100).toFixed(1) + '%',
+                detail: `${positive}/${total} Effektivitätspunkte` 
+            };
+        }
+        
         async function renderPlayerStats(player) {
             if (!player || !currentGame) return '';
             
@@ -1139,9 +1162,21 @@
                 const isTorwart = player.position === 'Torwart';
                 
                 if (isTorwart) {
+                    const effectiveness = calculateGoalkeeperEffectiveness(stats);
                     return `
                         <div class="card">
                             <div class="card-title">🥅 ${player.name} (#${player.number})</div>
+                            <div style="margin-bottom: 1rem; background: linear-gradient(135deg, #e8f4f8, #c8e0f0); 
+                                        padding: 0.75rem; border-radius: 4px; border-left: 4px solid #185fa5;">
+                                <div style="font-weight: bold; margin-bottom: 0.35rem; color: #185fa5; font-size: 13px;">🛡️ Handlungseffektivität</div>
+                                <div style="font-size: 24px; font-weight: bold; text-align: center; color: #185fa5; margin-bottom: 0.25rem;">
+                                    ${effectiveness.value}
+                                </div>
+                                <div style="font-size: 10px; text-align: center; color: #666;">
+                                    ${effectiveness.detail}
+                                </div>
+                            </div>
+                            
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">🛡️ Paraden</div>
                                 <div class="stat-grid">
@@ -1176,8 +1211,19 @@
                                 <div class="stat-grid">
                                     <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tech_fehler', 1)">Technischer Fehler</button>
                                     <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlpasse', 1)">Fehlpass</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe', 1)">Fehlwurf</button>
                                 </div>
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0} | Fehlpass: ${stats.fehlpasse || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0} | Fehlpass: ${stats.fehlpasse || 0} | Fehlwurf: ${stats.fehlwurfe || 0}</div>
+                            </div>
+                            
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🤝 Sonstige</div>
+                                <div class="stat-grid">
+                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'assists', 1)">Assist</button>
+                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'turnovers', 1)">Turnover</button>
+                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'zwei_min_geholt', 1)">2min geholt</button>
+                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_verursacht', 1)">7m verursacht</button>
+                                </div>
                             </div>
                         </div>
                     `;
@@ -1582,7 +1628,7 @@
                     <div class="card">
                         <div class="card-title">🥅 Torwart-Statistik</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>Gegentore gesamt</th><th>Gegentore-Quote</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>Gegentore gesamt</th><th>Gegentore-Quote</th><th>Handlungseff.</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                             ${torwarte
                                 .sort((a, b) => ((b.paraden || 0) + (b.paraden_7m || 0)) - ((a.paraden || 0) + (a.paraden_7m || 0)))
                                 .map(s => {
@@ -1597,7 +1643,8 @@
                                     const gegengesamt = gegentore + gegentore7m;
                                     const gesamtparaden = paraden + paraden7m;
                                     const gegenquote = ((gesamtparaden / (gesamtparaden + gegengesamt) * 100) || 0).toFixed(0);
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td><b>${gegengesamt}</b></td><td>${gegenquote}%</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td></tr>`;
+                                    const eff = calculateGoalkeeperEffectiveness(s);
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td><b>${gegengesamt}</b></td><td>${gegenquote}%</td><td><b>${eff.value}</b></td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td></tr>`;
                                 })
                                 .join('')}
                         </table>
@@ -1836,7 +1883,7 @@
                         <div class="card">
                             <div class="card-title">🥅 Torwart-Saisonstatistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>Gegentore gesamt</th><th>Gegentore-Quote</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>Gegentore gesamt</th><th>Gegentore-Quote</th><th>Handlungseff.</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                                 ${torwartSaisonStats.map(s => {
                                     const p = players.find(pl => pl.id === s.playerId);
                                     if (!p) return '';
@@ -1849,7 +1896,8 @@
                                     const gegengesamt = gegentore + gegentore7m;
                                     const gesamtparaden = paraden + paraden7m;
                                     const gegenquote = ((gesamtparaden / (gesamtparaden + gegengesamt) * 100) || 0).toFixed(0);
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td><b>${gegengesamt}</b></td><td>${gegenquote}%</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td></tr>`;
+                                    const eff = calculateGoalkeeperEffectiveness(s);
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td><b>${gegengesamt}</b></td><td>${gegenquote}%</td><td><b>${eff.value}</b></td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
