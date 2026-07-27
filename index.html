@@ -273,7 +273,12 @@
         }
         
         function handlePendingBadgeClick() {
-            if (!queueBlocked) return;
+            if (!queueBlocked) {
+                if (pendingQueue.length > 0) {
+                    alert(`${pendingQueue.length} Aktion(en) warten auf eine Verbindung und werden automatisch übertragen, sobald wieder Netz da ist. Kein Fehler, keine Aktion nötig.`);
+                }
+                return;
+            }
             
             const errText = lastQueueError
                 ? `Fehler: ${lastQueueError.message}\n${lastQueueError.details || ''}\n${lastQueueError.hint || ''}\n\nBetroffene Aktion: ${lastQueueError.item?.op} auf Tabelle "${lastQueueError.item?.table || lastQueueError.item?.fn}"`
@@ -839,6 +844,16 @@
             renderKaderSelection();
         }
         
+        function queueHasPendingForGame(gameId) {
+            return pendingQueue.some(item => {
+                if (item.op === 'rpc') return item.args?.p_game_id === gameId;
+                if (item.op === 'insert') return item.payload?.game_id === gameId;
+                if (item.op === 'delete') return item.match?.game_id === gameId;
+                if (item.op === 'update' && item.table === 'games') return item.matchVal === gameId;
+                return false;
+            });
+        }
+        
         async function selectGame(gameId) {
             currentGame = games.find(g => g.id === gameId);
             selectedPlayer = null;
@@ -852,8 +867,14 @@
                 return;
             }
             
-            // Aktive Spiele → lokalen Cache laden: online frisch von Supabase, offline letzten Snapshot
-            const gotFresh = await loadLocalCaches(currentGame.id);
+            // Aktive Spiele → lokalen Cache laden: online frisch von Supabase, offline letzten Snapshot.
+            // WICHTIG: Solange für dieses Spiel noch etwas in der Queue hängt, NIEMALS den Live-Stand
+            // übernehmen - der würde noch nicht synchronisierte Kader-/Stat-Änderungen überschreiben.
+            let gotFresh = false;
+            if (!queueHasPendingForGame(currentGame.id)) {
+                gotFresh = await loadLocalCaches(currentGame.id);
+            }
+            
             if (gotFresh) {
                 saveLocalCacheSnapshot();
             } else {
