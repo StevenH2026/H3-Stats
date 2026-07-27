@@ -776,8 +776,7 @@
             const newGame = {
                 id: 'game_' + Date.now(),
                 opponent, date, time, location,
-                created_at: new Date().toISOString(),
-                ended: false
+                created_at: new Date().toISOString()
             };
             
             games.push(newGame);
@@ -838,6 +837,21 @@
                 if (error) throw error;
                 games = games.filter(g => g.id !== gameId);
                 cacheSet('games', games);
+                
+                // Verwaiste Queue-Einträge zu diesem Spiel entfernen (sonst dauerhafte Blockade möglich)
+                const beforeLen = pendingQueue.length;
+                pendingQueue = pendingQueue.filter(item => {
+                    if (item.op === 'rpc') return item.args?.p_game_id !== gameId;
+                    if (item.op === 'insert') return item.payload?.game_id !== gameId;
+                    if (item.op === 'delete') return item.match?.game_id !== gameId;
+                    if (item.op === 'update' && item.table === 'games') return item.matchVal !== gameId;
+                    return true;
+                });
+                if (pendingQueue.length !== beforeLen) {
+                    saveQueueToStorage();
+                }
+                localStorage.removeItem('h3_cache_' + gameId);
+                
                 if (currentGame?.id === gameId) currentGame = null;
                 renderGamesList();
                 showToast('✅ Spiel gelöscht');
