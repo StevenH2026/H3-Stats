@@ -73,6 +73,7 @@
 <body>
     <div class="header">
         <h1>🏐 H3-Stats</h1>
+        <button onclick="showSyncLog()" style="background:none; border:1px solid rgba(255,255,255,0.5); color:white; border-radius:4px; padding:0.3rem 0.6rem; font-size:11px; cursor:pointer;">🔍 Log</button>
     </div>
     
     <div class="nav">
@@ -191,6 +192,7 @@
         function enqueue(item) {
             pendingQueue.push(item);
             saveQueueToStorage();
+            logSync(`ENQUEUE ${item.op} ${item.table || item.fn} ${JSON.stringify(item.args || item.payload || item.match || '')}`);
             if (!queueBlocked) flushQueue();
         }
         
@@ -210,6 +212,32 @@
             } else {
                 badge.style.display = 'none';
             }
+        }
+        
+        let syncLog = [];
+        try {
+            syncLog = JSON.parse(localStorage.getItem('h3_sync_log')) || [];
+        } catch (err) {
+            syncLog = [];
+        }
+        
+        function logSync(msg) {
+            const time = new Date().toTimeString().slice(0, 8);
+            syncLog.push(time + ' ' + msg);
+            if (syncLog.length > 300) syncLog = syncLog.slice(-300);
+            try {
+                localStorage.setItem('h3_sync_log', JSON.stringify(syncLog));
+            } catch (err) {
+                console.error('Fehler beim Speichern des Sync-Logs:', err);
+            }
+        }
+        
+        function showSyncLog() {
+            if (syncLog.length === 0) {
+                alert('Sync-Log ist leer.');
+                return;
+            }
+            alert(syncLog.slice(-50).join('\n'));
         }
         
         let flushInProgress = false;
@@ -240,6 +268,7 @@
                         
                         pendingQueue.shift();
                         saveQueueToStorage();
+                        logSync(`OK ${item.op} ${item.table || item.fn}`);
                     } catch (err) {
                         const isNetworkError = !navigator.onLine
                             || err instanceof TypeError
@@ -250,10 +279,12 @@
                             // Eintrag bleibt in der Queue, nächster Versuch kommt automatisch
                             // (online-Event bzw. 30s-Intervall)
                             console.warn('Kein Netz erreichbar, versuche später erneut:', item);
+                            logSync(`RETRY-LATER ${item.op} ${item.table || item.fn} (${err?.message || err})`);
                             return;
                         }
                         
                         console.error('Sync-Fehler, Queue angehalten:', err, item);
+                        logSync(`BLOCKED ${item.op} ${item.table || item.fn} - ${err?.message || err}`);
                         lastQueueError = {
                             message: err?.message || String(err),
                             details: err?.details || '',
@@ -880,6 +911,7 @@
             } else {
                 loadLocalCacheSnapshot(currentGame.id);
             }
+            syncGameScore();
             
             switchTab(document.querySelector('[onclick*="erfassung"]'), 'erfassung');
             renderErlassung();
@@ -1047,6 +1079,7 @@
             }
             
             saveLocalCacheSnapshot();
+            syncGameScore();
             renderKaderSelection();
         }
         
@@ -1390,19 +1423,28 @@
             return null;
         }
         
-        function applyScoreDelta(side, delta) {
+        function syncGameScore() {
             if (!currentGame) return;
-            if (side === 'us') {
-                currentGame.score_us = Math.max(0, (currentGame.score_us || 0) + delta);
-            } else if (side === 'gegner') {
-                currentGame.score_gegner = Math.max(0, (currentGame.score_gegner || 0) + delta);
-            } else {
-                return;
-            }
+            
+            const allStatsData = Object.values(localStats.players);
+            const feldspieler = allStatsData.filter(s => {
+                const player = players.find(p => p.id === s.player_id);
+                return player && player.position === 'Feld';
+            });
+            const torwarte = allStatsData.filter(s => {
+                const player = players.find(p => p.id === s.player_id);
+                return player && player.position === 'Torwart';
+            });
+            
+            const totTore = feldspieler.reduce((sum, s) => sum + (s.tore || 0) + (s.tore7m || 0), 0);
+            const totGegenTore = torwarte.reduce((sum, s) => sum + (s.gegentore || 0) + (s.gegentore_7m || 0), 0);
+            
+            currentGame.score_us = totTore;
+            currentGame.score_gegner = totGegenTore;
             cacheSet('games', games);
-            enqueue({ op: 'rpc', fn: 'increment_game_score', args: {
-                p_game_id: currentGame.id, p_side: side, p_delta: delta
-            }});
+            
+            enqueue({ op: 'update', table: 'games', payload: { score_us: totTore, score_gegner: totGegenTore }, matchCol: 'id', matchVal: currentGame.id });
+            
             renderGamesList();
         }
         
@@ -1421,7 +1463,7 @@
                 }});
                 
                 const scoreSide = scoreSideForStat(player, statKey);
-                if (scoreSide) applyScoreDelta(scoreSide, delta);
+                if (scoreSide) syncGameScore();
                 
                 // Logge Aktion
                 const isTorwart = player?.position === 'Torwart';
@@ -2135,7 +2177,7 @@
                 
                 const player = players.find(p => p.id === lastAction.playerId);
                 const scoreSide = scoreSideForStat(player, lastAction.statKey);
-                if (scoreSide) applyScoreDelta(scoreSide, -lastAction.delta);
+                if (scoreSide) syncGameScore();
             } else if (lastAction.type === 'opponent') {
                 if (localStats.opponent) localStats.opponent[lastAction.statKey] = Math.max(0, (localStats.opponent[lastAction.statKey] || 0) - lastAction.delta);
                 enqueue({ op: 'rpc', fn: 'increment_opponent_stat', args: {
