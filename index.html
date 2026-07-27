@@ -885,7 +885,7 @@
             });
         }
         
-        async function selectGame(gameId) {
+        function selectGame(gameId) {
             currentGame = games.find(g => g.id === gameId);
             selectedPlayer = null;
             selectedCoach = null;
@@ -898,23 +898,25 @@
                 return;
             }
             
-            // Aktive Spiele → lokalen Cache laden: online frisch von Supabase, offline letzten Snapshot.
-            // WICHTIG: Solange für dieses Spiel noch etwas in der Queue hängt, NIEMALS den Live-Stand
-            // übernehmen - der würde noch nicht synchronisierte Kader-/Stat-Änderungen überschreiben.
-            let gotFresh = false;
-            if (!queueHasPendingForGame(currentGame.id)) {
-                gotFresh = await loadLocalCaches(currentGame.id);
-            }
-            
-            if (gotFresh) {
-                saveLocalCacheSnapshot();
-            } else {
-                loadLocalCacheSnapshot(currentGame.id);
-            }
+            // Sofort den lokalen Stand laden und anzeigen - NIE auf eine Netzwerkantwort warten,
+            // damit ein Tippen auf ein Spiel niemals hängt oder zwischenzeitlich leer erscheint.
+            loadLocalCacheSnapshot(currentGame.id);
             syncGameScore();
-            
             switchTab(document.querySelector('[onclick*="erfassung"]'), 'erfassung');
             renderErlassung();
+            
+            // Nur wenn für dieses Spiel nichts mehr in der Queue offen ist, leise im Hintergrund
+            // auffrischen (z.B. Änderungen von einem anderen Gerät) - blockiert die Anzeige nicht
+            // und überschreibt nie, solange noch unsynchronisierte lokale Änderungen anstehen.
+            if (!queueHasPendingForGame(currentGame.id)) {
+                loadLocalCaches(currentGame.id).then((gotFresh) => {
+                    if (gotFresh && currentGame && currentGame.id === gameId) {
+                        saveLocalCacheSnapshot();
+                        syncGameScore();
+                        renderErlassung();
+                    }
+                });
+            }
         }
         
         async function deleteGame(gameId) {
