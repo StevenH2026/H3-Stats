@@ -1354,7 +1354,7 @@
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">⚽ Tore</div>
                                 <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore', 1)">Feldtor</button>
+                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore', 1)">Tor</button>
                                     <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore7m', 1)">7m Tor</button>
                                 </div>
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.tore} | 7m: ${stats.tore7m} | Gesamt: ${stats.tore + stats.tore7m}</div>
@@ -1661,9 +1661,9 @@
                             <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 12px;" onclick="exportSpielStatisticPdf()">📥 PDF exportieren</button>
                         </div>
                         <table style="font-size: 13px; width: 100%;">
-                            <tr><td><b>Feldtore:</b></td><td>${feldspieler.reduce((s, st) => s + (st.tore || 0), 0)}</td></tr>
+                            <tr><td><b>Tore:</b></td><td>${feldspieler.reduce((s, st) => s + (st.tore || 0), 0)}</td></tr>
                             <tr><td><b>Fehlwürfe (Feld):</b></td><td>${feldspieler.reduce((s, st) => s + (st.fehlwurfe || 0), 0)}</td></tr>
-                            <tr><td><b>Feldquote:</b></td><td>${(() => {
+                            <tr><td><b>Torquote:</b></td><td>${(() => {
                                 const ft = feldspieler.reduce((s, st) => s + (st.tore || 0), 0);
                                 const ff = feldspieler.reduce((s, st) => s + (st.fehlwurfe || 0), 0);
                                 return ((ft / (ft + ff) * 100) || 0).toFixed(1) + '%';
@@ -1701,7 +1701,7 @@
                     <div class="card">
                         <div class="card-title">⚽ Feldspieler-Ranking</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Feldtore</th><th>Fehlw.</th><th>Feldquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>Gesamttore</th><th>Gesamt-Quote</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehlw.</th><th>Torquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>Gesamttore</th><th>Gesamt-Quote</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                             ${feldspieler
                                 .sort((a, b) => ((b.tore || 0) + (b.tore7m || 0)) - ((a.tore || 0) + (a.tore7m || 0)))
                                 .map(s => {
@@ -1867,7 +1867,7 @@
                             <tr><td><b>Unentschieden:</b></td><td>${totalDraw}</td></tr>
                             <tr><td><b>Tore gesamt:</b></td><td>${totalTore}</td></tr>
                             <tr><td><b>Gegentore gesamt:</b></td><td>${totalGegenTore}</td></tr>
-                            <tr><td><b>Torquote:</b></td><td>${(totalTore / gameList.length).toFixed(1)} pro Spiel</td></tr>
+                            <tr><td><b>Ø Tore/Spiel:</b></td><td>${(totalTore / gameList.length).toFixed(1)}</td></tr>
                         </table>
                     </div>
                 `;
@@ -1935,7 +1935,7 @@
                         <div class="card">
                             <div class="card-title">⚽ Feldspieler-Saisonstatistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Feldtore</th><th>Fehlw.</th><th>Feldquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>Gesamttore</th><th>Gesamt-Quote</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehlw.</th><th>Torquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>Gesamttore</th><th>Gesamt-Quote</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                                 ${feldspielerSaisonStats.map(s => {
                                     const p = players.find(pl => pl.id === s.playerId);
                                     if (!p) return '';
