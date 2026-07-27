@@ -241,6 +241,18 @@
                         pendingQueue.shift();
                         saveQueueToStorage();
                     } catch (err) {
+                        const isNetworkError = !navigator.onLine
+                            || err instanceof TypeError
+                            || /Failed to fetch|NetworkError|network/i.test(err?.message || '');
+                        
+                        if (isNetworkError) {
+                            // Kein echter Fehler, nur kein Netz erreichbar - still abbrechen,
+                            // Eintrag bleibt in der Queue, nächster Versuch kommt automatisch
+                            // (online-Event bzw. 30s-Intervall)
+                            console.warn('Kein Netz erreichbar, versuche später erneut:', item);
+                            return;
+                        }
+                        
                         console.error('Sync-Fehler, Queue angehalten:', err, item);
                         lastQueueError = {
                             message: err?.message || String(err),
