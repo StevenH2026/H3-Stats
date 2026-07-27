@@ -891,10 +891,21 @@
             selectedCoach = null;
             gameActions = []; // Reset Action-Log für neues Spiel
             
-            // Beendete Spiele → Spielstatistik (read-only, benötigt Netz)
+            // Beendete Spiele → Spielstatistik (read-only), jetzt ebenfalls aus lokalem Cache -
+            // wichtig für die Halbzeit-/Nachspiel-Auswertung ohne Netz
             if (currentGame?.ended) {
+                loadLocalCacheSnapshot(currentGame.id);
                 switchTab(document.querySelector('[onclick*="spielstat"]'), 'spielstat');
                 renderSpielStatistik();
+                
+                if (!queueHasPendingForGame(currentGame.id)) {
+                    loadLocalCaches(currentGame.id).then((gotFresh) => {
+                        if (gotFresh && currentGame && currentGame.id === gameId) {
+                            saveLocalCacheSnapshot();
+                            renderSpielStatistik();
+                        }
+                    });
+                }
                 return;
             }
             
@@ -1597,7 +1608,7 @@
         // =====================================================
         // STATISTIK - EINZELNES SPIEL
         // =====================================================
-        async function renderSpielStatistik() {
+        function renderSpielStatistik() {
             const container = document.getElementById('spielstatContent');
             
             if (!currentGame) {
@@ -1605,13 +1616,8 @@
                 return;
             }
             
-            try {
-                const { data: allStats } = await sbClient
-                    .from('player_stats')
-                    .select('*')
-                    .eq('game_id', currentGame.id);
-                
-                const stats = allStats || [];
+            {
+                const stats = Object.values(localStats.players);
                 
                 // Trenne Feldspieler und Torwarte
                 const feldspieler = stats.filter(s => {
@@ -1741,11 +1747,8 @@
                     </div>
                 `;
                 
-                // Lade Betreuer-Statistik
-                const { data: coachStatsData } = await sbClient
-                    .from('coach_stats')
-                    .select('*')
-                    .eq('game_id', currentGame.id);
+                // Betreuer-Statistik aus lokalem Cache
+                const coachStatsData = Object.values(localStats.coaches);
                 
                 if (coachStatsData && coachStatsData.length > 0) {
                     html += `
@@ -1764,9 +1767,6 @@
                 }
                 
                 container.innerHTML = html;
-            } catch (err) {
-                console.error('Error rendering game stats:', err);
-                container.innerHTML = '<div class="card empty-state">Fehler beim Laden</div>';
             }
         }
         
