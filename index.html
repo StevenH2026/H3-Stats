@@ -797,7 +797,9 @@
             const newGame = {
                 id: 'game_' + Date.now(),
                 opponent, date, time, location,
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                score_us: 0,
+                score_gegner: 0
             };
             
             games.push(newGame);
@@ -896,7 +898,10 @@
                         <div style="font-weight: bold;">${game.opponent} ${game.ended ? '✅ Beendet' : ''}</div>
                         <div style="font-size: 12px; color: #999;">📅 ${new Date(game.date).toLocaleDateString('de-DE')} ${game.time || ''}${game.location ? ' · 📍 ' + game.location : ''}</div>
                     </div>
-                    <button class="btn btn-danger" style="padding: 0.5rem;" onclick="event.stopPropagation(); deleteGame('${game.id}')">Löschen</button>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div style="font-size: 20px; font-weight: bold; color: #185fa5;">${game.score_us ?? 0} : ${game.score_gegner ?? 0}</div>
+                        <button class="btn btn-danger" style="padding: 0.5rem;" onclick="event.stopPropagation(); deleteGame('${game.id}')">Löschen</button>
+                    </div>
                 </div>
             `).join('');
         }
@@ -1341,6 +1346,29 @@
             }
         }
         
+        function scoreSideForStat(player, statKey) {
+            if (!player) return null;
+            if (player.position === 'Feld' && (statKey === 'tore' || statKey === 'tore7m')) return 'us';
+            if (player.position === 'Torwart' && (statKey === 'gegentore' || statKey === 'gegentore_7m')) return 'gegner';
+            return null;
+        }
+        
+        function applyScoreDelta(side, delta) {
+            if (!currentGame) return;
+            if (side === 'us') {
+                currentGame.score_us = Math.max(0, (currentGame.score_us || 0) + delta);
+            } else if (side === 'gegner') {
+                currentGame.score_gegner = Math.max(0, (currentGame.score_gegner || 0) + delta);
+            } else {
+                return;
+            }
+            cacheSet('games', games);
+            enqueue({ op: 'rpc', fn: 'increment_game_score', args: {
+                p_game_id: currentGame.id, p_side: side, p_delta: delta
+            }});
+            renderGamesList();
+        }
+        
         function updatePlayerStat(playerId, statKey, delta) {
             if (!currentGame) return;
             
@@ -1354,6 +1382,9 @@
                 enqueue({ op: 'rpc', fn: 'increment_player_stat', args: {
                     p_game_id: currentGame.id, p_player_id: playerId, p_stat_col: statKey, p_delta: delta
                 }});
+                
+                const scoreSide = scoreSideForStat(player, statKey);
+                if (scoreSide) applyScoreDelta(scoreSide, delta);
                 
                 // Logge Aktion
                 const isTorwart = player?.position === 'Torwart';
@@ -2064,6 +2095,10 @@
                 enqueue({ op: 'rpc', fn: 'increment_player_stat', args: {
                     p_game_id: currentGame.id, p_player_id: lastAction.playerId, p_stat_col: lastAction.statKey, p_delta: -lastAction.delta
                 }});
+                
+                const player = players.find(p => p.id === lastAction.playerId);
+                const scoreSide = scoreSideForStat(player, lastAction.statKey);
+                if (scoreSide) applyScoreDelta(scoreSide, -lastAction.delta);
             } else if (lastAction.type === 'opponent') {
                 if (localStats.opponent) localStats.opponent[lastAction.statKey] = Math.max(0, (localStats.opponent[lastAction.statKey] || 0) - lastAction.delta);
                 enqueue({ op: 'rpc', fn: 'increment_opponent_stat', args: {
