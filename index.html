@@ -194,11 +194,13 @@
             if (!queueBlocked) flushQueue();
         }
         
+        let lastQueueError = null;
+        
         function updatePendingBadge() {
             const badge = document.getElementById('pendingBadge');
             if (!badge) return;
             if (queueBlocked) {
-                badge.textContent = `⚠️ Sync blockiert (${pendingQueue.length}) – antippen zum Prüfen`;
+                badge.textContent = `⚠️ Sync blockiert (${pendingQueue.length}) – antippen für Details`;
                 badge.style.background = '#e24b4a';
                 badge.style.display = 'block';
             } else if (pendingQueue.length > 0) {
@@ -236,6 +238,13 @@
                     saveQueueToStorage();
                 } catch (err) {
                     console.error('Sync-Fehler, Queue angehalten:', err, item);
+                    lastQueueError = {
+                        message: err?.message || String(err),
+                        details: err?.details || '',
+                        hint: err?.hint || '',
+                        code: err?.code || '',
+                        item: item
+                    };
                     queueBlocked = true;
                     updatePendingBadge();
                     showToast('⚠️ Sync gestoppt – bitte prüfen');
@@ -246,7 +255,12 @@
         
         function handlePendingBadgeClick() {
             if (!queueBlocked) return;
-            const retry = confirm('Synchronisation ist blockiert (Details in Browser-Konsole).\n\nOK = erneut versuchen\nAbbrechen = ältesten Eintrag verwerfen (Datenverlust möglich!)');
+            
+            const errText = lastQueueError
+                ? `Fehler: ${lastQueueError.message}\n${lastQueueError.details || ''}\n${lastQueueError.hint || ''}\n\nBetroffene Aktion: ${lastQueueError.item?.op} auf Tabelle "${lastQueueError.item?.table || lastQueueError.item?.fn}"`
+                : 'Kein Fehlerdetail verfügbar.';
+            
+            const retry = confirm(errText + '\n\nOK = erneut versuchen\nAbbrechen = ältesten Eintrag verwerfen (Datenverlust möglich!)');
             if (retry) {
                 queueBlocked = false;
                 updatePendingBadge();
@@ -873,7 +887,7 @@
                 <div class="card" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; ${game.ended ? 'background: #f0f0f0; opacity: 0.8;' : ''}" onclick="selectGame('${game.id}')">
                     <div>
                         <div style="font-weight: bold;">${game.opponent} ${game.ended ? '✅ Beendet' : ''}</div>
-                        <div style="font-size: 12px; color: #999;">📅 ${new Date(game.date).toLocaleDateString('de-DE')} ${game.time || ''}</div>
+                        <div style="font-size: 12px; color: #999;">📅 ${new Date(game.date).toLocaleDateString('de-DE')} ${game.time || ''}${game.location ? ' · 📍 ' + game.location : ''}</div>
                     </div>
                     <button class="btn btn-danger" style="padding: 0.5rem;" onclick="event.stopPropagation(); deleteGame('${game.id}')">Löschen</button>
                 </div>
@@ -1093,7 +1107,7 @@
                     </div>
                     
                     <div class="card">
-                        <div class="card-title">⚽ ${currentGame.opponent}</div>
+                        <div class="card-title">⚽ ${currentGame.opponent}${currentGame.location ? ' · 📍 ' + currentGame.location : ''}</div>
                     </div>
                     
                     <div class="card">
