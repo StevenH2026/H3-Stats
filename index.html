@@ -1311,29 +1311,22 @@
                             <div class="card-title">🥅 ${player.name} (#${player.number})</div>
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">🛡️ Paraden</div>
-                                <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'paraden', 1)">Parade</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'paraden_7m', 1)">7m Parade</button>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'paraden', 1)">Parade</button>
+                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tg_paraden', 1)">TG-Parade</button>
+                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'paraden_7m', 1)">7m Parade</button>
                                 </div>
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Paraden: ${stats.paraden || 0} | 7m: ${stats.paraden_7m || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Paraden: ${stats.paraden || 0} | TG: ${stats.tg_paraden || 0} | 7m: ${stats.paraden_7m || 0}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #e24b4a;">❌ Gegentore</div>
-                                <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'gegentore', 1)">Gegentor</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'gegentore_7m', 1)">7m Gegentor</button>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'gegentore', 1)">Gegentor</button>
+                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tg_gegentore', 1)">TG-Gegentor</button>
+                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'gegentore_7m', 1)">7m Gegentor</button>
                                 </div>
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Gegentore: ${stats.gegentore || 0} | 7m: ${stats.gegentore_7m || 0}</div>
-                            </div>
-                            
-                            <div style="margin-bottom: 1.5rem;">
-                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">🏃 Tempogegenstoß</div>
-                                <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tg_paraden', 1)">TG-Parade</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tg_gegentore', 1)">TG-Gegentor</button>
-                                </div>
-                                <div style="font-size: 14px; margin-top: 0.5rem;">TG-Paraden: ${stats.tg_paraden || 0} | TG-Gegentore: ${stats.tg_gegentore || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gegentore: ${stats.gegentore || 0} | TG: ${stats.tg_gegentore || 0} | 7m: ${stats.gegentore_7m || 0}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
@@ -1363,29 +1356,22 @@
                             <div class="card-title">📊 ${player.name} (#${player.number})</div>
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">⚽ Tore</div>
-                                <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore', 1)">Tor</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tore7m', 1)">7m Tor</button>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tore', 1)">Tor</button>
+                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tg_tore', 1)">TG-Tor</button>
+                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tore7m', 1)">7m Tor</button>
                                 </div>
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.tore} | 7m: ${stats.tore7m} | Gesamt: ${stats.tore + stats.tore7m}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.tore} | TG: ${stats.tg_tore || 0} | 7m: ${stats.tore7m} | Gesamt: ${stats.tore + (stats.tg_tore || 0) + stats.tore7m}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #e24b4a;">❌ Fehlwürfe</div>
-                                <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe', 1)">Fehlwurf</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe7m', 1)">7m Fehlwurf</button>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe', 1)">Fehlwurf</button>
+                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tg_fehlwurfe', 1)">TG-Fehlwurf</button>
+                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe7m', 1)">7m Fehlwurf</button>
                                 </div>
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.fehlwurfe} | 7m: ${stats.fehlwurfe7m}</div>
-                            </div>
-                            
-                            <div style="margin-bottom: 1.5rem;">
-                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">🏃 Tempogegenstoß</div>
-                                <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tg_tore', 1)">TG-Tor</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tg_fehlwurfe', 1)">TG-Fehlwurf</button>
-                                </div>
-                                <div style="font-size: 14px; margin-top: 0.5rem;">TG-Tore: ${stats.tg_tore || 0} | TG-Fehlwurf: ${stats.tg_fehlwurfe || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.fehlwurfe} | TG: ${stats.tg_fehlwurfe || 0} | 7m: ${stats.fehlwurfe7m}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
