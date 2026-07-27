@@ -149,6 +149,7 @@
     </div>
     
     <div class="toast" id="toast"></div>
+    <div id="pendingBadge" style="display:none; position: fixed; top: 0; left: 0; right: 0; z-index: 2000; padding: 0.6rem; text-align: center; color: white; font-size: 13px; font-weight: bold; cursor: pointer;" onclick="handlePendingBadgeClick()"></div>
     
     <script>
         let sbClient = null;
@@ -159,6 +160,172 @@
         let selectedPlayer = null;
         let selectedCoach = null;
         let gameActions = []; // Action-Log für aktuelle Session
+        
+        // ===== OFFLINE-SYNC =====
+        let localStats = { players: {}, opponent: {}, coaches: {} }; // lokaler Stats-Cache für aktuelles Spiel
+        let localSquad = { playerIds: [], coachIds: [] };            // lokaler Kader-Cache für aktuelles Spiel
+        let pendingQueue = [];      // Warteschlange nicht-synchronisierter Aktionen (FIFO)
+        let queueBlocked = false;   // true = Queue angehalten wegen Fehler, wartet auf Nutzer-Entscheidung
+        let isOnline = navigator.onLine;
+        
+        function loadQueueFromStorage() {
+            try {
+                const raw = localStorage.getItem('h3_pending_queue');
+                pendingQueue = raw ? JSON.parse(raw) : [];
+            } catch (err) {
+                console.error('Fehler beim Laden der Queue:', err);
+                pendingQueue = [];
+            }
+            updatePendingBadge();
+        }
+        
+        function saveQueueToStorage() {
+            try {
+                localStorage.setItem('h3_pending_queue', JSON.stringify(pendingQueue));
+            } catch (err) {
+                console.error('Fehler beim Speichern der Queue:', err);
+            }
+            updatePendingBadge();
+        }
+        
+        function enqueue(item) {
+            pendingQueue.push(item);
+            saveQueueToStorage();
+            if (!queueBlocked) flushQueue();
+        }
+        
+        function updatePendingBadge() {
+            const badge = document.getElementById('pendingBadge');
+            if (!badge) return;
+            if (queueBlocked) {
+                badge.textContent = `⚠️ Sync blockiert (${pendingQueue.length}) – antippen zum Prüfen`;
+                badge.style.background = '#e24b4a';
+                badge.style.display = 'block';
+            } else if (pendingQueue.length > 0) {
+                badge.textContent = `⏳ ${pendingQueue.length} ausstehend`;
+                badge.style.background = '#d4a100';
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+        
+        async function flushQueue() {
+            if (queueBlocked || !sbClient) return;
+            
+            while (pendingQueue.length > 0) {
+                const item = pendingQueue[0];
+                try {
+                    if (item.op === 'rpc') {
+                        const { error } = await sbClient.rpc(item.fn, item.args);
+                        if (error) throw error;
+                    } else if (item.op === 'insert') {
+                        const { error } = await sbClient.from(item.table).insert([item.payload]);
+                        if (error) throw error;
+                    } else if (item.op === 'delete') {
+                        let q = sbClient.from(item.table).delete();
+                        for (const col in item.match) q = q.eq(col, item.match[col]);
+                        const { error } = await q;
+                        if (error) throw error;
+                    } else if (item.op === 'update') {
+                        const { error } = await sbClient.from(item.table).update(item.payload).eq(item.matchCol, item.matchVal);
+                        if (error) throw error;
+                    }
+                    
+                    pendingQueue.shift();
+                    saveQueueToStorage();
+                } catch (err) {
+                    console.error('Sync-Fehler, Queue angehalten:', err, item);
+                    queueBlocked = true;
+                    updatePendingBadge();
+                    showToast('⚠️ Sync gestoppt – bitte prüfen');
+                    return;
+                }
+            }
+        }
+        
+        function handlePendingBadgeClick() {
+            if (!queueBlocked) return;
+            const retry = confirm('Synchronisation ist blockiert (Details in Browser-Konsole).\n\nOK = erneut versuchen\nAbbrechen = ältesten Eintrag verwerfen (Datenverlust möglich!)');
+            if (retry) {
+                queueBlocked = false;
+                updatePendingBadge();
+                flushQueue();
+            } else {
+                if (!confirm('Wirklich verwerfen? Diese eine Aktion geht dann endgültig verloren.')) return;
+                pendingQueue.shift();
+                queueBlocked = false;
+                saveQueueToStorage();
+                flushQueue();
+            }
+        }
+        
+        function saveLocalCacheSnapshot() {
+            if (!currentGame) return;
+            try {
+                localStorage.setItem('h3_cache_' + currentGame.id, JSON.stringify({ squad: localSquad, stats: localStats }));
+            } catch (err) {
+                console.error('Fehler beim Speichern des Cache-Snapshots:', err);
+            }
+        }
+        
+        function loadLocalCacheSnapshot(gameId) {
+            try {
+                const raw = localStorage.getItem('h3_cache_' + gameId);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    localSquad = parsed.squad || { playerIds: [], coachIds: [] };
+                    localStats = parsed.stats || { players: {}, opponent: {}, coaches: {} };
+                    return true;
+                }
+            } catch (err) {
+                console.error('Fehler beim Laden des Cache-Snapshots:', err);
+            }
+            return false;
+        }
+        
+        async function loadLocalCaches(gameId) {
+            try {
+                const { data: squadData } = await sbClient.from('game_squads').select('player_id').eq('game_id', gameId);
+                const { data: coachData } = await sbClient.from('game_coaches').select('coach_id').eq('game_id', gameId);
+                localSquad.playerIds = squadData ? squadData.map(s => s.player_id) : [];
+                localSquad.coachIds = coachData ? coachData.map(c => c.coach_id) : [];
+                
+                const { data: statsData } = await sbClient.from('player_stats').select('*').eq('game_id', gameId);
+                localStats.players = {};
+                (statsData || []).forEach(s => { localStats.players[s.player_id] = s; });
+                
+                const { data: oppData } = await sbClient.from('opponent_stats').select('*').eq('game_id', gameId);
+                localStats.opponent = (oppData && oppData.length > 0) ? oppData[0] : { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 };
+                
+                const { data: coachStatsData } = await sbClient.from('coach_stats').select('*').eq('game_id', gameId);
+                localStats.coaches = {};
+                (coachStatsData || []).forEach(cs => { localStats.coaches[cs.coach_id] = cs; });
+                
+                return true;
+            } catch (err) {
+                console.warn('Konnte Live-Daten nicht laden (offline?), nutze letzten lokalen Stand:', err);
+                return false;
+            }
+        }
+        
+        function cacheSet(key, value) {
+            try {
+                localStorage.setItem('h3_list_' + key, JSON.stringify(value));
+            } catch (err) {
+                console.error('Fehler beim Cachen von ' + key + ':', err);
+            }
+        }
+        
+        function cacheGet(key) {
+            try {
+                const raw = localStorage.getItem('h3_list_' + key);
+                return raw ? JSON.parse(raw) : null;
+            } catch (err) {
+                console.error('Fehler beim Lesen des Caches ' + key + ':', err);
+                return null;
+            }
+        }
         
         async function initSupabase() {
             try {
@@ -177,10 +344,15 @@
         
         window.addEventListener('load', async () => {
             await initSupabase();
+            loadQueueFromStorage();
             loadPlayers();
             loadCoaches();
             loadGames();
             setDefaultDate();
+            flushQueue();
+            window.addEventListener('online', () => { isOnline = true; flushQueue(); });
+            window.addEventListener('offline', () => { isOnline = false; });
+            setInterval(() => { if (!queueBlocked) flushQueue(); }, 30000);
         });
         
         async function loadPlayers() {
@@ -192,10 +364,18 @@
                 
                 if (error) throw error;
                 players = data || [];
+                cacheSet('players', players);
                 renderPlayersList();
             } catch (err) {
                 console.error('Error loading players:', err);
-                showToast('⚠️ Fehler beim Laden der Spieler');
+                const cached = cacheGet('players');
+                if (cached) {
+                    players = cached;
+                    renderPlayersList();
+                    showToast('⚠️ Offline – letzter bekannter Stand geladen');
+                } else {
+                    showToast('⚠️ Fehler beim Laden der Spieler');
+                }
             }
         }
         
@@ -386,9 +566,16 @@
                 
                 if (error) throw error;
                 coaches = data || [];
+                cacheSet('coaches', coaches);
                 renderCoachesList();
             } catch (err) {
                 console.error('Error loading coaches:', err);
+                const cached = cacheGet('coaches');
+                if (cached) {
+                    coaches = cached;
+                    renderCoachesList();
+                    showToast('⚠️ Offline – letzter bekannter Stand geladen');
+                }
             }
         }
         
@@ -554,10 +741,18 @@
                 
                 if (error) throw error;
                 games = data || [];
+                cacheSet('games', games);
                 renderGamesList();
             } catch (err) {
                 console.error('Error loading games:', err);
-                showToast('⚠️ Fehler beim Laden der Spiele');
+                const cached = cacheGet('games');
+                if (cached) {
+                    games = cached;
+                    renderGamesList();
+                    showToast('⚠️ Offline – letzter bekannter Stand geladen');
+                } else {
+                    showToast('⚠️ Fehler beim Laden der Spiele');
+                }
             }
         }
         
@@ -578,66 +773,57 @@
                 return;
             }
             
-            try {
-                const newGame = {
-                    id: 'game_' + Date.now(),
-                    opponent, date, time, location,
-                    created_at: new Date().toISOString()
-                };
-                
-                const { data, error } = await sbClient
-                    .from('games')
-                    .insert([newGame])
-                    .select();
-                
-                if (error) throw error;
-                
-                games.push(newGame);
-                currentGame = newGame;
-                
-                // WICHTIG: Erstelle auch opponent_stats Zeile!
-                try {
-                    await sbClient
-                        .from('opponent_stats')
-                        .insert([{
-                            game_id: newGame.id,
-                            fehlwurfe: 0,
-                            tech_fehler: 0
-                        }]);
-                } catch (err) {
-                    console.log('opponent_stats bereits vorhanden');
-                }
-                
-                document.getElementById('gameOpponent').value = '';
-                document.getElementById('gameDate').value = '';
-                document.getElementById('gameTime').value = '';
-                document.getElementById('gameLocation').value = '';
-                
-                renderGamesList();
-                showToast('✅ Spiel erstellt!');
-                switchTab(document.querySelector('[onclick*="erfassung"]'), 'erfassung');
-                renderKaderSelection();
-            } catch (err) {
-                console.error('Error creating game:', err);
-                showToast('❌ Fehler beim Erstellen des Spiels');
-            }
+            const newGame = {
+                id: 'game_' + Date.now(),
+                opponent, date, time, location,
+                created_at: new Date().toISOString(),
+                ended: false
+            };
+            
+            games.push(newGame);
+            currentGame = newGame;
+            cacheSet('games', games);
+            localSquad = { playerIds: [], coachIds: [] };
+            localStats = { players: {}, opponent: { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 }, coaches: {} };
+            saveLocalCacheSnapshot();
+            
+            enqueue({ op: 'insert', table: 'games', payload: newGame });
+            enqueue({ op: 'insert', table: 'opponent_stats', payload: { game_id: newGame.id, fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 } });
+            
+            document.getElementById('gameOpponent').value = '';
+            document.getElementById('gameDate').value = '';
+            document.getElementById('gameTime').value = '';
+            document.getElementById('gameLocation').value = '';
+            
+            renderGamesList();
+            showToast('✅ Spiel erstellt!');
+            switchTab(document.querySelector('[onclick*="erfassung"]'), 'erfassung');
+            renderKaderSelection();
         }
         
-        function selectGame(gameId) {
+        async function selectGame(gameId) {
             currentGame = games.find(g => g.id === gameId);
             selectedPlayer = null;
             selectedCoach = null;
             gameActions = []; // Reset Action-Log für neues Spiel
             
-            // Beendete Spiele → Spielstatistik (read-only)
-            // Aktive Spiele → Erfassung
+            // Beendete Spiele → Spielstatistik (read-only, benötigt Netz)
             if (currentGame?.ended) {
                 switchTab(document.querySelector('[onclick*="spielstat"]'), 'spielstat');
                 renderSpielStatistik();
-            } else {
-                switchTab(document.querySelector('[onclick*="erfassung"]'), 'erfassung');
-                renderErlassung();
+                return;
             }
+            
+            // Aktive Spiele → lokalen Cache laden: online frisch von Supabase, offline letzten Snapshot
+            const gotFresh = await loadLocalCaches(currentGame.id);
+            if (gotFresh) {
+                saveLocalCacheSnapshot();
+            } else {
+                loadLocalCacheSnapshot(currentGame.id);
+            }
+            
+            switchTab(document.querySelector('[onclick*="erfassung"]'), 'erfassung');
+            renderErlassung();
         }
         
         async function deleteGame(gameId) {
@@ -651,6 +837,7 @@
                 
                 if (error) throw error;
                 games = games.filter(g => g.id !== gameId);
+                cacheSet('games', games);
                 if (currentGame?.id === gameId) currentGame = null;
                 renderGamesList();
                 showToast('✅ Spiel gelöscht');
@@ -660,7 +847,7 @@
             }
         }
         
-        async function renderGamesList() {
+        function renderGamesList() {
             const container = document.getElementById('gamesList');
             
             if (games.length === 0) {
@@ -668,63 +855,26 @@
                 return;
             }
             
-            let html = '';
-            for (const game of games) {
-                // Lade Spielstände
-                const { data: allStats } = await sbClient
-                    .from('player_stats')
-                    .select('*')
-                    .eq('game_id', game.id);
-                
-                const stats = allStats || [];
-                const torwarte = stats.filter(s => {
-                    const p = players.find(pl => pl.id === s.player_id);
-                    return p && p.position === 'Torwart';
-                });
-                const feldspieler = stats.filter(s => {
-                    const p = players.find(pl => pl.id === s.player_id);
-                    return p && p.position === 'Feld';
-                });
-                
-                const totTore = feldspieler.reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0), 0);
-                const totGegenTore = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0), 0);
-                
-                const scoreLine = stats.length > 0 ? `<div style="font-size: 14px; font-weight: bold; color: #185fa5; margin-top: 0.25rem;">🏐 ${totTore} : ${totGegenTore}</div>` : '';
-                
-                html += `
-                    <div class="card" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; ${game.ended ? 'background: #f0f0f0; opacity: 0.8;' : ''}" onclick="selectGame('${game.id}')">
-                        <div style="flex: 1;">
-                            <div style="font-weight: bold;">${game.opponent} ${game.ended ? '✅ Beendet' : ''}</div>
-                            <div style="font-size: 12px; color: #999;">📅 ${new Date(game.date).toLocaleDateString('de-DE')} ${game.time || ''} ${game.location ? '📍 ' + game.location : '📍 Ort nicht angegeben'}</div>
-                            ${scoreLine}
-                        </div>
-                        <button class="btn btn-danger" style="padding: 0.5rem;" onclick="event.stopPropagation(); deleteGame('${game.id}')">Löschen</button>
+            container.innerHTML = games.map(game => `
+                <div class="card" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; ${game.ended ? 'background: #f0f0f0; opacity: 0.8;' : ''}" onclick="selectGame('${game.id}')">
+                    <div>
+                        <div style="font-weight: bold;">${game.opponent} ${game.ended ? '✅ Beendet' : ''}</div>
+                        <div style="font-size: 12px; color: #999;">📅 ${new Date(game.date).toLocaleDateString('de-DE')} ${game.time || ''}</div>
                     </div>
-                `;
-            }
-            
-            container.innerHTML = html;
+                    <button class="btn btn-danger" style="padding: 0.5rem;" onclick="event.stopPropagation(); deleteGame('${game.id}')">Löschen</button>
+                </div>
+            `).join('');
         }
         
-        async function renderKaderSelection() {
+        function renderKaderSelection() {
             if (!currentGame) {
                 document.getElementById('erfassungContent').innerHTML = '<div class="card empty-state">Kein Spiel</div>';
                 return;
             }
             
-            try {
-                const { data: squadData, error: squadError } = await sbClient
-                    .from('game_squads')
-                    .select('player_id')
-                    .eq('game_id', currentGame.id);
-                
-                const { data: coachData } = await sbClient
-                    .from('game_coaches')
-                    .select('coach_id')
-                    .eq('game_id', currentGame.id);
-                
-                const currentKader = squadData ? squadData.map(s => s.player_id) : [];
-                const currentCoaches = coachData ? coachData.map(c => c.coach_id) : [];
+            {
+                const currentKader = localSquad.playerIds;
+                const currentCoaches = localSquad.coachIds;
                 
                 const feldspieler = players.filter(p => p.position === 'Feld').sort((a,b) => a.number - b.number);
                 const torwarte = players.filter(p => p.position === 'Torwart').sort((a,b) => a.number - b.number);
@@ -787,118 +937,76 @@
                 `;
                 
                 document.getElementById('erfassungContent').innerHTML = html;
-            } catch (err) {
-                console.error('Error loading squad:', err);
             }
         }
         
-        async function toggleSquadPlayer(playerId) {
+        function toggleSquadPlayer(playerId) {
             if (!currentGame) return;
             
-            const player = players.find(p => p.id === playerId);
+            const idx = localSquad.playerIds.indexOf(playerId);
             
-            try {
-                const { data: existing } = await sbClient
-                    .from('game_squads')
-                    .select('id')
-                    .eq('game_id', currentGame.id)
-                    .eq('player_id', playerId);
+            if (idx > -1) {
+                // entfernen
+                localSquad.playerIds.splice(idx, 1);
+                delete localStats.players[playerId];
                 
-                if (existing && existing.length > 0) {
-                    await sbClient
-                        .from('game_squads')
-                        .delete()
-                        .eq('game_id', currentGame.id)
-                        .eq('player_id', playerId);
-                    
-                    await sbClient
-                        .from('player_stats')
-                        .delete()
-                        .eq('game_id', currentGame.id)
-                        .eq('player_id', playerId);
-                } else {
-                    await sbClient
-                        .from('game_squads')
-                        .insert([{ game_id: currentGame.id, player_id: playerId }]);
-                    
-                    await sbClient
-                        .from('player_stats')
-                        .insert([{
-                            game_id: currentGame.id,
-                            player_id: playerId,
-                            tore: 0, tore7m: 0, assists: 0, turnovers: 0,
-                            fehlwurfe: 0, fehlwurfe7m: 0, tech_fehler: 0,
-                            fehlpasse: 0, einzueins: 0, sieben_m_geholt: 0,
-                            zwei_min_geholt: 0, sieben_m_verursacht: 0, rote_karte: 0
-                        }]);
-                }
+                enqueue({ op: 'delete', table: 'game_squads', match: { game_id: currentGame.id, player_id: playerId } });
+                enqueue({ op: 'delete', table: 'player_stats', match: { game_id: currentGame.id, player_id: playerId } });
+            } else {
+                // hinzufügen
+                localSquad.playerIds.push(playerId);
+                const zeroStats = {
+                    game_id: currentGame.id,
+                    player_id: playerId,
+                    tore: 0, tore7m: 0, assists: 0, turnovers: 0,
+                    fehlwurfe: 0, fehlwurfe7m: 0, tech_fehler: 0,
+                    fehlpasse: 0, einzueins: 0, sieben_m_geholt: 0,
+                    zwei_min_geholt: 0, sieben_m_verursacht: 0, rote_karte: 0
+                };
+                localStats.players[playerId] = zeroStats;
                 
-                renderKaderSelection();
-            } catch (err) {
-                console.error('Error toggling squad player:', err);
+                enqueue({ op: 'insert', table: 'game_squads', payload: { game_id: currentGame.id, player_id: playerId } });
+                enqueue({ op: 'insert', table: 'player_stats', payload: zeroStats });
             }
+            
+            saveLocalCacheSnapshot();
+            renderKaderSelection();
         }
         
         function toggleGameCoach(coachId) {
             if (!currentGame) return;
             
-            (async () => {
-                try {
-                    const { data: existing } = await sbClient
-                        .from('game_coaches')
-                        .select('id')
-                        .eq('game_id', currentGame.id)
-                        .eq('coach_id', coachId);
-                    
-                    if (existing && existing.length > 0) {
-                        await sbClient
-                            .from('game_coaches')
-                            .delete()
-                            .eq('game_id', currentGame.id)
-                            .eq('coach_id', coachId);
-                        
-                        await sbClient
-                            .from('coach_stats')
-                            .delete()
-                            .eq('game_id', currentGame.id)
-                            .eq('coach_id', coachId);
-                    } else {
-                        await sbClient
-                            .from('game_coaches')
-                            .insert([{ game_id: currentGame.id, coach_id: coachId }]);
-                        
-                        await sbClient
-                            .from('coach_stats')
-                            .insert([{
-                                game_id: currentGame.id,
-                                coach_id: coachId,
-                                gelb: 0,
-                                rot: 0,
-                                zwei_min: 0
-                            }]);
-                    }
-                    
-                    renderKaderSelection();
-                } catch (err) {
-                    console.error('Error toggling game coach:', err);
-                }
-            })();
+            const idx = localSquad.coachIds.indexOf(coachId);
+            
+            if (idx > -1) {
+                // entfernen
+                localSquad.coachIds.splice(idx, 1);
+                delete localStats.coaches[coachId];
+                
+                enqueue({ op: 'delete', table: 'game_coaches', match: { game_id: currentGame.id, coach_id: coachId } });
+                enqueue({ op: 'delete', table: 'coach_stats', match: { game_id: currentGame.id, coach_id: coachId } });
+            } else {
+                // hinzufügen
+                localSquad.coachIds.push(coachId);
+                const zeroStats = { game_id: currentGame.id, coach_id: coachId, gelb: 0, rot: 0, zwei_min: 0, disq: 0 };
+                localStats.coaches[coachId] = zeroStats;
+                
+                enqueue({ op: 'insert', table: 'game_coaches', payload: { game_id: currentGame.id, coach_id: coachId } });
+                enqueue({ op: 'insert', table: 'coach_stats', payload: zeroStats });
+            }
+            
+            saveLocalCacheSnapshot();
+            renderKaderSelection();
         }
         
-        async function renderErlassung() {
+        function renderErlassung() {
             if (!currentGame) {
                 document.getElementById('erfassungContent').innerHTML = '<div class="card empty-state">Kein Spiel</div>';
                 return;
             }
             
-            try {
-                // Lade Kader
-                const { data: squadData } = await sbClient
-                    .from('game_squads')
-                    .select('player_id')
-                    .eq('game_id', currentGame.id);
-                
-                const kaderIds = squadData ? squadData.map(s => s.player_id) : [];
+            {
+                const kaderIds = localSquad.playerIds;
                 
                 // Wenn kein Kader → zeige Kader-Auswahl
                 if (kaderIds.length === 0) {
@@ -908,20 +1016,10 @@
                 
                 const kaderSpieler = kaderIds.map(pId => players.find(p => p.id === pId)).filter(p => p);
                 
-                const { data: oppStats } = await sbClient
-                    .from('opponent_stats')
-                    .select('*')
-                    .eq('game_id', currentGame.id);
+                const opponentStats = localStats.opponent || { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 };
                 
-                const opponentStats = (oppStats && oppStats.length > 0) ? oppStats[0] : { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 };
-                
-                // Berechne aktuelle Tore
-                const allStats = await sbClient
-                    .from('player_stats')
-                    .select('*')
-                    .eq('game_id', currentGame.id);
-                
-                const allStatsData = allStats.data || [];
+                // Berechne aktuelle Tore aus lokalem Cache
+                const allStatsData = Object.values(localStats.players);
                 const feldspieler = allStatsData.filter(s => {
                     const player = players.find(p => p.id === s.player_id);
                     return player && player.position === 'Feld';
@@ -934,39 +1032,11 @@
                 const totTore = feldspieler.reduce((sum, s) => sum + (s.tore || 0) + (s.tore7m || 0), 0);
                 const totGegenTore = torwarte.reduce((sum, s) => sum + (s.gegentore || 0) + (s.gegentore_7m || 0), 0);
                 
-                // Lade PlayerStats BEVOR HTML gebaut wird
-                let playerStatsHtml = '';
-                if (selectedPlayer) {
-                    playerStatsHtml = await renderPlayerStats(selectedPlayer);
-                }
+                const playerStatsHtml = selectedPlayer ? renderPlayerStats(selectedPlayer) : '';
+                const coachStatsHtml = selectedCoach ? renderCoachStats(selectedCoach) : '';
                 
-                // Lade CoachStats BEVOR HTML gebaut wird
-                let coachStatsHtml = '';
-                if (selectedCoach) {
-                    coachStatsHtml = await renderCoachStats(selectedCoach);
-                }
-                
-                // Lade alle Betreuer des Spiels + ihre Stats
-                const { data: gameCoachesData } = await sbClient
-                    .from('game_coaches')
-                    .select('coach_id')
-                    .eq('game_id', currentGame.id);
-                
-                const gameCoachIds = (gameCoachesData || []).map(gc => gc.coach_id);
+                const gameCoachIds = localSquad.coachIds;
                 const gameCoaches = coaches.filter(c => gameCoachIds.includes(c.id));
-                
-                let coachStatsMap = {};
-                for (const coachId of gameCoachIds) {
-                    const { data: coachStats } = await sbClient
-                        .from('coach_stats')
-                        .select('*')
-                        .eq('game_id', currentGame.id)
-                        .eq('coach_id', coachId);
-                    
-                    if (coachStats && coachStats.length > 0) {
-                        coachStatsMap[coachId] = coachStats[0];
-                    }
-                }
                 
                 let html = `
                     <div class="score-card-sticky">
@@ -1098,38 +1168,14 @@
                 `;
                 
                 document.getElementById('erfassungContent').innerHTML = html;
-            } catch (err) {
-                console.error('Error rendering erfassung:', err);
-                document.getElementById('erfassungContent').innerHTML = '<div class="card empty-state">Fehler beim Laden</div>';
             }
         }
         
-        function calculateEffectiveness(stats) {
-            const positive = (stats.tore || 0) + (stats.tore7m || 0) + 
-                             (stats.sieben_m_geholt || 0) + (stats.zwei_min_geholt || 0);
-            const negative = (stats.fehlwurfe || 0) + (stats.tech_fehler || 0) + 
-                             (stats.fehlpasse || 0) + (stats.sieben_m_verursacht || 0) + 
-                             (stats.zwei_min || 0);
-            const total = positive + negative;
-            
-            if (total === 0) return { value: '–', detail: '0 Aktionen' };
-            return { 
-                value: ((positive / total) * 100).toFixed(1) + '%',
-                detail: `${positive}/${total} Aktionen` 
-            };
-        }
-        
-        async function renderPlayerStats(player) {
+        function renderPlayerStats(player) {
             if (!player || !currentGame) return '';
             
-            try {
-                const { data: statsArray } = await sbClient
-                    .from('player_stats')
-                    .select('*')
-                    .eq('game_id', currentGame.id)
-                    .eq('player_id', player.id);
-                
-                const stats = (statsArray && statsArray.length > 0) ? statsArray[0] : null;
+            {
+                const stats = localStats.players[player.id];
                 
                 if (!stats) return '';
                 
@@ -1179,21 +1225,9 @@
                         </div>
                     `;
                 } else {
-                    const effectiveness = calculateEffectiveness(stats);
                     return `
                         <div class="card">
                             <div class="card-title">📊 ${player.name} (#${player.number})</div>
-                            <div style="margin-bottom: 1rem; background: linear-gradient(135deg, #e8f9f0, #c8f0e0); 
-                                        padding: 0.75rem; border-radius: 4px; border-left: 4px solid #639922;">
-                                <div style="font-weight: bold; margin-bottom: 0.35rem; color: #639922; font-size: 13px;">📊 Handlungseffektivität</div>
-                                <div style="font-size: 24px; font-weight: bold; text-align: center; color: #639922; margin-bottom: 0.25rem;">
-                                    ${effectiveness.value}
-                                </div>
-                                <div style="font-size: 10px; text-align: center; color: #666;">
-                                    ${effectiveness.detail}
-                                </div>
-                            </div>
-                            
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">⚽ Tore</div>
                                 <div class="stat-grid">
@@ -1243,23 +1277,14 @@
                         </div>
                     `;
                 }
-            } catch (err) {
-                console.error('Error rendering stats:', err);
-                return '';
             }
         }
         
-        async function renderCoachStats(coach) {
+        function renderCoachStats(coach) {
             if (!coach || !currentGame) return '';
             
-            try {
-                const { data: statsArray } = await sbClient
-                    .from('coach_stats')
-                    .select('*')
-                    .eq('game_id', currentGame.id)
-                    .eq('coach_id', coach.id);
-                
-                const stats = (statsArray && statsArray.length > 0) ? statsArray[0] : null;
+            {
+                const stats = localStats.coaches[coach.id];
                 
                 if (!stats) return '';
                 
@@ -1278,30 +1303,22 @@
                         </div>
                     </div>
                 `;
-            } catch (err) {
-                console.error('Error rendering coach stats:', err);
-                return '';
             }
         }
         
-        async function updatePlayerStat(playerId, statKey, delta) {
+        function updatePlayerStat(playerId, statKey, delta) {
             if (!currentGame) return;
             
-            try {
+            {
                 const player = players.find(p => p.id === playerId);
-                const { data: currentStats } = await sbClient
-                    .from('player_stats')
-                    .select(statKey)
-                    .eq('game_id', currentGame.id)
-                    .eq('player_id', playerId);
+                const stats = localStats.players[playerId];
+                if (!stats) return;
                 
-                const newValue = Math.max(0, ((currentStats && currentStats[0] ? currentStats[0][statKey] : 0) || 0) + delta);
+                stats[statKey] = Math.max(0, (stats[statKey] || 0) + delta);
                 
-                await sbClient
-                    .from('player_stats')
-                    .update({ [statKey]: newValue })
-                    .eq('game_id', currentGame.id)
-                    .eq('player_id', playerId);
+                enqueue({ op: 'rpc', fn: 'increment_player_stat', args: {
+                    p_game_id: currentGame.id, p_player_id: playerId, p_stat_col: statKey, p_delta: delta
+                }});
                 
                 // Logge Aktion
                 const isTorwart = player?.position === 'Torwart';
@@ -1342,33 +1359,21 @@
                     });
                 }
                 
+                saveLocalCacheSnapshot();
                 renderErlassung();
-                renderGamesList();
-            } catch (err) {
-                console.error('Error updating stat:', err);
             }
         }
         
-        async function updateOpponentStat(statKey, delta) {
+        function updateOpponentStat(statKey, delta) {
             if (!currentGame) return;
             
-            try {
-                const { data: existing } = await sbClient
-                    .from('opponent_stats')
-                    .select('*')
-                    .eq('game_id', currentGame.id);
+            {
+                if (!localStats.opponent) localStats.opponent = { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 };
+                localStats.opponent[statKey] = Math.max(0, (localStats.opponent[statKey] || 0) + delta);
                 
-                if (existing && existing.length > 0) {
-                    const newValue = Math.max(0, (existing[0][statKey] || 0) + delta);
-                    await sbClient
-                        .from('opponent_stats')
-                        .update({ [statKey]: newValue })
-                        .eq('game_id', currentGame.id);
-                } else {
-                    const newStats = { game_id: currentGame.id, fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 };
-                    newStats[statKey] = delta;
-                    await sbClient.from('opponent_stats').insert([newStats]);
-                }
+                enqueue({ op: 'rpc', fn: 'increment_opponent_stat', args: {
+                    p_game_id: currentGame.id, p_stat_col: statKey, p_delta: delta
+                }});
                 
                 // Logge Aktion
                 const actionMap = {
@@ -1387,36 +1392,24 @@
                     });
                 }
                 
+                saveLocalCacheSnapshot();
                 renderErlassung();
-                renderGamesList();
-            } catch (err) {
-                console.error('Error updating opponent stat:', err);
             }
         }
         
-        async function updateCoachStat(coachId, statKey, delta) {
+        function updateCoachStat(coachId, statKey, delta) {
             if (!currentGame) return;
             
-            try {
+            {
                 const coach = coaches.find(c => c.id === coachId);
-                const { data: existing } = await sbClient
-                    .from('coach_stats')
-                    .select('*')
-                    .eq('game_id', currentGame.id)
-                    .eq('coach_id', coachId);
+                const stats = localStats.coaches[coachId];
+                if (!stats) return;
                 
-                if (existing && existing.length > 0) {
-                    const newValue = Math.max(0, (existing[0][statKey] || 0) + delta);
-                    await sbClient
-                        .from('coach_stats')
-                        .update({ [statKey]: newValue })
-                        .eq('game_id', currentGame.id)
-                        .eq('coach_id', coachId);
-                } else {
-                    const newStats = { game_id: currentGame.id, coach_id: coachId, gelb: 0, rot: 0, zwei_min: 0 };
-                    newStats[statKey] = delta;
-                    await sbClient.from('coach_stats').insert([newStats]);
-                }
+                stats[statKey] = Math.max(0, (stats[statKey] || 0) + delta);
+                
+                enqueue({ op: 'rpc', fn: 'increment_coach_stat', args: {
+                    p_game_id: currentGame.id, p_coach_id: coachId, p_stat_col: statKey, p_delta: delta
+                }});
                 
                 // Logge Aktion
                 const actionMap = {
@@ -1436,9 +1429,8 @@
                     });
                 }
                 
+                saveLocalCacheSnapshot();
                 renderErlassung();
-            } catch (err) {
-                console.error('Error updating coach stat:', err);
             }
         }
         
@@ -1448,7 +1440,6 @@
             document.getElementById(tabName).classList.add('active');
             if (button && button.classList) button.classList.add('active');
             
-            if (tabName === 'spiele') renderGamesList();
             if (tabName === 'spieler') renderPlayersList();
             if (tabName === 'betreuer') renderCoachesList();
             if (tabName === 'erfassung') renderErlassung();
@@ -1557,7 +1548,7 @@
                     <div class="card">
                         <div class="card-title">⚽ Feldspieler-Ranking</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Feldtore</th><th>Fehlw.</th><th>Feldquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>Gesamttore</th><th>Gesamt-Quote</th><th>Handlungseff.</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Feldtore</th><th>Fehlw.</th><th>Feldquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>Gesamttore</th><th>Gesamt-Quote</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                             ${feldspieler
                                 .sort((a, b) => ((b.tore || 0) + (b.tore7m || 0)) - ((a.tore || 0) + (a.tore7m || 0)))
                                 .map(s => {
@@ -1572,8 +1563,7 @@
                                     const gesamttore = feldtore + siebentore;
                                     const gesamtfehlwurf = feldfehl + siebenfehl;
                                     const gesamtquote = ((gesamttore / (gesamttore + gesamtfehlwurf) * 100) || 0).toFixed(0);
-                                    const eff = calculateEffectiveness(s);
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldfehl}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenfehl}</td><td>${siebenquote}%</td><td><b>${gesamttore}</b></td><td>${gesamtquote}%</td><td><b>${eff.value}</b></td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldfehl}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenfehl}</td><td>${siebenquote}%</td><td><b>${gesamttore}</b></td><td>${gesamtquote}%</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td></tr>`;
                                 })
                                 .join('')}
                         </table>
@@ -1798,7 +1788,7 @@
                         <div class="card">
                             <div class="card-title">⚽ Feldspieler-Saisonstatistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Feldtore</th><th>Fehlw.</th><th>Feldquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>Gesamttore</th><th>Gesamt-Quote</th><th>Handlungseff.</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Feldtore</th><th>Fehlw.</th><th>Feldquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>Gesamttore</th><th>Gesamt-Quote</th><th>Tech.Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
                                 ${feldspielerSaisonStats.map(s => {
                                     const p = players.find(pl => pl.id === s.playerId);
                                     if (!p) return '';
@@ -1811,8 +1801,7 @@
                                     const gesamttore = feldtore + siebentore;
                                     const gesamtfehlwurf = feldfehl + siebenfehl;
                                     const gesamtquote = ((gesamttore / (gesamttore + gesamtfehlwurf) * 100) || 0).toFixed(0);
-                                    const eff = calculateEffectiveness(s);
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldfehl}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenfehl}</td><td>${siebenquote}%</td><td><b>${gesamttore}</b></td><td>${gesamtquote}%</td><td><b>${eff.value}</b></td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldfehl}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenfehl}</td><td>${siebenquote}%</td><td><b>${gesamttore}</b></td><td>${gesamtquote}%</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
@@ -2026,7 +2015,7 @@
             }
         }
         
-        async function undo() {
+        function undo() {
             if (gameActions.length === 0) {
                 showToast('❌ Nichts zum Rückgängigmachen');
                 return;
@@ -2034,62 +2023,28 @@
             
             const lastAction = gameActions.pop();
             
-            try {
-                if (lastAction.type === 'player') {
-                    // Spieler-Stat rückgängig machen
-                    const { data: currentStats } = await sbClient
-                        .from('player_stats')
-                        .select('*')
-                        .eq('game_id', currentGame.id)
-                        .eq('player_id', lastAction.playerId);
-                    
-                    if (currentStats && currentStats.length > 0) {
-                        const newValue = Math.max(0, (currentStats[0][lastAction.statKey] || 0) - lastAction.delta);
-                        await sbClient
-                            .from('player_stats')
-                            .update({ [lastAction.statKey]: newValue })
-                            .eq('game_id', currentGame.id)
-                            .eq('player_id', lastAction.playerId);
-                    }
-                } else if (lastAction.type === 'opponent') {
-                    // Gegner-Stat rückgängig machen
-                    const { data: currentStats } = await sbClient
-                        .from('opponent_stats')
-                        .select('*')
-                        .eq('game_id', currentGame.id);
-                    
-                    if (currentStats && currentStats.length > 0) {
-                        const newValue = Math.max(0, (currentStats[0][lastAction.statKey] || 0) - lastAction.delta);
-                        await sbClient
-                            .from('opponent_stats')
-                            .update({ [lastAction.statKey]: newValue })
-                            .eq('game_id', currentGame.id);
-                    }
-                } else if (lastAction.type === 'coach') {
-                    // Coach-Stat rückgängig machen
-                    const { data: currentStats } = await sbClient
-                        .from('coach_stats')
-                        .select('*')
-                        .eq('game_id', currentGame.id)
-                        .eq('coach_id', lastAction.coachId);
-                    
-                    if (currentStats && currentStats.length > 0) {
-                        const newValue = Math.max(0, (currentStats[0][lastAction.statKey] || 0) - lastAction.delta);
-                        await sbClient
-                            .from('coach_stats')
-                            .update({ [lastAction.statKey]: newValue })
-                            .eq('game_id', currentGame.id)
-                            .eq('coach_id', lastAction.coachId);
-                    }
-                }
-                
-                showToast('↩️ Letzte Eingabe rückgängig gemacht');
-                renderErlassung();
-            } catch (err) {
-                console.error('Error undoing action:', err);
-                showToast('❌ Fehler beim Rückgängigmachen');
-                gameActions.push(lastAction); // Aktion wieder hinzufügen bei Fehler
+            if (lastAction.type === 'player') {
+                const stats = localStats.players[lastAction.playerId];
+                if (stats) stats[lastAction.statKey] = Math.max(0, (stats[lastAction.statKey] || 0) - lastAction.delta);
+                enqueue({ op: 'rpc', fn: 'increment_player_stat', args: {
+                    p_game_id: currentGame.id, p_player_id: lastAction.playerId, p_stat_col: lastAction.statKey, p_delta: -lastAction.delta
+                }});
+            } else if (lastAction.type === 'opponent') {
+                if (localStats.opponent) localStats.opponent[lastAction.statKey] = Math.max(0, (localStats.opponent[lastAction.statKey] || 0) - lastAction.delta);
+                enqueue({ op: 'rpc', fn: 'increment_opponent_stat', args: {
+                    p_game_id: currentGame.id, p_stat_col: lastAction.statKey, p_delta: -lastAction.delta
+                }});
+            } else if (lastAction.type === 'coach') {
+                const stats = localStats.coaches[lastAction.coachId];
+                if (stats) stats[lastAction.statKey] = Math.max(0, (stats[lastAction.statKey] || 0) - lastAction.delta);
+                enqueue({ op: 'rpc', fn: 'increment_coach_stat', args: {
+                    p_game_id: currentGame.id, p_coach_id: lastAction.coachId, p_stat_col: lastAction.statKey, p_delta: -lastAction.delta
+                }});
             }
+            
+            showToast('↩️ Letzte Eingabe rückgängig gemacht');
+            saveLocalCacheSnapshot();
+            renderErlassung();
         }
         
         async function endGame() {
@@ -2098,24 +2053,20 @@
                 return;
             }
             
-            const createPdf = confirm('Spielstatistik als PDF exportieren?');
+            const createPdf = confirm('Spielstatistik als PDF exportieren? (nur möglich, wenn online)');
             
             try {
-                // Versuche Spiel als beendet zu markieren (optional - ignoriere Fehler wenn Spalte nicht existiert)
-                try {
-                    await sbClient
-                        .from('games')
-                        .update({ ended: true })
-                        .eq('id', currentGame.id);
-                } catch (dbErr) {
-                    console.warn('⚠️ Datenbankupdate fehlgeschlagen (ended Spalte?):', dbErr);
-                    // Weitermachen auch wenn Fehler
-                }
+                currentGame.ended = true;
+                cacheSet('games', games);
+                enqueue({ op: 'update', table: 'games', payload: { ended: true }, matchCol: 'id', matchVal: currentGame.id });
+                localStorage.removeItem('h3_cache_' + currentGame.id);
                 
                 showToast('✅ Spiel beendet');
                 
-                // Generiere PDF wenn gewünscht
-                if (createPdf) {
+                // Generiere PDF wenn gewünscht und online (braucht Live-Daten von Supabase)
+                if (createPdf && !isOnline) {
+                    showToast('⚠️ PDF-Export erst möglich, wenn wieder online');
+                } else if (createPdf) {
                     // Lade Statistik um sicherzustellen, dass HTML vorhanden ist
                     await renderSpielStatistik();
                     
