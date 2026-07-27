@@ -212,44 +212,51 @@
             }
         }
         
+        let flushInProgress = false;
+        
         async function flushQueue() {
-            if (queueBlocked || !sbClient) return;
+            if (queueBlocked || !sbClient || flushInProgress) return;
+            flushInProgress = true;
             
-            while (pendingQueue.length > 0) {
-                const item = pendingQueue[0];
-                try {
-                    if (item.op === 'rpc') {
-                        const { error } = await sbClient.rpc(item.fn, item.args);
-                        if (error) throw error;
-                    } else if (item.op === 'insert') {
-                        const { error } = await sbClient.from(item.table).insert([item.payload]);
-                        if (error) throw error;
-                    } else if (item.op === 'delete') {
-                        let q = sbClient.from(item.table).delete();
-                        for (const col in item.match) q = q.eq(col, item.match[col]);
-                        const { error } = await q;
-                        if (error) throw error;
-                    } else if (item.op === 'update') {
-                        const { error } = await sbClient.from(item.table).update(item.payload).eq(item.matchCol, item.matchVal);
-                        if (error) throw error;
+            try {
+                while (pendingQueue.length > 0) {
+                    const item = pendingQueue[0];
+                    try {
+                        if (item.op === 'rpc') {
+                            const { error } = await sbClient.rpc(item.fn, item.args);
+                            if (error) throw error;
+                        } else if (item.op === 'insert') {
+                            const { error } = await sbClient.from(item.table).insert([item.payload]);
+                            if (error) throw error;
+                        } else if (item.op === 'delete') {
+                            let q = sbClient.from(item.table).delete();
+                            for (const col in item.match) q = q.eq(col, item.match[col]);
+                            const { error } = await q;
+                            if (error) throw error;
+                        } else if (item.op === 'update') {
+                            const { error } = await sbClient.from(item.table).update(item.payload).eq(item.matchCol, item.matchVal);
+                            if (error) throw error;
+                        }
+                        
+                        pendingQueue.shift();
+                        saveQueueToStorage();
+                    } catch (err) {
+                        console.error('Sync-Fehler, Queue angehalten:', err, item);
+                        lastQueueError = {
+                            message: err?.message || String(err),
+                            details: err?.details || '',
+                            hint: err?.hint || '',
+                            code: err?.code || '',
+                            item: item
+                        };
+                        queueBlocked = true;
+                        updatePendingBadge();
+                        showToast('⚠️ Sync gestoppt – bitte prüfen');
+                        return;
                     }
-                    
-                    pendingQueue.shift();
-                    saveQueueToStorage();
-                } catch (err) {
-                    console.error('Sync-Fehler, Queue angehalten:', err, item);
-                    lastQueueError = {
-                        message: err?.message || String(err),
-                        details: err?.details || '',
-                        hint: err?.hint || '',
-                        code: err?.code || '',
-                        item: item
-                    };
-                    queueBlocked = true;
-                    updatePendingBadge();
-                    showToast('⚠️ Sync gestoppt – bitte prüfen');
-                    return;
                 }
+            } finally {
+                flushInProgress = false;
             }
         }
         
