@@ -1758,8 +1758,9 @@
                             <tr style="border-top: 1px solid #ddd;"><td><b>Abwehreffektivität:</b></td><td><b>${(() => {
                                 const opp = localStats.opponent || { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 };
                                 const gegnerFehler = (opp.fehlwurfe || 0) + (opp.tech_fehler || 0) + (opp.fehlpasse || 0);
+                                const paradenGesamt = torwarte.reduce((s, st) => s + (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0), 0);
                                 const gegentoreGesamt = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0), 0);
-                                return ((gegnerFehler / (gegnerFehler + gegentoreGesamt) * 100) || 0).toFixed(1) + '%';
+                                return (((paradenGesamt + gegnerFehler) / (paradenGesamt + gegnerFehler + gegentoreGesamt) * 100) || 0).toFixed(1) + '%';
                             })()}</b></td></tr>
                             <tr style="border-top: 1px solid #ddd;"><td><b>Team-Handlungseffektivität:</b></td><td><b>${(() => {
                                 const feldPos = feldspieler.reduce((sum, st) => {
@@ -1931,6 +1932,7 @@
                 let totalHEPos = 0, totalHENeg = 0;
                 let totalFeldtore = 0, totalFeldFehlwurf = 0, totalFeldTechFehler = 0, totalFeldFehlpass = 0;
                 let totalGegnerFehler = 0;
+                let totalParadenGesamt = 0;
                 
                 for (const game of gameList) {
                     const { data: stats } = await sbClient
@@ -1970,6 +1972,7 @@
                     totalFeldFehlwurf += feldspieler.reduce((s, st) => s + (st.fehlwurfe || 0), 0);
                     totalFeldTechFehler += feldspieler.reduce((s, st) => s + (st.tech_fehler || 0), 0);
                     totalFeldFehlpass += feldspieler.reduce((s, st) => s + (st.fehlpasse || 0), 0);
+                    totalParadenGesamt += torwarte.reduce((s, st) => s + (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0), 0);
                     
                     totalHEPos += feldspieler.reduce((sum, st) => {
                         const gtore = (st.tore || 0) + (st.tore7m || 0) + (st.tg_tore || 0);
@@ -2013,7 +2016,7 @@
                             <tr><td><b>TG-Quote (TW):</b></td><td>${((totalTGParaden / (totalTGParaden + totalTGGegentore) * 100) || 0).toFixed(1)}%</td></tr>
                             <tr><td><b>TG-Anteil am Gesamtscore:</b></td><td>${((totalTGTore / totalTore * 100) || 0).toFixed(1)}%</td></tr>
                             <tr><td><b>Angriffseffektivität:</b></td><td>${((totalFeldtore / (totalFeldtore + totalFeldFehlwurf + totalFeldTechFehler + totalFeldFehlpass) * 100) || 0).toFixed(1)}%</td></tr>
-                            <tr style="border-top: 1px solid #ddd;"><td><b>Abwehreffektivität:</b></td><td><b>${((totalGegnerFehler / (totalGegnerFehler + totalGegenTore) * 100) || 0).toFixed(1)}%</b></td></tr>
+                            <tr style="border-top: 1px solid #ddd;"><td><b>Abwehreffektivität:</b></td><td><b>${(((totalParadenGesamt + totalGegnerFehler) / (totalParadenGesamt + totalGegnerFehler + totalGegenTore) * 100) || 0).toFixed(1)}%</b></td></tr>
                             <tr style="border-top: 1px solid #ddd;"><td><b>Team-Handlungseffektivität:</b></td><td><b>${((totalHEPos / (totalHEPos + totalHENeg) * 100) || 0).toFixed(1)}%</b></td></tr>
                         </table>
                     </div>
