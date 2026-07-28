@@ -283,6 +283,17 @@
                             return;
                         }
                         
+                        const isDuplicateKey = item.op === 'insert' && err?.code === '23505';
+                        if (isDuplicateKey) {
+                            // Zeile existiert in der DB bereits genau so, wie der Insert sie anlegen wollte -
+                            // Zielzustand ist schon erreicht, kein echter Fehler. Überspringen statt blockieren.
+                            console.warn('Insert übersprungen (Zeile existiert bereits):', item);
+                            logSync(`SKIP-DUPLICATE ${item.op} ${item.table} - ${err?.message || err}`);
+                            pendingQueue.shift();
+                            saveQueueToStorage();
+                            continue;
+                        }
+                        
                         console.error('Sync-Fehler, Queue angehalten:', err, item);
                         logSync(`BLOCKED ${item.op} ${item.table || item.fn} - ${err?.message || err}`);
                         lastQueueError = {
