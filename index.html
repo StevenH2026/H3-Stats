@@ -1691,6 +1691,10 @@
                                 const tgf = feldspieler.reduce((s, st) => s + (st.tg_fehlwurfe || 0), 0);
                                 return ((tgt / (tgt + tgf) * 100) || 0).toFixed(1) + '%';
                             })()}</td></tr>
+                            <tr><td><b>TG-Anteil am Gesamtscore:</b></td><td>${(() => {
+                                const tgt = feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0);
+                                return ((tgt / totTore * 100) || 0).toFixed(1) + '%';
+                            })()}</td></tr>
                             <tr style="border-top: 1px solid #ddd;"><td><b>Paraden (TW):</b></td><td>${torwarte.reduce((s, st) => s + (st.paraden || 0), 0)}</td></tr>
                             <tr><td><b>Parade-Quote:</b></td><td>${(() => {
                                 const p = torwarte.reduce((s, st) => s + (st.paraden || 0), 0);
@@ -1909,6 +1913,7 @@
                             <tr><td><b>TG-Paraden gesamt:</b></td><td>${totalTGParaden}</td></tr>
                             <tr><td><b>TG-Gegentore gesamt:</b></td><td>${totalTGGegentore}</td></tr>
                             <tr><td><b>TG-Quote (TW):</b></td><td>${((totalTGParaden / (totalTGParaden + totalTGGegentore) * 100) || 0).toFixed(1)}%</td></tr>
+                            <tr><td><b>TG-Anteil am Gesamtscore:</b></td><td>${((totalTGTore / totalTore * 100) || 0).toFixed(1)}%</td></tr>
                         </table>
                     </div>
                 `;
