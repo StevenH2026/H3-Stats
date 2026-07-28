@@ -1353,9 +1353,10 @@
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🤝 Sonstige</div>
                                 <div class="stat-grid">
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'assists', 1)">Assist</button>
+                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'zwei_min_geholt', 1)">2min geholt</button>
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_verursacht', 1)">7m verursacht</button>
                                 </div>
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Assist: ${stats.assists || 0} | 7m verursacht: ${stats.sieben_m_verursacht || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Assist: ${stats.assists || 0} | 2min geholt: ${stats.zwei_min_geholt || 0} | 7m verursacht: ${stats.sieben_m_verursacht || 0}</div>
                             </div>
                         </div>
                     `;
@@ -1502,6 +1503,8 @@
                     'gegentore_7m': '7️⃣ 7m-Gegentor',
                     'tg_paraden': '🏃 TG-Parade',
                     'tg_gegentore': '🏃 TG-Gegentor',
+                    'assists': '🤝 Assist',
+                    'sieben_m_verursacht': '7️⃣ 7m verursacht',
                     'tech_fehler': '🚫 Tech.Fehler',
                     'fehlpasse': '❌ Fehlpass',
                     'gelb': '🟨 Gelb',
