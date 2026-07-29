@@ -73,7 +73,10 @@
 <body>
     <div class="header">
         <h1>🏐 H3-Stats</h1>
-        <button onclick="showSyncLog()" style="background:none; border:1px solid rgba(255,255,255,0.5); color:white; border-radius:4px; padding:0.3rem 0.6rem; font-size:11px; cursor:pointer;">🔍 Log</button>
+        <div style="display:flex; gap:0.5rem;">
+            <button id="authBtn" onclick="handleAuthClick()" style="background:none; border:1px solid rgba(255,255,255,0.5); color:white; border-radius:4px; padding:0.3rem 0.6rem; font-size:11px; cursor:pointer;">🔒 Login</button>
+            <button onclick="showSyncLog()" style="background:none; border:1px solid rgba(255,255,255,0.5); color:white; border-radius:4px; padding:0.3rem 0.6rem; font-size:11px; cursor:pointer;">🔍 Log</button>
+        </div>
     </div>
     
     <div class="nav">
@@ -153,6 +156,10 @@
     <div id="pendingBadge" style="display:none; position: fixed; top: 0; left: 0; right: 0; z-index: 2000; padding: 0.6rem; text-align: center; color: white; font-size: 13px; font-weight: bold; cursor: pointer;" onclick="handlePendingBadgeClick()"></div>
     
     <script>
+        // Gemeinsamer Betreuer-Login (ein Account für alle Betreuer, angelegt in Supabase Auth)
+        const BETREUER_EMAIL = 'verein@viernheim-siedler.de';
+        let isAuthenticated = false;
+
         let sbClient = null;
         let players = [];
         let coaches = [];
@@ -244,6 +251,14 @@
         
         async function flushQueue() {
             if (queueBlocked || !sbClient || flushInProgress) return;
+            
+            if (pendingQueue.length > 0 && !isAuthenticated) {
+                // Änderungen bleiben lokal in der Queue liegen, bis jemand sich einloggt.
+                // Kein Datenverlust, kein blockierter Fehlerzustand - einfach "warten wie offline".
+                showToast('🔒 Bitte einloggen, um Änderungen zu speichern');
+                return;
+            }
+            
             flushInProgress = true;
             
             try {
@@ -415,10 +430,65 @@
                     'sb_publishable_58jhuq4EIWrYT-lpQ_Hrxw_e5sqNaUE'
                 );
                 console.log('✅ Supabase connected');
+                
+                // Hält isAuthenticated automatisch aktuell (z.B. wenn die Session nach
+                // längerer Zeit erneuert oder client-seitig ungültig wird)
+                sbClient.auth.onAuthStateChange((event, session) => {
+                    isAuthenticated = !!session;
+                    updateAuthUI();
+                });
+                
                 return true;
             } catch (err) {
                 console.error('Supabase error:', err);
                 return false;
+            }
+        }
+        
+        async function checkAuthStatus() {
+            try {
+                const { data: { session } } = await sbClient.auth.getSession();
+                isAuthenticated = !!session;
+            } catch (err) {
+                console.error('Fehler beim Prüfen der Session:', err);
+                isAuthenticated = false;
+            }
+            updateAuthUI();
+        }
+        
+        function updateAuthUI() {
+            const btn = document.getElementById('authBtn');
+            if (!btn) return;
+            btn.textContent = isAuthenticated ? '🔓 Eingeloggt' : '🔒 Login';
+        }
+        
+        async function handleAuthClick() {
+            if (isAuthenticated) {
+                if (!confirm('Ausloggen? Bearbeiten ist danach wieder gesperrt.')) return;
+                await sbClient.auth.signOut();
+                isAuthenticated = false;
+                updateAuthUI();
+                showToast('🔒 Ausgeloggt');
+                return;
+            }
+            
+            const password = prompt('Passwort zum Bearbeiten eingeben:');
+            if (!password) return;
+            
+            try {
+                const { error } = await sbClient.auth.signInWithPassword({
+                    email: BETREUER_EMAIL,
+                    password: password
+                });
+                if (error) throw error;
+                
+                isAuthenticated = true;
+                updateAuthUI();
+                showToast('🔓 Eingeloggt – Bearbeiten freigeschaltet');
+                if (!queueBlocked) flushQueue();
+            } catch (err) {
+                console.error('Login fehlgeschlagen:', err);
+                showToast('❌ Login fehlgeschlagen – falsches Passwort?');
             }
         }
         
@@ -428,6 +498,7 @@
             }
             
             await initSupabase();
+            await checkAuthStatus();
             loadQueueFromStorage();
             loadPlayers();
             loadCoaches();
