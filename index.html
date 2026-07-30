@@ -164,9 +164,28 @@
     <div class="toast" id="toast"></div>
     <div id="pendingBadge" style="display:none; position: fixed; top: 0; left: 0; right: 0; z-index: 2000; padding: 0.6rem; text-align: center; color: white; font-size: 13px; font-weight: bold; cursor: pointer;" onclick="handlePendingBadgeClick()"></div>
     
+    <div id="loginModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:3000; align-items:center; justify-content:center;">
+        <div class="card" style="max-width:320px; width:90%; margin:0;">
+            <div class="card-title">🔒 Login</div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="loginEmail" autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label>Passwort</label>
+                <input type="password" id="loginPassword" autocomplete="current-password" onkeypress="if(event.key==='Enter') submitLogin()">
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+                <button class="btn btn-primary" style="flex:1;" onclick="submitLogin()">Einloggen</button>
+                <button class="btn" style="flex:1; background:#eee;" onclick="closeLoginModal()">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+    
     <script>
-        // Gemeinsamer Betreuer-Login (ein Account für alle Betreuer, angelegt in Supabase Auth)
-        const BETREUER_EMAIL = 'herren3@handballviernheim.de';
+        // Login läuft jetzt über ein Formular (loginModal) statt über einen fest
+        // hinterlegten Account - jede Person mit eigenem Auth-Account kann sich
+        // damit einloggen, nicht mehr nur der eine gemeinsame Betreuer-Login.
         let isAuthenticated = false;
 
         let sbClient = null;
@@ -482,16 +501,34 @@
                 return;
             }
             
-            const password = prompt('Passwort zum Bearbeiten eingeben:');
-            if (!password) return;
+            openLoginModal();
+        }
+        
+        function openLoginModal() {
+            document.getElementById('loginEmail').value = '';
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginModal').style.display = 'flex';
+            document.getElementById('loginEmail').focus();
+        }
+        
+        function closeLoginModal() {
+            document.getElementById('loginModal').style.display = 'none';
+        }
+        
+        async function submitLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!email || !password) {
+                showToast('❌ Email und Passwort erforderlich');
+                return;
+            }
             
             try {
-                const { error } = await sbClient.auth.signInWithPassword({
-                    email: BETREUER_EMAIL,
-                    password: password
-                });
+                const { error } = await sbClient.auth.signInWithPassword({ email, password });
                 if (error) throw error;
                 
+                closeLoginModal();
                 isAuthenticated = true;
                 updateAuthUI();
                 showToast('🔓 Eingeloggt – Bearbeiten freigeschaltet');
@@ -501,7 +538,7 @@
                 if (!queueBlocked) flushQueue();
             } catch (err) {
                 console.error('Login fehlgeschlagen:', err);
-                showToast('❌ Login fehlgeschlagen – falsches Passwort?');
+                showToast('❌ Login fehlgeschlagen – Email/Passwort prüfen');
             }
         }
         
