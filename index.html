@@ -1411,7 +1411,7 @@
                     <div class="card">
                         <div class="card-title">🎯 ${currentGame.opponent} - Kader auswählen</div>
                         <div style="font-size: 12px; margin-bottom: 1rem;">
-                            Feldspieler: ${kaderFeld.length}/16 | Torwarte: ${kaderTW.length}/3 | Betreuer: ${currentCoaches.length}
+                            Feldspieler: ${kaderFeld.length}/16 | Torwarte: ${kaderTW.length}/4 | Betreuer: ${currentCoaches.length}
                         </div>
                         ${readOnly ? '<div style="font-size: 12px; color: #999;">🔒 Nur lesend – keine Berechtigung, den Kader zu ändern</div>' : ''}
                     </div>
@@ -1438,7 +1438,7 @@
                                 <button class="player-btn ${currentKader.includes(p.id) ? 'selected' : ''}" 
                                         onclick="toggleSquadPlayer('${p.id}')"
                                         style="${readOnly ? 'opacity:0.55; cursor:not-allowed;' : ''}"
-                                        ${(kaderTW.length >= 3 && !currentKader.includes(p.id)) || readOnly ? 'disabled' : ''}>
+                                        ${(kaderTW.length >= 4 && !currentKader.includes(p.id)) || readOnly ? 'disabled' : ''}>
                                     <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
                                     <div class="player-name">${p.name}</div>
                                 </button>
