@@ -68,6 +68,26 @@
             button { display: none; }
             .score-card-sticky { position: static; }
         }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loading-spinner-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 1rem;
+            gap: 1rem;
+        }
+        .loading-spinner {
+            width: 36px;
+            height: 36px;
+            border: 4px solid #e0e0e0;
+            border-top-color: #185fa5;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
     </style>
 </head>
 <body>
@@ -2298,6 +2318,7 @@
         // =====================================================
         async function renderSaisonStatistik() {
             const container = document.getElementById('saisonstatContent');
+            container.innerHTML = '<div class="loading-spinner-wrap"><div class="loading-spinner"></div><div style="font-size: 13px; color: #666;">Saison-Statistik wird geladen...</div></div>';
             
             try {
                 const { data: allGames } = await sbClient
@@ -2305,6 +2326,30 @@
                     .select('*');
                 
                 const gameList = allGames || [];
+                const gameIds = gameList.map(g => g.id);
+                
+                // Alle Stats für alle Spiele in EINER Anfrage statt einer Anfrage PRO Spiel
+                // (vorher: bis zu 4 sequenzielle Anfragen je Spiel - der Hauptgrund für die lange Ladezeit)
+                let statsByGame = {};
+                let oppByGame = {};
+                if (gameIds.length > 0) {
+                    const { data: allPlayerStats } = await sbClient
+                        .from('player_stats')
+                        .select('*')
+                        .in('game_id', gameIds);
+                    (allPlayerStats || []).forEach(s => {
+                        if (!statsByGame[s.game_id]) statsByGame[s.game_id] = [];
+                        statsByGame[s.game_id].push(s);
+                    });
+                    
+                    const { data: allOpponentStats } = await sbClient
+                        .from('opponent_stats')
+                        .select('*')
+                        .in('game_id', gameIds);
+                    (allOpponentStats || []).forEach(o => {
+                        oppByGame[o.game_id] = o;
+                    });
+                }
                 
                 let html = `
                     <div class="card">
@@ -2317,12 +2362,9 @@
                 `;
                 
                 for (const game of gameList) {
-                    const { data: stats } = await sbClient
-                        .from('player_stats')
-                        .select('*')
-                        .eq('game_id', game.id);
+                    const stats = statsByGame[game.id] || [];
                     
-                    const allStats = stats || [];
+                    const allStats = stats;
                     const torwarte = allStats.filter(s => {
                         const p = players.find(pl => pl.id === s.player_id);
                         return p && p.position === 'Torwart';
@@ -2358,20 +2400,11 @@
                 let totalParadenGesamt = 0;
                 
                 for (const game of gameList) {
-                    const { data: stats } = await sbClient
-                        .from('player_stats')
-                        .select('*')
-                        .eq('game_id', game.id);
-                    
-                    const { data: oppStats } = await sbClient
-                        .from('opponent_stats')
-                        .select('*')
-                        .eq('game_id', game.id);
-                    
-                    const opp = (oppStats && oppStats.length > 0) ? oppStats[0] : { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 };
+                    const stats = statsByGame[game.id] || [];
+                    const opp = oppByGame[game.id] || { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 };
                     totalGegnerFehler += (opp.fehlwurfe || 0) + (opp.tech_fehler || 0) + (opp.fehlpasse || 0);
                     
-                    const allStats = stats || [];
+                    const allStats = stats;
                     const torwarte = allStats.filter(s => {
                         const p = players.find(pl => pl.id === s.player_id);
                         return p && p.position === 'Torwart';
@@ -2449,12 +2482,7 @@
                 const playerSeasonStats = {};
                 
                 for (const game of gameList) {
-                    const { data: stats } = await sbClient
-                        .from('player_stats')
-                        .select('*')
-                        .eq('game_id', game.id);
-                    
-                    const allStats = stats || [];
+                    const allStats = statsByGame[game.id] || [];
                     for (const stat of allStats) {
                         if (!playerSeasonStats[stat.player_id]) {
                             playerSeasonStats[stat.player_id] = {
