@@ -84,8 +84,8 @@
         <button class="nav-btn" onclick="switchTab(this, 'erfassung')">📊 Erfassung</button>
         <button class="nav-btn" onclick="switchTab(this, 'spielstat')">📈 Spiel-Statistik</button>
         <button class="nav-btn" onclick="switchTab(this, 'saisonstat')">🏆 Saison-Statistik</button>
-        <button class="nav-btn" onclick="switchTab(this, 'spieler')">👥 Spieler</button>
-        <button class="nav-btn" onclick="switchTab(this, 'betreuer')">🎯 Betreuer</button>
+        <button class="nav-btn" id="navSpielerBtn" onclick="switchTab(this, 'spieler')">👥 Spieler</button>
+        <button class="nav-btn" id="navBetreuerBtn" onclick="switchTab(this, 'betreuer')">🎯 Betreuer</button>
         <button class="nav-btn" onclick="switchTab(this, 'archiv')">📁 Archiv</button>
         <button class="nav-btn" onclick="switchTab(this, 'admin')">🔑 Admin</button>
     </div>
@@ -549,12 +549,31 @@
         
         function updateAuthUI() {
             const btn = document.getElementById('authBtn');
-            if (!btn) return;
-            if (isAuthenticated) {
-                const roleLabel = currentUserRoles.length > 0 ? currentUserRoles.join('/') : 'ohne Rolle';
-                btn.textContent = `🔓 ${roleLabel}`;
-            } else {
-                btn.textContent = '🔒 Login';
+            if (btn) {
+                if (isAuthenticated) {
+                    const roleLabel = currentUserRoles.length > 0 ? currentUserRoles.join('/') : 'ohne Rolle';
+                    btn.textContent = `🔓 ${roleLabel}`;
+                } else {
+                    btn.textContent = '🔒 Login';
+                }
+            }
+            
+            // Spieler-/Betreuer-Verwaltung nur für Trainer + Admin sichtbar - Betreuer und
+            // Spieler sehen Namen/Nummern ohnehin über Erfassung bzw. Statistik, brauchen
+            // die separate Stammdaten-Verwaltung nicht.
+            const canManageRoster = currentUserRoles.includes('trainer') || currentUserRoles.includes('admin');
+            const spielerBtn = document.getElementById('navSpielerBtn');
+            const betreuerBtn = document.getElementById('navBetreuerBtn');
+            if (spielerBtn) spielerBtn.style.display = canManageRoster ? '' : 'none';
+            if (betreuerBtn) betreuerBtn.style.display = canManageRoster ? '' : 'none';
+            
+            if (!canManageRoster) {
+                const spielerTab = document.getElementById('spieler');
+                const betreuerTab = document.getElementById('betreuer');
+                if ((spielerTab && spielerTab.classList.contains('active')) || (betreuerTab && betreuerTab.classList.contains('active'))) {
+                    const spieleBtn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.textContent.includes('Spiele'));
+                    switchTab(spieleBtn, 'spiele');
+                }
             }
         }
         
