@@ -87,6 +87,7 @@
         <button class="nav-btn" onclick="switchTab(this, 'spieler')">👥 Spieler</button>
         <button class="nav-btn" onclick="switchTab(this, 'betreuer')">🎯 Betreuer</button>
         <button class="nav-btn" onclick="switchTab(this, 'archiv')">📁 Archiv</button>
+        <button class="nav-btn" onclick="switchTab(this, 'admin')">🔑 Admin</button>
     </div>
     
     <div class="container">
@@ -159,6 +160,11 @@
                 <div id="archivList"></div>
             </div>
         </div>
+        
+        <!-- TAB: ADMIN -->
+        <div id="admin" class="tab">
+            <div id="adminContent"></div>
+        </div>
     </div>
     
     <div class="toast" id="toast"></div>
@@ -179,6 +185,59 @@
                 <button class="btn btn-primary" style="flex:1;" onclick="submitLogin()">Einloggen</button>
                 <button class="btn" style="flex:1; background:#eee;" onclick="closeLoginModal()">Abbrechen</button>
             </div>
+            <div style="text-align:center; margin-top:0.75rem; font-size:12px;">
+                <a href="#" onclick="closeLoginModal(); openRegisterModal(); return false;">Noch kein Konto? Registrieren</a>
+            </div>
+        </div>
+    </div>
+    
+    <div id="registerModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:3000; align-items:center; justify-content:center;">
+        <div class="card" style="max-width:320px; width:90%; margin:0;">
+            <div class="card-title">📝 Registrieren</div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="registerEmail" autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label>Passwort</label>
+                <input type="password" id="registerPassword" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+                <label>Passwort wiederholen</label>
+                <input type="password" id="registerPasswordRepeat" autocomplete="new-password">
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+                <button class="btn btn-success" style="flex:1;" onclick="submitRegister()">Registrieren</button>
+                <button class="btn" style="flex:1; background:#eee;" onclick="closeRegisterModal()">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="roleRequestModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:3000; align-items:center; justify-content:center;">
+        <div class="card" style="max-width:320px; width:90%; margin:0;">
+            <div class="card-title">🎯 Rolle beantragen</div>
+            <p style="font-size:13px; margin-bottom:1rem; color:#666;">Wähle die Rolle, die du in der App haben möchtest. Ein Admin muss deine Anfrage noch freischalten.</p>
+            <div class="form-group">
+                <label>Gewünschte Rolle</label>
+                <select id="roleRequestSelect">
+                    <option value="trainer">Trainer</option>
+                    <option value="betreuer">Betreuer</option>
+                    <option value="spieler">Spieler</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+                <button class="btn btn-success" style="flex:1;" onclick="submitRoleRequest()">Anfrage senden</button>
+                <button class="btn" style="flex:1; background:#eee;" onclick="closeRoleRequestModal()">Später</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="notifyAdminModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:3000; align-items:center; justify-content:center;">
+        <div class="card" style="max-width:320px; width:90%; margin:0;">
+            <div class="card-title">📧 Admin benachrichtigen</div>
+            <p style="font-size:13px; margin-bottom:1rem; color:#666;">Deine Anfrage wurde gespeichert. Damit der Admin sie schneller sieht, kannst du zusätzlich eine Mail schicken.</p>
+            <a id="notifyAdminLink" class="btn btn-primary" style="width:100%; text-align:center; text-decoration:none; display:block; margin-bottom:0.5rem;" href="#">📧 Mail an Admin öffnen</a>
+            <button class="btn" style="width:100%; background:#eee;" onclick="closeNotifyAdminModal()">Fertig</button>
         </div>
     </div>
     
@@ -197,6 +256,8 @@
         let selectedCoach = null;
         let gameActions = []; // Action-Log für aktuelle Session
         let archivedGameIds = new Set(); // lokaler Cache: welche Spiel-IDs haben ein PDF im Archiv
+        let currentUserRoles = []; // Rollen des aktuell eingeloggten Nutzers (aus my_roles())
+        const ADMIN_CONTACT_EMAIL = 'steffen.hanske@hotmail.com'; // Kontaktadresse für Freischaltungs-Anfragen
         
         // ===== OFFLINE-SYNC =====
         let localStats = { players: {}, opponent: {}, coaches: {} }; // lokaler Stats-Cache für aktuelles Spiel
@@ -483,12 +544,18 @@
                 isAuthenticated = false;
             }
             updateAuthUI();
+            if (isAuthenticated) afterLoginSetup();
         }
         
         function updateAuthUI() {
             const btn = document.getElementById('authBtn');
             if (!btn) return;
-            btn.textContent = isAuthenticated ? '🔓 Eingeloggt' : '🔒 Login';
+            if (isAuthenticated) {
+                const roleLabel = currentUserRoles.length > 0 ? currentUserRoles.join('/') : 'ohne Rolle';
+                btn.textContent = `🔓 ${roleLabel}`;
+            } else {
+                btn.textContent = '🔒 Login';
+            }
         }
         
         async function handleAuthClick() {
@@ -496,6 +563,7 @@
                 if (!confirm('Ausloggen? Bearbeiten ist danach wieder gesperrt.')) return;
                 await sbClient.auth.signOut();
                 isAuthenticated = false;
+                currentUserRoles = [];
                 updateAuthUI();
                 showToast('🔒 Ausgeloggt');
                 return;
@@ -531,15 +599,142 @@
                 closeLoginModal();
                 isAuthenticated = true;
                 updateAuthUI();
-                showToast('🔓 Eingeloggt – Bearbeiten freigeschaltet');
+                showToast('🔓 Eingeloggt');
                 loadPlayers();
                 loadCoaches();
                 loadGames();
                 if (!queueBlocked) flushQueue();
+                afterLoginSetup();
             } catch (err) {
                 console.error('Login fehlgeschlagen:', err);
                 showToast('❌ Login fehlgeschlagen – Email/Passwort prüfen');
             }
+        }
+        
+        function openRegisterModal() {
+            document.getElementById('registerEmail').value = '';
+            document.getElementById('registerPassword').value = '';
+            document.getElementById('registerPasswordRepeat').value = '';
+            document.getElementById('registerModal').style.display = 'flex';
+            document.getElementById('registerEmail').focus();
+        }
+        
+        function closeRegisterModal() {
+            document.getElementById('registerModal').style.display = 'none';
+        }
+        
+        async function submitRegister() {
+            const email = document.getElementById('registerEmail').value.trim();
+            const password = document.getElementById('registerPassword').value;
+            const passwordRepeat = document.getElementById('registerPasswordRepeat').value;
+            
+            if (!email || !password) {
+                showToast('❌ Email und Passwort erforderlich');
+                return;
+            }
+            if (password !== passwordRepeat) {
+                showToast('❌ Passwörter stimmen nicht überein');
+                return;
+            }
+            if (password.length < 6) {
+                showToast('❌ Passwort muss mindestens 6 Zeichen haben');
+                return;
+            }
+            
+            try {
+                const { data, error } = await sbClient.auth.signUp({ email, password });
+                if (error) throw error;
+                
+                closeRegisterModal();
+                
+                if (data.session) {
+                    isAuthenticated = true;
+                    updateAuthUI();
+                    showToast('✅ Registriert und eingeloggt');
+                    loadPlayers();
+                    loadCoaches();
+                    loadGames();
+                    await afterLoginSetup();
+                } else {
+                    showToast('✅ Registriert – bitte bestätige deine Email und logg dich danach ein');
+                }
+            } catch (err) {
+                console.error('Registrierung fehlgeschlagen:', err);
+                showToast('❌ Registrierung fehlgeschlagen: ' + (err.message || 'unbekannter Fehler'));
+            }
+        }
+        
+        // Wird nach jedem erfolgreichen Login/Sign-up aufgerufen: prüft, ob der Nutzer
+        // schon eine Rolle hat - falls nicht und keine offene Anfrage existiert,
+        // wird die "Rolle beantragen"-Abfrage gezeigt.
+        async function afterLoginSetup() {
+            try {
+                const { data: roles } = await sbClient.rpc('my_roles');
+                currentUserRoles = roles || [];
+                updateAuthUI();
+                
+                if (currentUserRoles.length > 0) return;
+                
+                const { data: userData } = await sbClient.auth.getUser();
+                if (!userData?.user) return;
+                
+                const { data: existingRequests } = await sbClient
+                    .from('registration_requests')
+                    .select('*')
+                    .eq('user_id', userData.user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                
+                if (existingRequests && existingRequests.length > 0 && existingRequests[0].status === 'pending') {
+                    showToast('⏳ Deine Rollen-Anfrage wartet noch auf Freischaltung durch den Admin');
+                    return;
+                }
+                
+                openRoleRequestModal();
+            } catch (err) {
+                console.error('Fehler bei afterLoginSetup:', err);
+            }
+        }
+        
+        function openRoleRequestModal() {
+            document.getElementById('roleRequestModal').style.display = 'flex';
+        }
+        
+        function closeRoleRequestModal() {
+            document.getElementById('roleRequestModal').style.display = 'none';
+        }
+        
+        async function submitRoleRequest() {
+            const role = document.getElementById('roleRequestSelect').value;
+            
+            try {
+                const { data: userData } = await sbClient.auth.getUser();
+                if (!userData?.user) throw new Error('Kein eingeloggter Nutzer gefunden');
+                
+                const { error } = await sbClient.from('registration_requests').insert([{
+                    user_id: userData.user.id,
+                    email: userData.user.email,
+                    requested_role: role
+                }]);
+                if (error) throw error;
+                
+                closeRoleRequestModal();
+                openNotifyAdminModal(userData.user.email, role);
+            } catch (err) {
+                console.error('Fehler bei Rollen-Anfrage:', err);
+                showToast('❌ Anfrage konnte nicht gesendet werden');
+            }
+        }
+        
+        function openNotifyAdminModal(email, role) {
+            const subject = encodeURIComponent('H3-Stats: Rollen-Freischaltung angefragt');
+            const body = encodeURIComponent(`Hallo,\n\nich habe mich in H3-Stats registriert und die Rolle "${role}" beantragt.\n\nMeine Email: ${email}\n\nBitte freischalten.`);
+            document.getElementById('notifyAdminLink').href = `mailto:${ADMIN_CONTACT_EMAIL}?subject=${subject}&body=${body}`;
+            document.getElementById('notifyAdminModal').style.display = 'flex';
+        }
+        
+        function closeNotifyAdminModal() {
+            document.getElementById('notifyAdminModal').style.display = 'none';
         }
         
         window.addEventListener('load', async () => {
@@ -1767,6 +1962,7 @@
             if (tabName === 'spielstat') renderSpielStatistik();
             if (tabName === 'saisonstat') renderSaisonStatistik();
             if (tabName === 'archiv') renderArchivList();
+            if (tabName === 'admin') renderAdminPanel();
         }
         
         // =====================================================
@@ -2709,6 +2905,107 @@
             } catch (err) {
                 console.error('Error deleting archived pdf:', err);
                 showToast('❌ Fehler beim Löschen');
+            }
+        }
+        
+        // =====================================================
+        // ADMIN: ROLLEN-ANFRAGEN
+        // =====================================================
+        async function renderAdminPanel() {
+            const container = document.getElementById('adminContent');
+            if (!container) return;
+            container.innerHTML = '<div class="card"><div class="empty-state">Lade Anfragen...</div></div>';
+            
+            try {
+                const { data, error } = await sbClient
+                    .from('registration_requests')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                const requests = data || [];
+                const pending = requests.filter(r => r.status === 'pending');
+                const processed = requests.filter(r => r.status !== 'pending').slice(0, 20);
+                
+                let html = `<div class="card"><div class="card-title">🔑 Offene Rollen-Anfragen</div>`;
+                
+                if (pending.length === 0) {
+                    html += '<div class="empty-state">Keine offenen Anfragen</div>';
+                } else {
+                    html += `<table style="font-size: 13px; width: 100%;">
+                        <tr style="background: #f5f5f5;"><th>Email</th><th>Gewünschte Rolle</th><th>Angefragt am</th><th></th></tr>
+                        ${pending.map(r => `
+                            <tr>
+                                <td>${r.email}</td>
+                                <td><b>${r.requested_role}</b></td>
+                                <td>${new Date(r.created_at).toLocaleDateString('de-DE')}</td>
+                                <td style="display:flex; gap:0.25rem;">
+                                    <button class="btn btn-success" style="padding:0.35rem 0.6rem; font-size:11px;" onclick="approveRequest('${r.id}', '${r.user_id}', '${r.requested_role}')">✅ Genehmigen</button>
+                                    <button class="btn btn-danger" style="padding:0.35rem 0.6rem; font-size:11px;" onclick="rejectRequest('${r.id}')">❌ Ablehnen</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </table>`;
+                }
+                html += `</div>`;
+                
+                if (processed.length > 0) {
+                    html += `
+                        <div class="card">
+                            <div class="card-title">📜 Bereits bearbeitet</div>
+                            <table style="font-size: 12px; width: 100%;">
+                                <tr style="background: #f5f5f5;"><th>Email</th><th>Rolle</th><th>Status</th><th>Bearbeitet am</th></tr>
+                                ${processed.map(r => `<tr><td>${r.email}</td><td>${r.requested_role}</td><td>${r.status === 'approved' ? '✅ genehmigt' : '❌ abgelehnt'}</td><td>${r.reviewed_at ? new Date(r.reviewed_at).toLocaleDateString('de-DE') : '-'}</td></tr>`).join('')}
+                            </table>
+                        </div>
+                    `;
+                }
+                
+                container.innerHTML = html;
+            } catch (err) {
+                console.error('Error loading registration requests:', err);
+                container.innerHTML = '<div class="card"><div class="empty-state">⚠️ Konnte nicht geladen werden (keine Admin-Rechte oder offline?)</div></div>';
+            }
+        }
+        
+        async function approveRequest(requestId, userId, role) {
+            if (!confirm(`Rolle "${role}" wirklich freischalten?`)) return;
+            
+            try {
+                const { data: userData } = await sbClient.auth.getUser();
+                
+                const { error: roleError } = await sbClient.from('user_roles').insert([{ user_id: userId, role: role }]);
+                if (roleError && roleError.code !== '23505') throw roleError; // 23505 = Rolle existiert schon, ignorieren
+                
+                const { error: updateError } = await sbClient.from('registration_requests')
+                    .update({ status: 'approved', reviewed_at: new Date().toISOString(), reviewed_by: userData.user.id })
+                    .eq('id', requestId);
+                if (updateError) throw updateError;
+                
+                showToast('✅ Rolle freigeschaltet');
+                renderAdminPanel();
+            } catch (err) {
+                console.error('Fehler beim Freischalten:', err);
+                showToast('❌ Freischalten fehlgeschlagen');
+            }
+        }
+        
+        async function rejectRequest(requestId) {
+            if (!confirm('Anfrage wirklich ablehnen?')) return;
+            
+            try {
+                const { data: userData } = await sbClient.auth.getUser();
+                const { error } = await sbClient.from('registration_requests')
+                    .update({ status: 'rejected', reviewed_at: new Date().toISOString(), reviewed_by: userData.user.id })
+                    .eq('id', requestId);
+                if (error) throw error;
+                
+                showToast('✅ Anfrage abgelehnt');
+                renderAdminPanel();
+            } catch (err) {
+                console.error('Fehler beim Ablehnen:', err);
+                showToast('❌ Ablehnen fehlgeschlagen');
             }
         }
         
