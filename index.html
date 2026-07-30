@@ -93,7 +93,7 @@
     <div class="container">
         <!-- TAB: SPIELE -->
         <div id="spiele" class="tab active">
-            <div class="card">
+            <div class="card" id="neuesSpielCard">
                 <div class="card-title">➕ Neues Spiel</div>
                 <div class="form-group">
                     <label>Gegner</label>
@@ -547,6 +547,10 @@
             if (isAuthenticated) afterLoginSetup();
         }
         
+        function canRecordStats() {
+            return currentUserRoles.includes('trainer') || currentUserRoles.includes('betreuer') || currentUserRoles.includes('admin');
+        }
+        
         function updateAuthUI() {
             const btn = document.getElementById('authBtn');
             if (btn) {
@@ -575,6 +579,10 @@
                     switchTab(spieleBtn, 'spiele');
                 }
             }
+            
+            // "Neues Spiel"-Formular nur für Rollen mit Schreibrecht auf Spiele/Stats
+            const neuesSpielCard = document.getElementById('neuesSpielCard');
+            if (neuesSpielCard) neuesSpielCard.style.display = canRecordStats() ? '' : 'none';
         }
         
         async function handleAuthClick() {
@@ -1181,6 +1189,10 @@
         }
         
         async function startNewGame() {
+            if (!canRecordStats()) {
+                showToast('🔒 Keine Berechtigung, Spiele anzulegen');
+                return;
+            }
             if (players.length === 0) {
                 showToast('❌ Zuerst Spieler erfassen');
                 switchTab(document.querySelector('[onclick*="spieler"]'), 'spieler');
@@ -1350,6 +1362,7 @@
             {
                 const currentKader = localSquad.playerIds;
                 const currentCoaches = localSquad.coachIds;
+                const readOnly = !canRecordStats();
                 
                 const feldspieler = players.filter(p => p.position === 'Feld').sort((a,b) => a.number - b.number);
                 const torwarte = players.filter(p => p.position === 'Torwart').sort((a,b) => a.number - b.number);
@@ -1363,6 +1376,7 @@
                         <div style="font-size: 12px; margin-bottom: 1rem;">
                             Feldspieler: ${kaderFeld.length}/16 | Torwarte: ${kaderTW.length}/3 | Betreuer: ${currentCoaches.length}
                         </div>
+                        ${readOnly ? '<div style="font-size: 12px; color: #999;">🔒 Nur lesend – keine Berechtigung, den Kader zu ändern</div>' : ''}
                     </div>
                     
                     <div class="card">
@@ -1371,7 +1385,8 @@
                             ${feldspieler.map(p => `
                                 <button class="player-btn ${currentKader.includes(p.id) ? 'selected' : ''}" 
                                         onclick="toggleSquadPlayer('${p.id}')"
-                                        ${kaderFeld.length >= 16 && !currentKader.includes(p.id) ? 'disabled' : ''}>
+                                        style="${readOnly ? 'opacity:0.55; cursor:not-allowed;' : ''}"
+                                        ${(kaderFeld.length >= 16 && !currentKader.includes(p.id)) || readOnly ? 'disabled' : ''}>
                                     <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
                                     <div class="player-name">${p.name}</div>
                                 </button>
@@ -1385,7 +1400,8 @@
                             ${torwarte.map(p => `
                                 <button class="player-btn ${currentKader.includes(p.id) ? 'selected' : ''}" 
                                         onclick="toggleSquadPlayer('${p.id}')"
-                                        ${kaderTW.length >= 3 && !currentKader.includes(p.id) ? 'disabled' : ''}>
+                                        style="${readOnly ? 'opacity:0.55; cursor:not-allowed;' : ''}"
+                                        ${(kaderTW.length >= 3 && !currentKader.includes(p.id)) || readOnly ? 'disabled' : ''}>
                                     <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
                                     <div class="player-name">${p.name}</div>
                                 </button>
@@ -1398,7 +1414,9 @@
                         <div class="player-grid">
                             ${coaches.map(c => `
                                 <button class="player-btn ${currentCoaches.includes(c.id) ? 'selected' : ''}" 
-                                        onclick="toggleGameCoach('${c.id}')">
+                                        onclick="toggleGameCoach('${c.id}')"
+                                        style="${readOnly ? 'opacity:0.55; cursor:not-allowed;' : ''}"
+                                        ${readOnly ? 'disabled' : ''}>
                                     <div style="font-size: 16px; font-weight: bold;">${c.designation}</div>
                                     <div class="player-name">${c.name}</div>
                                 </button>
@@ -1417,6 +1435,10 @@
         
         function toggleSquadPlayer(playerId) {
             if (!currentGame) return;
+            if (!canRecordStats()) {
+                showToast('🔒 Keine Berechtigung, den Kader zu ändern');
+                return;
+            }
             
             const idx = localSquad.playerIds.indexOf(playerId);
             
@@ -1452,6 +1474,10 @@
         
         function toggleGameCoach(coachId) {
             if (!currentGame) return;
+            if (!canRecordStats()) {
+                showToast('🔒 Keine Berechtigung, den Kader zu ändern');
+                return;
+            }
             
             const idx = localSquad.coachIds.indexOf(coachId);
             
@@ -1511,6 +1537,7 @@
                 
                 const playerStatsHtml = selectedPlayer ? renderPlayerStats(selectedPlayer) : '';
                 const coachStatsHtml = selectedCoach ? renderCoachStats(selectedCoach) : '';
+                const readOnly = !canRecordStats();
                 
                 const gameCoachIds = localSquad.coachIds;
                 const gameCoaches = coaches.filter(c => gameCoachIds.includes(c.id));
@@ -1549,8 +1576,10 @@
                             </div>
                             
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                                ${readOnly ? '<div style="grid-column: span 2; text-align:center; font-size:12px; opacity:0.85;">🔒 Nur lesend – keine Erfassungsrechte</div>' : `
                                 <button class="btn btn-secondary" style="background: rgba(100, 100, 100, 0.95); border-radius: 4px; font-size: 14px;" onclick="undo()">↩️ Undo</button>
                                 <button class="btn btn-success" style="background: rgba(99, 153, 34, 0.95); border-radius: 4px; font-size: 14px;" onclick="endGame()">✅ Spiel beenden</button>
+                                `}
                             </div>
                         </div>
                     </div>
@@ -1621,7 +1650,7 @@
                         ` : ''}
                         
                         <div style="margin-top: 1rem;">
-                            <button class="btn btn-primary" style="width: 100%;" onclick="renderKaderSelection()">🔄 Kader ändern</button>
+                            ${readOnly ? '' : '<button class="btn btn-primary" style="width: 100%;" onclick="renderKaderSelection()">🔄 Kader ändern</button>'}
                         </div>
                     </div>
                     
@@ -1631,11 +1660,13 @@
                     
                     <div class="card">
                         <div class="card-title">🎯 Gegner</div>
+                        ${readOnly ? '' : `
                         <div class="stat-grid">
                             <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updateOpponentStat('fehlwurfe', 1)">Fehlwurf</button>
                             <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updateOpponentStat('tech_fehler', 1)">Technischer Fehler</button>
                             <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updateOpponentStat('fehlpasse', 1)">Fehlpass</button>
                         </div>
+                        `}
                         <div style="font-size: 14px; margin-top: 1rem;">Fehlwürfe: ${opponentStats.fehlwurfe} | Tech.Fehler: ${opponentStats.tech_fehler} | Fehlpass: ${opponentStats.fehlpasse}</div>
                     </div>
                     
@@ -1657,6 +1688,7 @@
                 if (!stats) return '';
                 
                 const isTorwart = player.position === 'Torwart';
+                const readOnly = !canRecordStats();
                 
                 if (isTorwart) {
                     return `
@@ -1664,51 +1696,61 @@
                             <div class="card-title">🥅 ${player.name} (#${player.number})</div>
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">🛡️ Paraden</div>
+                                ${readOnly ? '' : `
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'paraden', 1)">Parade</button>
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tg_paraden', 1)">TG-Parade</button>
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'paraden_7m', 1)">7m Parade</button>
                                 </div>
+                                `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Paraden: ${stats.paraden || 0} | TG: ${stats.tg_paraden || 0} | 7m: ${stats.paraden_7m || 0}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #e24b4a;">❌ Gegentore</div>
+                                ${readOnly ? '' : `
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'gegentore', 1)">Gegentor</button>
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tg_gegentore', 1)">TG-Gegentor</button>
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'gegentore_7m', 1)">7m Gegentor</button>
                                 </div>
+                                `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Gegentore: ${stats.gegentore || 0} | TG: ${stats.tg_gegentore || 0} | 7m: ${stats.gegentore_7m || 0}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #d4a100;">🚨 Strafen</div>
+                                ${readOnly ? '' : `
                                 <div class="stat-grid">
                                     <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #ffd700; color: #333;" onclick="updatePlayerStat('${player.id}', 'gelb', 1)">Gelb</button>
                                     <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #ff4444; color: white;" onclick="updatePlayerStat('${player.id}', 'rot', 1)">Rot</button>
                                     <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #333; color: white;" onclick="updatePlayerStat('${player.id}', 'zwei_min', 1)">2min</button>
                                     <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #8B0000; color: white;" onclick="updatePlayerStat('${player.id}', 'disq', 1)">Disq</button>
                                 </div>
+                                `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">⚠️ Fehler</div>
+                                ${readOnly ? '' : `
                                 <div class="stat-grid">
                                     <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tech_fehler', 1)">Technischer Fehler</button>
                                     <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlpasse', 1)">Fehlpass</button>
                                 </div>
+                                `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0} | Fehlpass: ${stats.fehlpasse || 0}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🤝 Sonstige</div>
+                                ${readOnly ? '' : `
                                 <div class="stat-grid">
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'assists', 1)">Assist</button>
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'zwei_min_geholt', 1)">2min geholt</button>
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_verursacht', 1)">7m verursacht</button>
                                 </div>
+                                `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Assist: ${stats.assists || 0} | 2min geholt: ${stats.zwei_min_geholt || 0} | 7m verursacht: ${stats.sieben_m_verursacht || 0}</div>
                             </div>
                         </div>
@@ -1719,52 +1761,62 @@
                             <div class="card-title">📊 ${player.name} (#${player.number})</div>
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">⚽ Tore</div>
+                                ${readOnly ? '' : `
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tore', 1)">Tor</button>
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tg_tore', 1)">TG-Tor</button>
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tore7m', 1)">7m Tor</button>
                                 </div>
+                                `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.tore} | TG: ${stats.tg_tore || 0} | 7m: ${stats.tore7m} | Gesamt: ${stats.tore + (stats.tg_tore || 0) + stats.tore7m}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #e24b4a;">❌ Fehlwürfe</div>
+                                ${readOnly ? '' : `
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe', 1)">Fehlwurf</button>
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tg_fehlwurfe', 1)">TG-Fehlwurf</button>
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe7m', 1)">7m Fehlwurf</button>
                                 </div>
+                                `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.fehlwurfe} | TG: ${stats.tg_fehlwurfe || 0} | 7m: ${stats.fehlwurfe7m}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #d4a100;">🚨 Strafen</div>
+                                ${readOnly ? '' : `
                                 <div class="stat-grid">
                                     <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #ffd700; color: #333;" onclick="updatePlayerStat('${player.id}', 'gelb', 1)">Gelb</button>
                                     <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #ff4444; color: white;" onclick="updatePlayerStat('${player.id}', 'rot', 1)">Rot</button>
                                     <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #333; color: white;" onclick="updatePlayerStat('${player.id}', 'zwei_min', 1)">2min</button>
                                     <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #8B0000; color: white;" onclick="updatePlayerStat('${player.id}', 'disq', 1)">Disq</button>
                                 </div>
+                                `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">⚠️ Fehler</div>
+                                ${readOnly ? '' : `
                                 <div class="stat-grid">
                                     <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tech_fehler', 1)">Technischer Fehler</button>
                                     <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlpasse', 1)">Fehlpass</button>
                                 </div>
+                                `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0} | Fehlpass: ${stats.fehlpasse || 0}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🤝 Sonstige</div>
+                                ${readOnly ? '' : `
                                 <div class="stat-grid">
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'assists', 1)">Assist</button>
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_geholt', 1)">7m geholt</button>
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'zwei_min_geholt', 1)">2min geholt</button>
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_verursacht', 1)">7m verursacht</button>
                                 </div>
+                                `}
                             </div>
                         </div>
                     `;
@@ -1780,17 +1832,21 @@
                 
                 if (!stats) return '';
                 
+                const readOnly = !canRecordStats();
+                
                 return `
                     <div class="card">
                         <div class="card-title">👔 ${coach.designation} - ${coach.name}</div>
                         <div style="margin-bottom: 1.5rem;">
                             <div style="font-weight: bold; margin-bottom: 0.5rem; color: #d4a100;">🚨 Strafen</div>
+                            ${readOnly ? '' : `
                             <div class="stat-grid">
                                 <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #ffd700; color: #333;" onclick="updateCoachStat('${coach.id}', 'gelb', 1)">Gelb</button>
                                 <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #ff4444; color: white;" onclick="updateCoachStat('${coach.id}', 'rot', 1)">Rot</button>
                                 <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #333; color: white;" onclick="updateCoachStat('${coach.id}', 'zwei_min', 1)">2min</button>
                                 <button class="stat-btn" style="grid-column: 1; font-size: 12px; padding: 0.75rem; background: #8B0000; color: white;" onclick="updateCoachStat('${coach.id}', 'disq', 1)">Disq</button>
                             </div>
+                            `}
                             <div style="font-size: 14px; margin-top: 0.5rem; text-align: center;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0}</div>
                         </div>
                     </div>
@@ -1832,6 +1888,10 @@
         
         function updatePlayerStat(playerId, statKey, delta) {
             if (!currentGame) return;
+            if (!canRecordStats()) {
+                showToast('🔒 Keine Berechtigung, Stats zu erfassen');
+                return;
+            }
             
             {
                 const player = players.find(p => p.id === playerId);
@@ -1901,6 +1961,10 @@
         
         function updateOpponentStat(statKey, delta) {
             if (!currentGame) return;
+            if (!canRecordStats()) {
+                showToast('🔒 Keine Berechtigung, Stats zu erfassen');
+                return;
+            }
             
             {
                 if (!localStats.opponent) localStats.opponent = { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 };
@@ -1934,6 +1998,10 @@
         
         function updateCoachStat(coachId, statKey, delta) {
             if (!currentGame) return;
+            if (!canRecordStats()) {
+                showToast('🔒 Keine Berechtigung, Stats zu erfassen');
+                return;
+            }
             
             {
                 const coach = coaches.find(c => c.id === coachId);
@@ -2688,6 +2756,10 @@
         }
         
         function undo() {
+            if (!canRecordStats()) {
+                showToast('🔒 Keine Berechtigung, Aktionen rückgängig zu machen');
+                return;
+            }
             if (gameActions.length === 0) {
                 showToast('❌ Nichts zum Rückgängigmachen');
                 return;
@@ -2726,6 +2798,10 @@
         async function endGame() {
             if (!currentGame) {
                 showToast('❌ Kein aktives Spiel');
+                return;
+            }
+            if (!canRecordStats()) {
+                showToast('🔒 Keine Berechtigung, das Spiel zu beenden');
                 return;
             }
             
