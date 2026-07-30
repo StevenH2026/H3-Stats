@@ -495,6 +495,9 @@
                 isAuthenticated = true;
                 updateAuthUI();
                 showToast('🔓 Eingeloggt – Bearbeiten freigeschaltet');
+                loadPlayers();
+                loadCoaches();
+                loadGames();
                 if (!queueBlocked) flushQueue();
             } catch (err) {
                 console.error('Login fehlgeschlagen:', err);
@@ -641,7 +644,9 @@
             `;
             
             if (players.length === 0) {
-                html += '<div class="empty-state">Noch keine Spieler</div>';
+                html += isAuthenticated
+                    ? '<div class="empty-state">Noch keine Spieler</div>'
+                    : '<div class="empty-state">🔒 Bitte einloggen, um die Spielerliste zu sehen</div>';
             } else {
                 const feldspieler = players.filter(p => p.position === 'Feld').sort((a,b) => a.number - b.number);
                 const torwarte = players.filter(p => p.position === 'Torwart').sort((a,b) => a.number - b.number);
@@ -831,7 +836,9 @@
             `;
             
             if (coaches.length === 0) {
-                html += '<div class="empty-state">Noch keine Betreuer</div>';
+                html += isAuthenticated
+                    ? '<div class="empty-state">Noch keine Betreuer</div>'
+                    : '<div class="empty-state">🔒 Bitte einloggen, um die Betreuerliste zu sehen</div>';
             } else {
                 html += `
                     <table style="font-size: 13px;">
@@ -1063,7 +1070,9 @@
             const container = document.getElementById('gamesList');
             
             if (games.length === 0) {
-                container.innerHTML = '<div class="empty-state">Noch keine Spiele</div>';
+                container.innerHTML = isAuthenticated
+                    ? '<div class="empty-state">Noch keine Spiele</div>'
+                    : '<div class="empty-state">🔒 Bitte einloggen, um die Spieleliste zu sehen</div>';
                 return;
             }
             
