@@ -86,6 +86,7 @@
         <button class="nav-btn" onclick="switchTab(this, 'saisonstat')">🏆 Saison-Statistik</button>
         <button class="nav-btn" onclick="switchTab(this, 'spieler')">👥 Spieler</button>
         <button class="nav-btn" onclick="switchTab(this, 'betreuer')">🎯 Betreuer</button>
+        <button class="nav-btn" onclick="switchTab(this, 'archiv')">📁 Archiv</button>
     </div>
     
     <div class="container">
@@ -150,6 +151,14 @@
                 <div id="coachesList"></div>
             </div>
         </div>
+        
+        <!-- TAB: ARCHIV -->
+        <div id="archiv" class="tab">
+            <div class="card">
+                <div class="card-title">📁 PDF-Archiv</div>
+                <div id="archivList"></div>
+            </div>
+        </div>
     </div>
     
     <div class="toast" id="toast"></div>
@@ -168,6 +177,7 @@
         let selectedPlayer = null;
         let selectedCoach = null;
         let gameActions = []; // Action-Log für aktuelle Session
+        let archivedGameIds = new Set(); // lokaler Cache: welche Spiel-IDs haben ein PDF im Archiv
         
         // ===== OFFLINE-SYNC =====
         let localStats = { players: {}, opponent: {}, coaches: {} }; // lokaler Stats-Cache für aktuelles Spiel
@@ -898,6 +908,7 @@
                 games = data || [];
                 cacheSet('games', games);
                 renderGamesList();
+                refreshArchivedGameIds(); // still im Hintergrund, aktualisiert Badge sobald Daten da sind
             } catch (err) {
                 console.error('Error loading games:', err);
                 const cached = cacheGet('games');
@@ -1059,7 +1070,7 @@
             container.innerHTML = games.map(game => `
                 <div class="card" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; ${game.ended ? 'background: #f0f0f0; opacity: 0.8;' : ''}" onclick="selectGame('${game.id}')">
                     <div>
-                        <div style="font-weight: bold;">${game.opponent} ${game.ended ? '✅ Beendet' : ''}</div>
+                        <div style="font-weight: bold;">${game.opponent} ${game.ended ? '✅ Beendet' : ''}${game.ended && !archivedGameIds.has(game.id) ? ' <span style="color:#e24b4a; font-size:11px; font-weight:normal;">⚠️ nicht archiviert</span>' : ''}</div>
                         <div style="font-size: 12px; color: #999;">📅 ${new Date(game.date).toLocaleDateString('de-DE')} ${game.time || ''}${game.location ? ' · 📍 ' + game.location : ''}</div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 1rem;">
@@ -1709,6 +1720,7 @@
             if (tabName === 'erfassung') renderErlassung();
             if (tabName === 'spielstat') renderSpielStatistik();
             if (tabName === 'saisonstat') renderSaisonStatistik();
+            if (tabName === 'archiv') renderArchivList();
         }
         
         // =====================================================
@@ -1764,7 +1776,10 @@
                     <div class="card">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                             <div class="card-title" style="margin-bottom: 0;">📊 Spiel-Übersicht</div>
-                            <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 12px;" onclick="exportSpielStatisticPdf()">📥 PDF exportieren</button>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 12px;" onclick="exportSpielStatisticPdf()">📥 PDF exportieren</button>
+                                <button class="btn btn-success" style="padding: 0.5rem 1rem; font-size: 12px;" onclick="uploadGamePdfToArchive(currentGame)">🗄️ Ins Archiv</button>
+                            </div>
                         </div>
                         <table style="font-size: 13px; width: 100%;">
                             <tr><td><b>Tore:</b></td><td>${feldspieler.reduce((s, st) => s + (st.tore || 0), 0)}</td></tr>
@@ -2463,13 +2478,23 @@
                 
                 showToast('✅ Spiel beendet');
                 
-                // Generiere PDF wenn gewünscht und online (braucht Live-Daten von Supabase)
+                const gameToArchive = currentGame;
+                
+                // Statistik-HTML aufbereiten - wird sowohl für lokalen PDF-Download als auch
+                // für die automatische Archivierung gebraucht, daher immer rendern
+                await renderSpielStatistik();
+                
+                // Automatische Archivierung im Hintergrund - still bei Fehler/offline,
+                // blockiert nie den Rücksprung zur Spiele-Übersicht. Bei Offline-Spielende
+                // bleibt das Spiel unarchiviert, bis man es manuell über "🗄️ Ins Archiv" nachholt.
+                setTimeout(() => {
+                    uploadGamePdfToArchive(gameToArchive, true);
+                }, 600);
+                
+                // Generiere lokalen PDF-Download wenn gewünscht und online
                 if (createPdf && !isOnline) {
                     showToast('⚠️ PDF-Export erst möglich, wenn wieder online');
                 } else if (createPdf) {
-                    // Lade Statistik um sicherzustellen, dass HTML vorhanden ist
-                    await renderSpielStatistik();
-                    
                     setTimeout(() => {
                         const element = document.getElementById('spielstatContent');
                         if (!element) {
@@ -2504,11 +2529,140 @@
                     loadGames();
                     const spieleBtn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.textContent.includes('Spiele'));
                     switchTab(spieleBtn, 'spiele');
-                }, createPdf ? 3000 : 1000);
+                }, createPdf ? 3000 : 1500);
                 
             } catch (err) {
                 console.error('Error ending game:', err);
                 showToast('❌ Fehler beim Beenden des Spiels');
+            }
+        }
+        
+        // =====================================================
+        // PDF-ARCHIV
+        // =====================================================
+        const ARCHIV_BUCKET = 'spiel-pdfs';
+        
+        async function refreshArchivedGameIds() {
+            try {
+                const { data, error } = await sbClient.storage.from(ARCHIV_BUCKET).list();
+                if (error) throw error;
+                archivedGameIds = new Set((data || []).filter(f => f.name.endsWith('.pdf')).map(f => f.name.replace(/\.pdf$/, '')));
+                renderGamesList();
+            } catch (err) {
+                // Still fehlschlagen (z.B. offline) - Badge bleibt einfach auf letztem bekannten Stand
+                console.warn('Konnte Archiv-Status nicht aktualisieren:', err);
+            }
+        }
+        
+        async function uploadGamePdfToArchive(game, silent) {
+            if (!game) {
+                if (!silent) showToast('❌ Kein Spiel für Archivierung');
+                return false;
+            }
+            if (!isOnline) {
+                if (!silent) showToast('⚠️ Archivierung braucht Internet – bitte später über "🗄️ Ins Archiv" nachholen');
+                return false;
+            }
+            
+            const element = document.getElementById('spielstatContent');
+            if (!element) {
+                if (!silent) showToast('⚠️ Statistik konnte nicht geladen werden');
+                return false;
+            }
+            
+            const opt = {
+                margin: [8, 8, 8, 8],
+                filename: `Spielstatistik_${game.opponent}_${new Date(game.date).toLocaleDateString('de-DE')}.pdf`,
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { scale: 1.5, useCORS: true, logging: false },
+                jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+            
+            try {
+                const blob = await html2pdf().set(opt).from(element).outputPdf('blob');
+                
+                const { error } = await sbClient.storage
+                    .from(ARCHIV_BUCKET)
+                    .upload(`${game.id}.pdf`, blob, { contentType: 'application/pdf', upsert: true });
+                
+                if (error) throw error;
+                
+                archivedGameIds.add(game.id);
+                renderGamesList();
+                
+                if (!silent) showToast('✅ Im Archiv gespeichert');
+                return true;
+            } catch (err) {
+                console.error('Archiv-Upload fehlgeschlagen:', err);
+                if (!silent) showToast('⚠️ Archivierung fehlgeschlagen');
+                return false;
+            }
+        }
+        
+        async function renderArchivList() {
+            const container = document.getElementById('archivList');
+            if (!container) return;
+            container.innerHTML = '<div class="empty-state">Lade Archiv...</div>';
+            
+            try {
+                const { data, error } = await sbClient.storage
+                    .from(ARCHIV_BUCKET)
+                    .list('', { sortBy: { column: 'created_at', order: 'desc' } });
+                
+                if (error) throw error;
+                
+                const files = (data || []).filter(f => f.name.endsWith('.pdf'));
+                
+                archivedGameIds = new Set(files.map(f => f.name.replace(/\.pdf$/, '')));
+                renderGamesList();
+                
+                if (files.length === 0) {
+                    container.innerHTML = '<div class="empty-state">Noch keine archivierten Spiele</div>';
+                    return;
+                }
+                
+                container.innerHTML = `
+                    <table style="font-size: 13px; width: 100%;">
+                        <tr style="background: #f5f5f5;"><th>Gegner</th><th>Datum</th><th>Archiviert am</th><th></th></tr>
+                        ${files.map(f => {
+                            const gameId = f.name.replace(/\.pdf$/, '');
+                            const game = games.find(g => g.id === gameId);
+                            const opponent = game ? game.opponent : '(Spiel gelöscht)';
+                            const date = game ? new Date(game.date).toLocaleDateString('de-DE') : '-';
+                            const archivedAt = f.created_at ? new Date(f.created_at).toLocaleDateString('de-DE') : '-';
+                            const { data: urlData } = sbClient.storage.from(ARCHIV_BUCKET).getPublicUrl(f.name);
+                            return `<tr>
+                                <td><b>${opponent}</b></td>
+                                <td>${date}</td>
+                                <td>${archivedAt}</td>
+                                <td style="display:flex; gap:0.25rem;">
+                                    <a class="btn btn-primary" style="padding:0.35rem 0.6rem; font-size:11px; text-decoration:none; display:inline-block;" href="${urlData.publicUrl}" target="_blank">📥 Download</a>
+                                    <button class="btn btn-danger" style="padding:0.35rem 0.6rem; font-size:11px;" onclick="deleteArchivedPdf('${f.name}')">🗑️</button>
+                                </td>
+                            </tr>`;
+                        }).join('')}
+                    </table>
+                `;
+            } catch (err) {
+                console.error('Error loading archive:', err);
+                container.innerHTML = '<div class="empty-state">⚠️ Archiv konnte nicht geladen werden (offline?)</div>';
+            }
+        }
+        
+        async function deleteArchivedPdf(fileName) {
+            if (!confirm('PDF wirklich aus dem Archiv löschen?')) return;
+            
+            try {
+                const { error } = await sbClient.storage.from(ARCHIV_BUCKET).remove([fileName]);
+                if (error) throw error;
+                archivedGameIds.delete(fileName.replace(/\.pdf$/, ''));
+                showToast('✅ Aus Archiv gelöscht');
+                renderGamesList();
+                renderArchivList();
+            } catch (err) {
+                console.error('Error deleting archived pdf:', err);
+                showToast('❌ Fehler beim Löschen');
             }
         }
         
