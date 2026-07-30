@@ -80,7 +80,8 @@
     </div>
     
     <div class="nav">
-        <button class="nav-btn active" onclick="switchTab(this, 'spiele')">📋 Spiele</button>
+        <button class="nav-btn active" onclick="switchTab(this, 'start')">🏠 Start</button>
+        <button class="nav-btn" onclick="switchTab(this, 'spiele')">📋 Spiele</button>
         <button class="nav-btn" onclick="switchTab(this, 'erfassung')">📊 Erfassung</button>
         <button class="nav-btn" onclick="switchTab(this, 'spielstat')">📈 Spiel-Statistik</button>
         <button class="nav-btn" onclick="switchTab(this, 'saisonstat')">🏆 Saison-Statistik</button>
@@ -91,8 +92,13 @@
     </div>
     
     <div class="container">
+        <!-- TAB: START -->
+        <div id="start" class="tab active">
+            <div id="startContent"></div>
+        </div>
+        
         <!-- TAB: SPIELE -->
-        <div id="spiele" class="tab active">
+        <div id="spiele" class="tab">
             <div class="card" id="neuesSpielCard">
                 <div class="card-title">➕ Neues Spiel</div>
                 <div class="form-group">
@@ -632,6 +638,7 @@
                 loadGames();
                 if (!queueBlocked) flushQueue();
                 afterLoginSetup();
+                renderStartseite();
             } catch (err) {
                 console.error('Login fehlgeschlagen:', err);
                 showToast('❌ Login fehlgeschlagen – Email/Passwort prüfen');
@@ -682,6 +689,7 @@
                     loadCoaches();
                     loadGames();
                     await afterLoginSetup();
+                    renderStartseite();
                 } else {
                     showToast('✅ Registriert – bitte bestätige deine Email und logg dich danach ein');
                 }
@@ -772,11 +780,10 @@
             await initSupabase();
             await checkAuthStatus();
             loadQueueFromStorage();
-            loadPlayers();
-            loadCoaches();
-            loadGames();
+            await Promise.all([loadPlayers(), loadCoaches(), loadGames()]);
             setDefaultDate();
             flushQueue();
+            renderStartseite();
             window.addEventListener('online', () => { isOnline = true; flushQueue(); });
             window.addEventListener('offline', () => { isOnline = false; });
             setInterval(() => { if (!queueBlocked) flushQueue(); }, 30000);
@@ -2050,6 +2057,7 @@
             if (tabName === 'saisonstat') renderSaisonStatistik();
             if (tabName === 'archiv') renderArchivList();
             if (tabName === 'admin') renderAdminPanel();
+            if (tabName === 'start') renderStartseite();
         }
         
         // =====================================================
@@ -3101,6 +3109,121 @@
             } catch (err) {
                 console.error('Fehler beim Ablehnen:', err);
                 showToast('❌ Ablehnen fehlgeschlagen');
+            }
+        }
+        
+        // =====================================================
+        // STARTSEITE
+        // =====================================================
+        function goToTab(tabName, buttonTextIncludes) {
+            const btn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.textContent.includes(buttonTextIncludes));
+            switchTab(btn, tabName);
+        }
+        
+        async function computeGameScore(gameId) {
+            try {
+                const { data, error } = await sbClient
+                    .from('player_stats')
+                    .select('player_id, tore, tore7m, tg_tore, gegentore, gegentore_7m, tg_gegentore')
+                    .eq('game_id', gameId);
+                if (error || !data) return null;
+                
+                let us = 0, opponent = 0;
+                data.forEach(s => {
+                    const player = players.find(p => p.id === s.player_id);
+                    if (!player) return;
+                    if (player.position === 'Feld') {
+                        us += (s.tore || 0) + (s.tore7m || 0) + (s.tg_tore || 0);
+                    } else if (player.position === 'Torwart') {
+                        opponent += (s.gegentore || 0) + (s.gegentore_7m || 0) + (s.tg_gegentore || 0);
+                    }
+                });
+                
+                return { us, opponent };
+            } catch (err) {
+                console.error('Fehler beim Berechnen des Endstands:', err);
+                return null;
+            }
+        }
+        
+        async function renderStartseite() {
+            const container = document.getElementById('startContent');
+            if (!container) return;
+            
+            const upcoming = games
+                .filter(g => !g.ended)
+                .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+            
+            const endedGames = games.filter(g => g.ended).sort((a, b) => new Date(b.date) - new Date(a.date));
+            const lastGame = endedGames[0];
+            
+            let lastGameScoreHtml = '<div style="font-size: 13px; color: #999;">Lädt...</div>';
+            let pendingRequestsCount = 0;
+            
+            let html = `
+                <div class="card" style="background: linear-gradient(135deg, #185fa5, #378add); color: white; text-align: center;">
+                    <div style="font-size: 22px; font-weight: bold;">🏐 H3-Stats</div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">📅 Nächstes Spiel</div>
+                    ${upcoming ? `
+                        <div style="font-size: 18px; font-weight: bold;">vs ${upcoming.opponent}</div>
+                        <div style="font-size: 13px; color: #666; margin-top: 0.25rem;">
+                            ${new Date(upcoming.date).toLocaleDateString('de-DE')}${upcoming.time ? ' · ' + upcoming.time + ' Uhr' : ''}${upcoming.location ? ' · 📍 ' + upcoming.location : ''}
+                        </div>
+                    ` : '<div class="empty-state">Kein Spiel geplant</div>'}
+                </div>
+                
+                <div class="card" id="startLastGameCard">
+                    <div class="card-title">🏆 Letztes Ergebnis</div>
+                    ${lastGame ? `
+                        <div style="font-size: 16px; font-weight: bold;">vs ${lastGame.opponent}</div>
+                        <div id="startLastGameScore">${lastGameScoreHtml}</div>
+                        <div style="font-size: 12px; color: #666;">${new Date(lastGame.date).toLocaleDateString('de-DE')}</div>
+                    ` : '<div class="empty-state">Noch kein beendetes Spiel</div>'}
+                </div>
+                
+                <div class="card" id="startQuickLinksCard">
+                    <div class="card-title">🔗 Schnellzugriff</div>
+                    <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                        ${canRecordStats() ? `<button class="btn btn-primary" onclick="goToTab('spiele', 'Spiele')">➕ Neues Spiel</button>` : ''}
+                        <button class="btn" style="background:#eee; color:#333;" onclick="goToTab('saisonstat', 'Saison')">📈 Saison-Statistik</button>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+            
+            // Endstand des letzten Spiels asynchron nachladen (braucht einen extra DB-Call)
+            if (lastGame) {
+                const score = await computeGameScore(lastGame.id);
+                const scoreEl = document.getElementById('startLastGameScore');
+                if (scoreEl) {
+                    scoreEl.innerHTML = score
+                        ? `<div style="font-size: 28px; font-weight: bold; margin: 0.5rem 0;">${score.us} : ${score.opponent}</div>`
+                        : '<div style="font-size: 12px; color: #999;">Endstand nicht verfügbar</div>';
+                }
+            }
+            
+            // Offene Rollen-Anfragen nur für Admin nachladen und Schnellzugriff-Button ergänzen
+            if (currentUserRoles.includes('admin')) {
+                try {
+                    const { data } = await sbClient.from('registration_requests').select('id').eq('status', 'pending');
+                    pendingRequestsCount = data ? data.length : 0;
+                } catch (err) {
+                    console.warn('Konnte offene Anfragen nicht laden:', err);
+                }
+                
+                if (pendingRequestsCount > 0) {
+                    const quickLinks = document.getElementById('startQuickLinksCard');
+                    if (quickLinks) {
+                        const linksDiv = quickLinks.querySelector('div[style*="flex-direction"]');
+                        if (linksDiv) {
+                            linksDiv.insertAdjacentHTML('beforeend', `<button class="btn btn-danger" onclick="goToTab('admin', 'Admin')">🔑 ${pendingRequestsCount} offene Anfrage${pendingRequestsCount > 1 ? 'n' : ''}</button>`);
+                        }
+                    }
+                }
             }
         }
         
