@@ -1651,18 +1651,36 @@
                                 `;
                             }
                             
-                            if (torwarte.length > 0) {
+                            if (torwarte.length > 0 || gameCoaches.length > 0) {
                                 html += `
-                                    <div>
-                                        <div style="font-size: 12px; font-weight: bold; color: #999; margin-bottom: 0.5rem;">🥅 TORWARTE</div>
-                                        <div class="player-grid">
-                                            ${torwarte.map(p => `
-                                                <button class="player-btn ${selectedPlayer?.id === p.id ? 'selected' : ''}" 
-                                                        onclick="selectedPlayer = players.find(x => x.id === '${p.id}'); selectedCoach = null; renderErlassung()">
-                                                    <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
-                                                    <div class="player-name">${p.name}</div>
-                                                </button>
-                                            `).join('')}
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                        <div>
+                                            <div style="font-size: 12px; font-weight: bold; color: #999; margin-bottom: 0.5rem;">🥅 TORWARTE</div>
+                                            ${torwarte.length > 0 ? `
+                                                <div class="player-grid">
+                                                    ${torwarte.map(p => `
+                                                        <button class="player-btn ${selectedPlayer?.id === p.id ? 'selected' : ''}" 
+                                                                onclick="selectedPlayer = players.find(x => x.id === '${p.id}'); selectedCoach = null; renderErlassung()">
+                                                            <div style="font-size: 16px; font-weight: bold;">#${p.number}</div>
+                                                            <div class="player-name">${p.name}</div>
+                                                        </button>
+                                                    `).join('')}
+                                                </div>
+                                            ` : '<div style="font-size: 12px; color: #ccc;">-</div>'}
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 12px; font-weight: bold; color: #999; margin-bottom: 0.5rem;">👔 BETREUER</div>
+                                            ${gameCoaches.length > 0 ? `
+                                                <div class="player-grid">
+                                                    ${gameCoaches.map(c => `
+                                                        <button class="player-btn ${selectedCoach?.id === c.id ? 'selected' : ''}" 
+                                                                onclick="selectedCoach = coaches.find(x => x.id === '${c.id}'); selectedPlayer = null; renderErlassung()">
+                                                            <div style="font-size: 14px; font-weight: bold;">${c.designation}</div>
+                                                            <div class="player-name">${c.name}</div>
+                                                        </button>
+                                                    `).join('')}
+                                                </div>
+                                            ` : '<div style="font-size: 12px; color: #ccc;">-</div>'}
                                         </div>
                                     </div>
                                 `;
@@ -1670,21 +1688,6 @@
                             
                             return html;
                         })()}
-                        
-                        ${gameCoaches.length > 0 ? `
-                            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
-                                <div style="font-size: 12px; font-weight: bold; color: #999; margin-bottom: 0.5rem;">👔 BETREUER</div>
-                                <div class="player-grid">
-                                    ${gameCoaches.map(c => `
-                                        <button class="player-btn ${selectedCoach?.id === c.id ? 'selected' : ''}" 
-                                                onclick="selectedCoach = coaches.find(x => x.id === '${c.id}'); selectedPlayer = null; renderErlassung()">
-                                            <div style="font-size: 14px; font-weight: bold;">${c.designation}</div>
-                                            <div class="player-name">${c.name}</div>
-                                        </button>
-                                    `).join('')}
-                                </div>
-                            </div>
-                        ` : ''}
                         
                         <div style="margin-top: 1rem;">
                             ${readOnly ? '' : '<button class="btn btn-primary" style="width: 100%;" onclick="renderKaderSelection()">🔄 Kader ändern</button>'}
