@@ -142,6 +142,12 @@
                 <button class="btn btn-primary" style="width: 100%;" onclick="startNewGame()">🆕 Spiel erstellen</button>
             </div>
             
+            <div class="card" id="seasonResetCard" style="display: none; border: 2px solid #e24b4a;">
+                <div class="card-title" style="color: #e24b4a;">⚠️ Saison-Reset (nur Admin)</div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">Löscht ALLE Spiele und Statistiken unwiderruflich. Spieler- und Betreuer-Stammdaten bleiben erhalten.</div>
+                <button class="btn btn-danger" style="width: 100%;" onclick="resetSeason()">🗑️ Alle Spiele löschen</button>
+            </div>
+            
             <div class="card">
                 <div class="card-title">📋 Meine Spiele</div>
                 <div id="gamesList"></div>
@@ -609,6 +615,10 @@
             // "Neues Spiel"-Formular nur für Rollen mit Schreibrecht auf Spiele/Stats
             const neuesSpielCard = document.getElementById('neuesSpielCard');
             if (neuesSpielCard) neuesSpielCard.style.display = canRecordStats() ? '' : 'none';
+            
+            // Saison-Reset nur für Admin
+            const seasonResetCard = document.getElementById('seasonResetCard');
+            if (seasonResetCard) seasonResetCard.style.display = currentUserRoles.includes('admin') ? '' : 'none';
         }
         
         async function handleAuthClick() {
@@ -3252,6 +3262,57 @@
                         }
                     }
                 }
+            }
+        }
+        
+        // =====================================================
+        // ADMIN: SAISON-RESET
+        // =====================================================
+        async function resetSeason() {
+            if (!currentUserRoles.includes('admin')) {
+                showToast('🔒 Nur Admin darf die Saison zurücksetzen');
+                return;
+            }
+            
+            const confirmation = prompt('ACHTUNG: Das löscht ALLE Spiele und Statistiken unwiderruflich (Spieler-/Betreuer-Stammdaten bleiben erhalten).\n\nZum Bestätigen "LÖSCHEN" eintippen:');
+            if (confirmation !== 'LÖSCHEN') {
+                showToast('Abgebrochen – nichts gelöscht');
+                return;
+            }
+            
+            showToast('⏳ Saison wird zurückgesetzt...');
+            
+            try {
+                const { error } = await sbClient.rpc('admin_delete_all_games');
+                if (error) throw error;
+                
+                // Archivierte PDFs im Storage-Bucket ebenfalls entfernen
+                try {
+                    const { data: files } = await sbClient.storage.from(ARCHIV_BUCKET).list();
+                    if (files && files.length > 0) {
+                        await sbClient.storage.from(ARCHIV_BUCKET).remove(files.map(f => f.name));
+                    }
+                } catch (storageErr) {
+                    console.warn('Konnte Archiv-PDFs nicht vollständig löschen:', storageErr);
+                }
+                
+                // Lokale Caches bereinigen
+                Object.keys(localStorage).filter(k => k.startsWith('h3_cache_')).forEach(k => localStorage.removeItem(k));
+                pendingQueue = [];
+                saveQueueToStorage();
+                archivedGameIds = new Set();
+                games = [];
+                currentGame = null;
+                localSquad = { playerIds: [], coachIds: [] };
+                localStats = { players: {}, opponent: {}, coaches: {} };
+                gameActions = [];
+                
+                showToast('✅ Saison zurückgesetzt – alle Spiele gelöscht');
+                renderGamesList();
+                renderStartseite();
+            } catch (err) {
+                console.error('Fehler beim Zurücksetzen der Saison:', err);
+                showToast('❌ Zurücksetzen fehlgeschlagen: ' + (err.message || 'unbekannter Fehler'));
             }
         }
         
