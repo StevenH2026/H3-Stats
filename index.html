@@ -1261,6 +1261,7 @@
             cacheSet('games', games);
             localSquad = { playerIds: [], coachIds: [] };
             localStats = { players: {}, opponent: { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 }, coaches: {} };
+            gameActions = []; // Reset Action-Log für neu angelegtes Spiel
             saveLocalCacheSnapshot();
             
             enqueue({ op: 'insert', table: 'games', payload: newGame });
