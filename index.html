@@ -1612,13 +1612,13 @@
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 1rem; margin-bottom: 1rem;">
                                 <div style="text-align: center;">
                                     <div style="opacity: 0.8; margin-bottom: 0.5rem; font-weight: bold;">🔄 Aktionen</div>
-                                    ${gameActions.slice().reverse().slice(0, 3).filter(a => a.team === 'wir').map(a => 
+                                    ${gameActions.slice().reverse().slice(0, 2).filter(a => a.team === 'wir').map(a => 
                                         `<div style="padding: 0.35rem; background: rgba(255,255,255,0.1); margin-bottom: 0.3rem; border-radius: 3px;">${a.text}</div>`
                                     ).join('') || '<div style="opacity: 0.5;">-</div>'}
                                 </div>
                                 <div style="text-align: center;">
                                     <div style="opacity: 0.8; margin-bottom: 0.5rem; font-weight: bold;">🔄 Aktionen</div>
-                                    ${gameActions.slice().reverse().slice(0, 3).filter(a => a.team === 'gegner').map(a => 
+                                    ${gameActions.slice().reverse().slice(0, 2).filter(a => a.team === 'gegner').map(a => 
                                         `<div style="padding: 0.35rem; background: rgba(255,255,255,0.1); margin-bottom: 0.3rem; border-radius: 3px;">${a.text}</div>`
                                     ).join('') || '<div style="opacity: 0.5;">-</div>'}
                                 </div>
