@@ -1744,18 +1744,22 @@
                 
                 const isTorwart = player.position === 'Torwart';
                 const readOnly = !canRecordStats();
+                const rausAusSpiel = (stats.disq || 0) >= 1 || (stats.zwei_min || 0) >= 3;
+                const gelbGesperrt = (stats.gelb || 0) >= 1;
+                const rausHinweis = rausAusSpiel ? '<div style="background:#8B0000; color:white; padding:0.4rem; border-radius:4px; font-size:12px; text-align:center; margin-bottom:0.75rem;">🚫 Spieler ist raus (Disqualifikation / 3x 2min) – keine weitere Erfassung möglich</div>' : '';
                 
                 if (isTorwart) {
                     return `
                         <div class="card">
                             <div class="card-title">🥅 ${player.name} (#${player.number})</div>
+                            ${rausHinweis}
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">🛡️ Paraden</div>
                                 ${readOnly ? '' : `
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
-                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'paraden', 1)">Parade</button>
-                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tg_paraden', 1)">TG-Parade</button>
-                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'paraden_7m', 1)">7m Parade</button>
+                                    ${renderStatBtn(player.id, 'paraden', 'Parade', 'font-size: 15px; padding: 1rem 0.5rem;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'tg_paraden', 'TG-Parade', 'font-size: 15px; padding: 1rem 0.5rem;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'paraden_7m', '7m Parade', 'font-size: 15px; padding: 1rem 0.5rem;', rausAusSpiel)}
                                 </div>
                                 `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Paraden: ${stats.paraden || 0} | TG: ${stats.tg_paraden || 0} | 7m: ${stats.paraden_7m || 0} | Gesamt: ${(stats.paraden || 0) + (stats.tg_paraden || 0) + (stats.paraden_7m || 0)}</div>
@@ -1765,9 +1769,9 @@
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #e24b4a;">❌ Gegentore</div>
                                 ${readOnly ? '' : `
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
-                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'gegentore', 1)">Gegentor</button>
-                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tg_gegentore', 1)">TG-Gegentor</button>
-                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'gegentore_7m', 1)">7m Gegentor</button>
+                                    ${renderStatBtn(player.id, 'gegentore', 'Gegentor', 'font-size: 15px; padding: 1rem 0.5rem;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'tg_gegentore', 'TG-Gegentor', 'font-size: 15px; padding: 1rem 0.5rem;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'gegentore_7m', '7m Gegentor', 'font-size: 15px; padding: 1rem 0.5rem;', rausAusSpiel)}
                                 </div>
                                 `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Gegentore: ${stats.gegentore || 0} | TG: ${stats.tg_gegentore || 0} | 7m: ${stats.gegentore_7m || 0} | Gesamt: ${(stats.gegentore || 0) + (stats.tg_gegentore || 0) + (stats.gegentore_7m || 0)}</div>
@@ -1777,8 +1781,8 @@
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">⚠️ Fehler</div>
                                 ${readOnly ? '' : `
                                 <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tech_fehler', 1)">Technischer Fehler</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlpasse', 1)">Fehlpass</button>
+                                    ${renderStatBtn(player.id, 'tech_fehler', 'Technischer Fehler', 'grid-column: span 2; font-size: 16px; padding: 1rem;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'fehlpasse', 'Fehlpass', 'grid-column: span 2; font-size: 16px; padding: 1rem;', rausAusSpiel)}
                                 </div>
                                 `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0} | Fehlpass: ${stats.fehlpasse || 0} | Gesamt: ${(stats.tech_fehler || 0) + (stats.fehlpasse || 0)}</div>
@@ -1788,9 +1792,9 @@
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🤝 Sonstige</div>
                                 ${readOnly ? '' : `
                                 <div class="stat-grid">
-                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'assists', 1)">Assist</button>
-                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'zwei_min_geholt', 1)">2min geholt</button>
-                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_verursacht', 1)">7m verursacht</button>
+                                    ${renderStatBtn(player.id, 'assists', 'Assist', '', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'zwei_min_geholt', '2min geholt', '', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'sieben_m_verursacht', '7m verursacht', '', rausAusSpiel)}
                                 </div>
                                 `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Assist: ${stats.assists || 0} | 2min geholt: ${stats.zwei_min_geholt || 0} | 7m verursacht: ${stats.sieben_m_verursacht || 0} | Gesamt: ${(stats.assists || 0) + (stats.zwei_min_geholt || 0) + (stats.sieben_m_verursacht || 0)}</div>
@@ -1800,10 +1804,10 @@
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #d4a100;">🚨 Strafen</div>
                                 ${readOnly ? '' : `
                                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem;">
-                                    <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #ffd700; color: #333;" onclick="updatePlayerStat('${player.id}', 'gelb', 1)">Gelb</button>
-                                    <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #ff4444; color: white;" onclick="updatePlayerStat('${player.id}', 'rot', 1)">Rot</button>
-                                    <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #333; color: white;" onclick="updatePlayerStat('${player.id}', 'zwei_min', 1)">2min</button>
-                                    <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #8B0000; color: white;" onclick="updatePlayerStat('${player.id}', 'disq', 1)">Disq</button>
+                                    ${renderStatBtn(player.id, 'gelb', 'Gelb', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ffd700; color: #333;', rausAusSpiel || gelbGesperrt)}
+                                    ${renderStatBtn(player.id, 'rot', 'Rot', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ff4444; color: white;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'zwei_min', '2min', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #333; color: white;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'disq', 'Disq', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #8B0000; color: white;', rausAusSpiel)}
                                 </div>
                                 `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
@@ -1814,13 +1818,14 @@
                     return `
                         <div class="card">
                             <div class="card-title">📊 ${player.name} (#${player.number})</div>
+                            ${rausHinweis}
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #639922;">⚽ Tore</div>
                                 ${readOnly ? '' : `
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
-                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tore', 1)">Tor</button>
-                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tg_tore', 1)">TG-Tor</button>
-                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tore7m', 1)">7m Tor</button>
+                                    ${renderStatBtn(player.id, 'tore', 'Tor', 'font-size: 15px; padding: 1rem 0.5rem;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'tg_tore', 'TG-Tor', 'font-size: 15px; padding: 1rem 0.5rem;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'tore7m', '7m Tor', 'font-size: 15px; padding: 1rem 0.5rem;', rausAusSpiel)}
                                 </div>
                                 `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.tore} | TG: ${stats.tg_tore || 0} | 7m: ${stats.tore7m} | Gesamt: ${stats.tore + (stats.tg_tore || 0) + stats.tore7m}</div>
@@ -1830,9 +1835,9 @@
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #e24b4a;">❌ Fehlwürfe</div>
                                 ${readOnly ? '' : `
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
-                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe', 1)">Fehlwurf</button>
-                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'tg_fehlwurfe', 1)">TG-Fehlwurf</button>
-                                    <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe7m', 1)">7m Fehlwurf</button>
+                                    ${renderStatBtn(player.id, 'fehlwurfe', 'Fehlwurf', 'font-size: 15px; padding: 1rem 0.5rem;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'tg_fehlwurfe', 'TG-Fehlwurf', 'font-size: 15px; padding: 1rem 0.5rem;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'fehlwurfe7m', '7m Fehlwurf', 'font-size: 15px; padding: 1rem 0.5rem;', rausAusSpiel)}
                                 </div>
                                 `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.fehlwurfe} | TG: ${stats.tg_fehlwurfe || 0} | 7m: ${stats.fehlwurfe7m} | Gesamt: ${(stats.fehlwurfe || 0) + (stats.tg_fehlwurfe || 0) + (stats.fehlwurfe7m || 0)}</div>
@@ -1842,8 +1847,8 @@
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">⚠️ Fehler</div>
                                 ${readOnly ? '' : `
                                 <div class="stat-grid">
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'tech_fehler', 1)">Technischer Fehler</button>
-                                    <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlpasse', 1)">Fehlpass</button>
+                                    ${renderStatBtn(player.id, 'tech_fehler', 'Technischer Fehler', 'grid-column: span 2; font-size: 16px; padding: 1rem;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'fehlpasse', 'Fehlpass', 'grid-column: span 2; font-size: 16px; padding: 1rem;', rausAusSpiel)}
                                 </div>
                                 `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0} | Fehlpass: ${stats.fehlpasse || 0} | Gesamt: ${(stats.tech_fehler || 0) + (stats.fehlpasse || 0)}</div>
@@ -1853,10 +1858,10 @@
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🤝 Sonstige</div>
                                 ${readOnly ? '' : `
                                 <div class="stat-grid">
-                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'assists', 1)">Assist</button>
-                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_geholt', 1)">7m geholt</button>
-                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'zwei_min_geholt', 1)">2min geholt</button>
-                                    <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_verursacht', 1)">7m verursacht</button>
+                                    ${renderStatBtn(player.id, 'assists', 'Assist', '', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'sieben_m_geholt', '7m geholt', '', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'zwei_min_geholt', '2min geholt', '', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'sieben_m_verursacht', '7m verursacht', '', rausAusSpiel)}
                                 </div>
                                 `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Assist: ${stats.assists || 0} | 7m geholt: ${stats.sieben_m_geholt || 0} | 2min geholt: ${stats.zwei_min_geholt || 0} | 7m verursacht: ${stats.sieben_m_verursacht || 0} | Gesamt: ${(stats.assists || 0) + (stats.sieben_m_geholt || 0) + (stats.zwei_min_geholt || 0) + (stats.sieben_m_verursacht || 0)}</div>
@@ -1866,10 +1871,10 @@
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #d4a100;">🚨 Strafen</div>
                                 ${readOnly ? '' : `
                                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem;">
-                                    <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #ffd700; color: #333;" onclick="updatePlayerStat('${player.id}', 'gelb', 1)">Gelb</button>
-                                    <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #ff4444; color: white;" onclick="updatePlayerStat('${player.id}', 'rot', 1)">Rot</button>
-                                    <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #333; color: white;" onclick="updatePlayerStat('${player.id}', 'zwei_min', 1)">2min</button>
-                                    <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #8B0000; color: white;" onclick="updatePlayerStat('${player.id}', 'disq', 1)">Disq</button>
+                                    ${renderStatBtn(player.id, 'gelb', 'Gelb', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ffd700; color: #333;', rausAusSpiel || gelbGesperrt)}
+                                    ${renderStatBtn(player.id, 'rot', 'Rot', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ff4444; color: white;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'zwei_min', '2min', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #333; color: white;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'disq', 'Disq', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #8B0000; color: white;', rausAusSpiel)}
                                 </div>
                                 `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
@@ -1942,6 +1947,14 @@
             renderGamesList();
         }
         
+        function renderStatBtn(playerId, statKey, label, style, disabled) {
+            style = style || '';
+            if (disabled) {
+                style += 'opacity:0.35;text-decoration:line-through;pointer-events:none;cursor:not-allowed;';
+            }
+            return `<button class="stat-btn" style="${style}" ${disabled ? 'disabled' : ''} onclick="updatePlayerStat('${playerId}', '${statKey}', 1)">${label}</button>`;
+        }
+        
         function updatePlayerStat(playerId, statKey, delta) {
             if (!currentGame) return;
             if (!canRecordStats()) {
@@ -1953,6 +1966,18 @@
                 const player = players.find(p => p.id === playerId);
                 const stats = localStats.players[playerId];
                 if (!stats) return;
+                
+                if (delta > 0) {
+                    const rausAusSpiel = (stats.disq || 0) >= 1 || (stats.zwei_min || 0) >= 3;
+                    if (rausAusSpiel) {
+                        showToast('🚫 Spieler ist raus – keine weitere Erfassung möglich');
+                        return;
+                    }
+                    if (statKey === 'gelb' && (stats.gelb || 0) >= 1) {
+                        showToast('🚫 Nur eine Gelbe Karte pro Spieler möglich');
+                        return;
+                    }
+                }
                 
                 stats[statKey] = Math.max(0, (stats[statKey] || 0) + delta);
                 
