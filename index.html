@@ -1318,8 +1318,11 @@
             
             // Sofort den lokalen Stand laden und anzeigen - NIE auf eine Netzwerkantwort warten,
             // damit ein Tippen auf ein Spiel niemals hängt oder zwischenzeitlich leer erscheint.
+            // WICHTIG: hier nur die Anzeige aktualisieren, NICHT in die DB schreiben - der lokale
+            // Cache kann auf diesem Gerät veraltet/leer sein (z.B. Stats von einem anderen Gerät),
+            // ein Schreiben hier würde sonst einen falschen (z.B. 0:0) Stand in die DB drücken.
             loadLocalCacheSnapshot(currentGame.id);
-            syncGameScore();
+            updateScoreDisplay();
             switchTab(document.querySelector('[onclick*="erfassung"]'), 'erfassung');
             renderErlassung();
             
@@ -1935,8 +1938,13 @@
             return null;
         }
         
-        function syncGameScore() {
-            if (!currentGame) return;
+        // Berechnet den Spielstand aus dem aktuellen lokalen Stand und aktualisiert NUR die
+        // Anzeige (currentGame.score_us/_gegner + Liste neu rendern) - schreibt NICHTS in die
+        // Datenbank. Wichtig beim Laden aus einem möglicherweise noch unvollständigen/veralteten
+        // lokalen Cache, damit wir nicht versehentlich einen falschen (z.B. 0:0) Stand in die DB
+        // zurückschreiben, bevor die frischen Daten aus Supabase da sind.
+        function updateScoreDisplay() {
+            if (!currentGame) return null;
             
             const allStatsData = Object.values(localStats.players);
             const feldspieler = allStatsData.filter(s => {
@@ -1954,10 +1962,20 @@
             currentGame.score_us = totTore;
             currentGame.score_gegner = totGegenTore;
             cacheSet('games', games);
-            
-            enqueue({ op: 'update', table: 'games', payload: { score_us: totTore, score_gegner: totGegenTore }, matchCol: 'id', matchVal: currentGame.id });
-            
             renderGamesList();
+            
+            return { totTore, totGegenTore };
+        }
+        
+        // Wie updateScoreDisplay(), schreibt den berechneten Stand aber zusätzlich in die
+        // Datenbank. Nur aufrufen, wenn localStats wirklich den vollständigen/aktuellen Stand
+        // enthält (z.B. direkt nach einer echten Stat-Änderung oder nach einem bestätigten
+        // frischen Nachladen aus Supabase) - NICHT direkt nach dem Laden aus dem lokalen Cache.
+        function syncGameScore() {
+            const result = updateScoreDisplay();
+            if (!result) return;
+            
+            enqueue({ op: 'update', table: 'games', payload: { score_us: result.totTore, score_gegner: result.totGegenTore }, matchCol: 'id', matchVal: currentGame.id });
         }
         
         function renderStatBtn(playerId, statKey, label, style, disabled) {
