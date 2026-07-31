@@ -2420,6 +2420,7 @@
                 let totalTGTore = 0, totalTGFehlwurfe = 0, totalTGParaden = 0, totalTGGegentore = 0;
                 let totalHEPos = 0, totalHENeg = 0;
                 let totalFeldtore = 0, totalFeldFehlwurf = 0, totalFeldTechFehler = 0, totalFeldFehlpass = 0;
+                let totalTWTechFehler = 0;
                 let totalGegnerFehler = 0;
                 let totalParadenGesamt = 0;
                 
@@ -2452,6 +2453,7 @@
                     totalFeldFehlwurf += feldspieler.reduce((s, st) => s + (st.fehlwurfe || 0), 0);
                     totalFeldTechFehler += feldspieler.reduce((s, st) => s + (st.tech_fehler || 0), 0);
                     totalFeldFehlpass += feldspieler.reduce((s, st) => s + (st.fehlpasse || 0), 0);
+                    totalTWTechFehler += torwarte.reduce((s, st) => s + (st.tech_fehler || 0), 0);
                     totalParadenGesamt += torwarte.reduce((s, st) => s + (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0), 0);
                     
                     totalHEPos += feldspieler.reduce((sum, st) => {
@@ -2480,6 +2482,7 @@
                     <div class="card">
                         <div class="card-title">📈 Übersicht</div>
                         <table style="font-size: 13px;">
+                            <tr><td colspan="2" style="padding-top: 0.25rem; padding-bottom: 0.4rem; font-weight: bold; color: #333;">🏐 Allgemein</td></tr>
                             <tr><td><b>Spiele:</b></td><td>${gameList.length}</td></tr>
                             <tr><td><b>Siege:</b></td><td>${totalWins}</td></tr>
                             <tr><td><b>Niederlagen:</b></td><td>${totalLoss}</td></tr>
@@ -2488,16 +2491,27 @@
                             <tr><td><b>Gegentore gesamt:</b></td><td>${totalGegenTore}</td></tr>
                             <tr><td><b>Ø Tore/Spiel:</b></td><td>${(totalTore / gameList.length).toFixed(1)}</td></tr>
                             <tr><td><b>Ø Gegentore/Spiel:</b></td><td>${(totalGegenTore / gameList.length).toFixed(1)}</td></tr>
+
+                            <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #639922; border-top: 1px solid #ddd;">⚽ Angriff (Spieler)</td></tr>
                             <tr><td><b>TG-Tore gesamt:</b></td><td>${totalTGTore}</td></tr>
                             <tr><td><b>TG-Fehlwürfe gesamt:</b></td><td>${totalTGFehlwurfe}</td></tr>
                             <tr><td><b>TG-Quote (Feld):</b></td><td>${((totalTGTore / (totalTGTore + totalTGFehlwurfe) * 100) || 0).toFixed(1)}%</td></tr>
+                            <tr><td><b>TG-Anteil am Gesamtscore:</b></td><td>${((totalTGTore / totalTore * 100) || 0).toFixed(1)}%</td></tr>
+
+                            <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #185fa5; border-top: 1px solid #ddd;">🥅 Abwehr (Torleute)</td></tr>
                             <tr><td><b>TG-Paraden gesamt:</b></td><td>${totalTGParaden}</td></tr>
                             <tr><td><b>TG-Gegentore gesamt:</b></td><td>${totalTGGegentore}</td></tr>
                             <tr><td><b>TG-Quote (TW):</b></td><td>${((totalTGParaden / (totalTGParaden + totalTGGegentore) * 100) || 0).toFixed(1)}%</td></tr>
-                            <tr><td><b>TG-Anteil am Gesamtscore:</b></td><td>${((totalTGTore / totalTore * 100) || 0).toFixed(1)}%</td></tr>
+
+                            <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #e24b4a; border-top: 1px solid #ddd;">⚠️ Fehler</td></tr>
+                            <tr><td><b>Tech.Fehler gesamt:</b></td><td>${totalFeldTechFehler + totalTWTechFehler}</td></tr>
+                            <tr><td><b>Fehler (Fehlpass) gesamt:</b></td><td>${totalFeldFehlpass}</td></tr>
+                            <tr><td><b>Fehler gesamt:</b></td><td><b>${totalFeldTechFehler + totalTWTechFehler + totalFeldFehlpass}</b></td></tr>
+
+                            <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #d4a100; border-top: 1px solid #ddd;">📈 Effektivitätswerte</td></tr>
                             <tr><td><b>Angriffseffektivität:</b></td><td>${((totalFeldtore / (totalFeldtore + totalFeldFehlwurf + totalFeldTechFehler + totalFeldFehlpass) * 100) || 0).toFixed(1)}%</td></tr>
-                            <tr style="border-top: 1px solid #ddd;"><td><b>Abwehreffektivität:</b></td><td><b>${(((totalParadenGesamt + totalGegnerFehler) / (totalParadenGesamt + totalGegnerFehler + totalGegenTore) * 100) || 0).toFixed(1)}%</b></td></tr>
-                            <tr style="border-top: 1px solid #ddd;"><td><b>Team-Handlungseffektivität:</b></td><td><b>${((totalHEPos / (totalHEPos + totalHENeg) * 100) || 0).toFixed(1)}%</b></td></tr>
+                            <tr><td><b>Abwehreffektivität:</b></td><td><b>${(((totalParadenGesamt + totalGegnerFehler) / (totalParadenGesamt + totalGegnerFehler + totalGegenTore) * 100) || 0).toFixed(1)}%</b></td></tr>
+                            <tr><td><b>Team-Handlungseffektivität:</b></td><td><b>${((totalHEPos / (totalHEPos + totalHENeg) * 100) || 0).toFixed(1)}%</b></td></tr>
                         </table>
                     </div>
                 `;
