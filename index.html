@@ -3021,7 +3021,7 @@
                             margin: [8, 8, 8, 8],
                             filename: `Spielstatistik_${currentGame.opponent}_${new Date(currentGame.date).toLocaleDateString('de-DE')}.pdf`,
                             image: { type: 'jpeg', quality: 0.95 },
-                            html2canvas: { scale: 1.5, useCORS: true, logging: false },
+                            html2canvas: { scale: 1.5, useCORS: true, logging: false, windowWidth: 1400, width: 1400, scrollX: 0, scrollY: 0 },
                             jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
                             pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
                         };
@@ -3089,7 +3089,7 @@
                 margin: [8, 8, 8, 8],
                 filename: `Spielstatistik_${game.opponent}_${new Date(game.date).toLocaleDateString('de-DE')}.pdf`,
                 image: { type: 'jpeg', quality: 0.95 },
-                html2canvas: { scale: 1.5, useCORS: true, logging: false },
+                html2canvas: { scale: 1.5, useCORS: true, logging: false, windowWidth: 1400, width: 1400, scrollX: 0, scrollY: 0 },
                 jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
             };
@@ -3466,7 +3466,7 @@
                     margin: [8, 8, 8, 8],
                     filename: `Spielstatistik_${currentGame.opponent}_${new Date(currentGame.date).toLocaleDateString('de-DE')}.pdf`,
                     image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 1.5, useCORS: true, logging: false },
+                    html2canvas: { scale: 1.5, useCORS: true, logging: false, windowWidth: 1400, width: 1400, scrollX: 0, scrollY: 0 },
                     jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
                     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
                 };
@@ -3492,7 +3492,7 @@
                     margin: [8, 8, 8, 8],
                     filename: `Saisonstatistik_${today}.pdf`,
                     image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 1.5, useCORS: true, logging: false },
+                    html2canvas: { scale: 1.5, useCORS: true, logging: false, windowWidth: 1400, width: 1400, scrollX: 0, scrollY: 0 },
                     jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
                     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
                 };
