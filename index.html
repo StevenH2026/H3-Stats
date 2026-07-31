@@ -3017,22 +3017,16 @@
                             return;
                         }
                         
-                        const opt = {
-                            margin: [8, 8, 8, 8],
-                            filename: `Spielstatistik_${currentGame.opponent}_${new Date(currentGame.date).toLocaleDateString('de-DE')}.pdf`,
-                            image: { type: 'jpeg', quality: 0.95 },
-                            html2canvas: { scale: 1.5, useCORS: true, logging: false, windowWidth: 1400 },
-                            jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
-                            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                        };
+                        const filename = `Spielstatistik_${currentGame.opponent}_${new Date(currentGame.date).toLocaleDateString('de-DE')}.pdf`;
+                        const { worker, cleanup } = buildLandscapePdfWorker(element, filename);
                         
-                        try {
-                            html2pdf().set(opt).from(element).save();
-                            showToast('✅ Spielstatistik PDF heruntergeladen');
-                        } catch (pdfErr) {
-                            console.error('PDF generation error:', pdfErr);
-                            showToast('⚠️ PDF-Generierung fehlgeschlagen');
-                        }
+                        worker.save()
+                            .then(() => showToast('✅ Spielstatistik PDF heruntergeladen'))
+                            .catch(pdfErr => {
+                                console.error('PDF generation error:', pdfErr);
+                                showToast('⚠️ PDF-Generierung fehlgeschlagen');
+                            })
+                            .finally(cleanup);
                     }, 500);
                 }
                 
@@ -3069,6 +3063,33 @@
             }
         }
         
+        // Klont ein Element in eine unsichtbare, fest 1400px breite Kopie außerhalb des
+        // sichtbaren Bereichs - so werden breite Ranking-Tabellen beim PDF-Export auf dem
+        // Handy/Tablet nicht abgeschnitten, unabhängig von der tatsächlichen Bildschirmbreite.
+        function buildLandscapePdfWorker(sourceElement, filename) {
+            const clone = sourceElement.cloneNode(true);
+            clone.style.position = 'fixed';
+            clone.style.top = '0';
+            clone.style.left = '-99999px';
+            clone.style.width = '1400px';
+            clone.style.maxWidth = 'none';
+            clone.style.margin = '0';
+            document.body.appendChild(clone);
+            
+            const opt = {
+                margin: [8, 8, 8, 8],
+                filename,
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { scale: 1.5, useCORS: true, logging: false },
+                jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+            
+            const worker = html2pdf().set(opt).from(clone);
+            const cleanup = () => { if (clone.parentNode) clone.parentNode.removeChild(clone); };
+            return { worker, cleanup };
+        }
+        
         async function uploadGamePdfToArchive(game, silent) {
             if (!game) {
                 if (!silent) showToast('❌ Kein Spiel für Archivierung');
@@ -3085,17 +3106,12 @@
                 return false;
             }
             
-            const opt = {
-                margin: [8, 8, 8, 8],
-                filename: `Spielstatistik_${game.opponent}_${new Date(game.date).toLocaleDateString('de-DE')}.pdf`,
-                image: { type: 'jpeg', quality: 0.95 },
-                html2canvas: { scale: 1.5, useCORS: true, logging: false, windowWidth: 1400 },
-                jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-            };
+            const filename = `Spielstatistik_${game.opponent}_${new Date(game.date).toLocaleDateString('de-DE')}.pdf`;
+            const { worker, cleanup } = buildLandscapePdfWorker(element, filename);
             
             try {
-                const blob = await html2pdf().set(opt).from(element).outputPdf('blob');
+                const blob = await worker.outputPdf('blob');
+                cleanup();
                 
                 const { error } = await sbClient.storage
                     .from(ARCHIV_BUCKET)
@@ -3109,6 +3125,7 @@
                 if (!silent) showToast('✅ Im Archiv gespeichert');
                 return true;
             } catch (err) {
+                cleanup();
                 console.error('Archiv-Upload fehlgeschlagen:', err);
                 if (!silent) showToast('⚠️ Archivierung fehlgeschlagen');
                 return false;
@@ -3462,16 +3479,11 @@
                     return;
                 }
                 
-                const opt = {
-                    margin: [8, 8, 8, 8],
-                    filename: `Spielstatistik_${currentGame.opponent}_${new Date(currentGame.date).toLocaleDateString('de-DE')}.pdf`,
-                    image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 1.5, useCORS: true, logging: false, windowWidth: 1400 },
-                    jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
-                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                };
+                const filename = `Spielstatistik_${currentGame.opponent}_${new Date(currentGame.date).toLocaleDateString('de-DE')}.pdf`;
+                const { worker, cleanup } = buildLandscapePdfWorker(element, filename);
                 
-                html2pdf().set(opt).from(element).save();
+                await worker.save();
+                cleanup();
                 showToast('✅ Spielstatistik PDF heruntergeladen');
             } catch (err) {
                 console.error('PDF generation error:', err);
@@ -3488,16 +3500,11 @@
                 }
                 
                 const today = new Date().toLocaleDateString('de-DE');
-                const opt = {
-                    margin: [8, 8, 8, 8],
-                    filename: `Saisonstatistik_${today}.pdf`,
-                    image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 1.5, useCORS: true, logging: false, windowWidth: 1400 },
-                    jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
-                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                };
+                const filename = `Saisonstatistik_${today}.pdf`;
+                const { worker, cleanup } = buildLandscapePdfWorker(element, filename);
                 
-                html2pdf().set(opt).from(element).save();
+                await worker.save();
+                cleanup();
                 showToast('✅ Saisonstatistik PDF heruntergeladen');
             } catch (err) {
                 console.error('PDF generation error:', err);
