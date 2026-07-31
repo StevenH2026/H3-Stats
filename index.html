@@ -1594,20 +1594,15 @@
                                     </div>
                                 </div>
                                 <div style="text-align: center; font-size: 14px;">
-                                    <div style="font-size: 14px; opacity: 0.8;">vs</div>
-                                    <div style="font-size: 14px; font-weight: bold;">${currentGame.opponent}</div>
+                                    <div style="font-size: 14px; opacity: 0.8;">${new Date(currentGame.date).toLocaleDateString('de-DE')}</div>
+                                    ${currentGame.time ? `<div style="font-size: 12px; opacity: 0.8;">${currentGame.time} Uhr</div>` : ''}
+                                    ${currentGame.location ? `<div style="font-size: 12px; opacity: 0.8;">📍 ${currentGame.location}</div>` : ''}
                                 </div>
                                 <div style="text-align: center;">
                                     <div style="font-size: 32px; font-weight: bold;">${totGegenTore}</div>
-                                    <div style="font-size: 12px;">Gegner</div>
+                                    <div style="font-size: 12px;">${currentGame.opponent}</div>
                                 </div>
                             </div>
-                            
-                            ${(currentGame.time || currentGame.location) ? `
-                            <div style="text-align: center; font-size: 11px; opacity: 0.85; margin-bottom: 1rem;">
-                                ${currentGame.time ? '🕐 ' + currentGame.time + ' Uhr' : ''}${currentGame.time && currentGame.location ? ' · ' : ''}${currentGame.location ? '📍 ' + currentGame.location : ''}
-                            </div>
-                            ` : ''}
                             
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 1rem; margin-bottom: 1rem;">
                                 <div style="text-align: center;">
