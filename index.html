@@ -1751,7 +1751,7 @@
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'paraden_7m', 1)">7m Parade</button>
                                 </div>
                                 `}
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Paraden: ${stats.paraden || 0} | TG: ${stats.tg_paraden || 0} | 7m: ${stats.paraden_7m || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Paraden: ${stats.paraden || 0} | TG: ${stats.tg_paraden || 0} | 7m: ${stats.paraden_7m || 0} | Gesamt: ${(stats.paraden || 0) + (stats.tg_paraden || 0) + (stats.paraden_7m || 0)}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
@@ -1763,7 +1763,7 @@
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'gegentore_7m', 1)">7m Gegentor</button>
                                 </div>
                                 `}
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Gegentore: ${stats.gegentore || 0} | TG: ${stats.tg_gegentore || 0} | 7m: ${stats.gegentore_7m || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gegentore: ${stats.gegentore || 0} | TG: ${stats.tg_gegentore || 0} | 7m: ${stats.gegentore_7m || 0} | Gesamt: ${(stats.gegentore || 0) + (stats.tg_gegentore || 0) + (stats.gegentore_7m || 0)}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
@@ -1774,7 +1774,7 @@
                                     <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlpasse', 1)">Fehlpass</button>
                                 </div>
                                 `}
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0} | Fehlpass: ${stats.fehlpasse || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0} | Fehlpass: ${stats.fehlpasse || 0} | Gesamt: ${(stats.tech_fehler || 0) + (stats.fehlpasse || 0)}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
@@ -1786,7 +1786,7 @@
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_verursacht', 1)">7m verursacht</button>
                                 </div>
                                 `}
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Assist: ${stats.assists || 0} | 2min geholt: ${stats.zwei_min_geholt || 0} | 7m verursacht: ${stats.sieben_m_verursacht || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Assist: ${stats.assists || 0} | 2min geholt: ${stats.zwei_min_geholt || 0} | 7m verursacht: ${stats.sieben_m_verursacht || 0} | Gesamt: ${(stats.assists || 0) + (stats.zwei_min_geholt || 0) + (stats.sieben_m_verursacht || 0)}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
@@ -1799,7 +1799,7 @@
                                     <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #8B0000; color: white;" onclick="updatePlayerStat('${player.id}', 'disq', 1)">Disq</button>
                                 </div>
                                 `}
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
                             </div>
                         </div>
                     `;
@@ -1828,7 +1828,7 @@
                                     <button class="stat-btn" style="font-size: 15px; padding: 1rem 0.5rem;" onclick="updatePlayerStat('${player.id}', 'fehlwurfe7m', 1)">7m Fehlwurf</button>
                                 </div>
                                 `}
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.fehlwurfe} | TG: ${stats.tg_fehlwurfe || 0} | 7m: ${stats.fehlwurfe7m}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Feld: ${stats.fehlwurfe} | TG: ${stats.tg_fehlwurfe || 0} | 7m: ${stats.fehlwurfe7m} | Gesamt: ${(stats.fehlwurfe || 0) + (stats.tg_fehlwurfe || 0) + (stats.fehlwurfe7m || 0)}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
@@ -1839,7 +1839,7 @@
                                     <button class="stat-btn" style="grid-column: span 2; font-size: 16px; padding: 1rem;" onclick="updatePlayerStat('${player.id}', 'fehlpasse', 1)">Fehlpass</button>
                                 </div>
                                 `}
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0} | Fehlpass: ${stats.fehlpasse || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Tech.Fehler: ${stats.tech_fehler || 0} | Fehlpass: ${stats.fehlpasse || 0} | Gesamt: ${(stats.tech_fehler || 0) + (stats.fehlpasse || 0)}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
@@ -1852,6 +1852,7 @@
                                     <button class="stat-btn" onclick="updatePlayerStat('${player.id}', 'sieben_m_verursacht', 1)">7m verursacht</button>
                                 </div>
                                 `}
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Assist: ${stats.assists || 0} | 7m geholt: ${stats.sieben_m_geholt || 0} | 2min geholt: ${stats.zwei_min_geholt || 0} | 7m verursacht: ${stats.sieben_m_verursacht || 0} | Gesamt: ${(stats.assists || 0) + (stats.sieben_m_geholt || 0) + (stats.zwei_min_geholt || 0) + (stats.sieben_m_verursacht || 0)}</div>
                             </div>
                             
                             <div style="margin-bottom: 1.5rem;">
@@ -1864,7 +1865,7 @@
                                     <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #8B0000; color: white;" onclick="updatePlayerStat('${player.id}', 'disq', 1)">Disq</button>
                                 </div>
                                 `}
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
                             </div>
                         </div>
                     `;
@@ -1895,7 +1896,7 @@
                                 <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #8B0000; color: white;" onclick="updateCoachStat('${coach.id}', 'disq', 1)">Disq</button>
                             </div>
                             `}
-                            <div style="font-size: 14px; margin-top: 0.5rem; text-align: center;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0}</div>
+                            <div style="font-size: 14px; margin-top: 0.5rem; text-align: center;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
                         </div>
                     </div>
                 `;
