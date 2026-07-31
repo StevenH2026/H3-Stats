@@ -1744,9 +1744,9 @@
                 
                 const isTorwart = player.position === 'Torwart';
                 const readOnly = !canRecordStats();
-                const rausAusSpiel = (stats.disq || 0) >= 1 || (stats.zwei_min || 0) >= 3;
+                const rausAusSpiel = (stats.rot || 0) >= 1 || (stats.disq || 0) >= 1 || (stats.zwei_min || 0) >= 3;
                 const gelbGesperrt = (stats.gelb || 0) >= 1;
-                const rausHinweis = rausAusSpiel ? '<div style="background:#8B0000; color:white; padding:0.4rem; border-radius:4px; font-size:12px; text-align:center; margin-bottom:0.75rem;">🚫 Spieler ist raus (Disqualifikation / 3x 2min) – keine weitere Erfassung möglich</div>' : '';
+                const rausHinweis = rausAusSpiel ? '<div style="background:#8B0000; color:white; padding:0.4rem; border-radius:4px; font-size:12px; text-align:center; margin-bottom:0.75rem;">🚫 Spieler ist raus (Rote Karte / 3x 2min) – keine weitere Erfassung möglich</div>' : '';
                 
                 if (isTorwart) {
                     return `
@@ -1803,14 +1803,13 @@
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #d4a100;">🚨 Strafen</div>
                                 ${readOnly ? '' : `
-                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem;">
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem;">
                                     ${renderStatBtn(player.id, 'gelb', 'Gelb', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ffd700; color: #333;', rausAusSpiel || gelbGesperrt)}
-                                    ${renderStatBtn(player.id, 'rot', 'Rot', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ff4444; color: white;', rausAusSpiel)}
                                     ${renderStatBtn(player.id, 'zwei_min', '2min', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #333; color: white;', rausAusSpiel)}
-                                    ${renderStatBtn(player.id, 'disq', 'Disq', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #8B0000; color: white;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'rot', 'Rot', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ff4444; color: white;', rausAusSpiel)}
                                 </div>
                                 `}
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | 2min: ${stats.zwei_min || 0} | Rot: ${stats.rot || 0} | Disq: ${stats.disq || 0} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
                             </div>
                         </div>
                     `;
@@ -1870,19 +1869,26 @@
                             <div style="margin-bottom: 1.5rem;">
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #d4a100;">🚨 Strafen</div>
                                 ${readOnly ? '' : `
-                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem;">
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem;">
                                     ${renderStatBtn(player.id, 'gelb', 'Gelb', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ffd700; color: #333;', rausAusSpiel || gelbGesperrt)}
-                                    ${renderStatBtn(player.id, 'rot', 'Rot', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ff4444; color: white;', rausAusSpiel)}
                                     ${renderStatBtn(player.id, 'zwei_min', '2min', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #333; color: white;', rausAusSpiel)}
-                                    ${renderStatBtn(player.id, 'disq', 'Disq', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #8B0000; color: white;', rausAusSpiel)}
+                                    ${renderStatBtn(player.id, 'rot', 'Rot', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ff4444; color: white;', rausAusSpiel)}
                                 </div>
                                 `}
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | 2min: ${stats.zwei_min || 0} | Rot: ${stats.rot || 0} | Disq: ${stats.disq || 0} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
                             </div>
                         </div>
                     `;
                 }
             }
+        }
+        
+        function renderCoachStatBtn(coachId, statKey, label, style, disabled) {
+            style = style || '';
+            if (disabled) {
+                style += 'opacity:0.35;text-decoration:line-through;pointer-events:none;cursor:not-allowed;';
+            }
+            return `<button class="stat-btn" style="${style}" ${disabled ? 'disabled' : ''} onclick="updateCoachStat('${coachId}', '${statKey}', 1)">${label}</button>`;
         }
         
         function renderCoachStats(coach) {
@@ -1894,21 +1900,24 @@
                 if (!stats) return '';
                 
                 const readOnly = !canRecordStats();
+                const rausAusSpiel = (stats.rot || 0) >= 1 || (stats.disq || 0) >= 1 || (stats.zwei_min || 0) >= 3;
+                const gelbGesperrt = (stats.gelb || 0) >= 1;
+                const rausHinweis = rausAusSpiel ? '<div style="background:#8B0000; color:white; padding:0.4rem; border-radius:4px; font-size:12px; text-align:center; margin-bottom:0.75rem;">🚫 Betreuer ist raus (Rote Karte / 3x 2min) – keine weitere Erfassung möglich</div>' : '';
                 
                 return `
                     <div class="card">
                         <div class="card-title">👔 ${coach.designation} - ${coach.name}</div>
+                        ${rausHinweis}
                         <div style="margin-bottom: 1.5rem;">
                             <div style="font-weight: bold; margin-bottom: 0.5rem; color: #d4a100;">🚨 Strafen</div>
                             ${readOnly ? '' : `
-                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem;">
-                                <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #ffd700; color: #333;" onclick="updateCoachStat('${coach.id}', 'gelb', 1)">Gelb</button>
-                                <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #ff4444; color: white;" onclick="updateCoachStat('${coach.id}', 'rot', 1)">Rot</button>
-                                <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #333; color: white;" onclick="updateCoachStat('${coach.id}', 'zwei_min', 1)">2min</button>
-                                <button class="stat-btn" style="font-size: 11px; padding: 0.5rem 0.25rem; background: #8B0000; color: white;" onclick="updateCoachStat('${coach.id}', 'disq', 1)">Disq</button>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem;">
+                                ${renderCoachStatBtn(coach.id, 'gelb', 'Gelb', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ffd700; color: #333;', rausAusSpiel || gelbGesperrt)}
+                                ${renderCoachStatBtn(coach.id, 'zwei_min', '2min', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #333; color: white;', rausAusSpiel)}
+                                ${renderCoachStatBtn(coach.id, 'rot', 'Rot', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ff4444; color: white;', rausAusSpiel)}
                             </div>
                             `}
-                            <div style="font-size: 14px; margin-top: 0.5rem; text-align: center;">Gelb: ${stats.gelb || 0} | Rot: ${stats.rot || 0} | 2min: ${stats.zwei_min || 0} | Disq: ${stats.disq || 0} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
+                            <div style="font-size: 14px; margin-top: 0.5rem; text-align: center;">Gelb: ${stats.gelb || 0} | 2min: ${stats.zwei_min || 0} | Rot: ${stats.rot || 0} | Disq: ${stats.disq || 0} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
                         </div>
                     </div>
                 `;
@@ -1968,7 +1977,7 @@
                 if (!stats) return;
                 
                 if (delta > 0) {
-                    const rausAusSpiel = (stats.disq || 0) >= 1 || (stats.zwei_min || 0) >= 3;
+                    const rausAusSpiel = (stats.rot || 0) >= 1 || (stats.disq || 0) >= 1 || (stats.zwei_min || 0) >= 3;
                     if (rausAusSpiel) {
                         showToast('🚫 Spieler ist raus – keine weitere Erfassung möglich');
                         return;
@@ -1980,6 +1989,13 @@
                 }
                 
                 stats[statKey] = Math.max(0, (stats[statKey] || 0) + delta);
+                
+                // 3. Zeitstrafe = automatische Disqualifikation (indirekte Rote Karte)
+                let autoDisq = false;
+                if (statKey === 'zwei_min' && delta > 0 && stats.zwei_min === 3) {
+                    stats.disq = Math.max(0, (stats.disq || 0) + 1);
+                    autoDisq = true;
+                }
                 
                 enqueue({ op: 'rpc', fn: 'increment_player_stat', args: {
                     p_game_id: currentGame.id, p_player_id: playerId, p_stat_col: statKey, p_delta: delta
@@ -2032,6 +2048,20 @@
                         playerId: playerId,
                         statKey: statKey,
                         delta: delta
+                    });
+                }
+                
+                if (autoDisq) {
+                    enqueue({ op: 'rpc', fn: 'increment_player_stat', args: {
+                        p_game_id: currentGame.id, p_player_id: playerId, p_stat_col: 'disq', p_delta: 1
+                    }});
+                    gameActions.push({
+                        team: 'wir',
+                        text: `${player?.name}: 🟥 Disqualifikation (3x 2min)`,
+                        type: 'player',
+                        playerId: playerId,
+                        statKey: 'disq',
+                        delta: 1
                     });
                 }
                 
@@ -2089,7 +2119,26 @@
                 const stats = localStats.coaches[coachId];
                 if (!stats) return;
                 
+                if (delta > 0) {
+                    const rausAusSpiel = (stats.rot || 0) >= 1 || (stats.disq || 0) >= 1 || (stats.zwei_min || 0) >= 3;
+                    if (rausAusSpiel) {
+                        showToast('🚫 Betreuer ist raus – keine weitere Erfassung möglich');
+                        return;
+                    }
+                    if (statKey === 'gelb' && (stats.gelb || 0) >= 1) {
+                        showToast('🚫 Nur eine Gelbe Karte pro Betreuer möglich');
+                        return;
+                    }
+                }
+                
                 stats[statKey] = Math.max(0, (stats[statKey] || 0) + delta);
+                
+                // 3. Zeitstrafe = automatische Disqualifikation (indirekte Rote Karte)
+                let autoDisq = false;
+                if (statKey === 'zwei_min' && delta > 0 && stats.zwei_min === 3) {
+                    stats.disq = Math.max(0, (stats.disq || 0) + 1);
+                    autoDisq = true;
+                }
                 
                 enqueue({ op: 'rpc', fn: 'increment_coach_stat', args: {
                     p_game_id: currentGame.id, p_coach_id: coachId, p_stat_col: statKey, p_delta: delta
@@ -2110,6 +2159,20 @@
                         coachId: coachId,
                         statKey: statKey,
                         delta: delta
+                    });
+                }
+                
+                if (autoDisq) {
+                    enqueue({ op: 'rpc', fn: 'increment_coach_stat', args: {
+                        p_game_id: currentGame.id, p_coach_id: coachId, p_stat_col: 'disq', p_delta: 1
+                    }});
+                    gameActions.push({
+                        team: 'wir',
+                        text: `${coach?.designation}: 🟥 Disqualifikation (3x 2min)`,
+                        type: 'coach',
+                        coachId: coachId,
+                        statKey: 'disq',
+                        delta: 1
                     });
                 }
                 
