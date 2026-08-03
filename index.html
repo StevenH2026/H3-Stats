@@ -2350,11 +2350,21 @@
                                 const f7m = feldspieler.reduce((s, st) => s + (st.fehlwurfe7m || 0), 0);
                                 const tgt = feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0);
                                 const tgf = feldspieler.reduce((s, st) => s + (st.tg_fehlwurfe || 0), 0);
-                                const to = feldspieler.reduce((s, st) => s + (st.turnovers || 0), 0);
                                 const tf = feldspieler.reduce((s, st) => s + (st.tech_fehler || 0), 0);
                                 const fp = feldspieler.reduce((s, st) => s + (st.fehlpasse || 0), 0);
-                                const erfolg = ft + t7m + tgt + to;
+                                const erfolg = ft + t7m + tgt;
                                 const misserfolg = ff + f7m + tgf + tf + fp;
+                                return ((erfolg / (erfolg + misserfolg) * 100) || 0).toFixed(1) + '%';
+                            })()}</td></tr>
+                            <tr><td><b>Wurfeffektivität (Torquote):</b></td><td>${(() => {
+                                const ft = feldspieler.reduce((s, st) => s + (st.tore || 0), 0);
+                                const ff = feldspieler.reduce((s, st) => s + (st.fehlwurfe || 0), 0);
+                                const t7m = feldspieler.reduce((s, st) => s + (st.tore7m || 0), 0);
+                                const f7m = feldspieler.reduce((s, st) => s + (st.fehlwurfe7m || 0), 0);
+                                const tgt = feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0);
+                                const tgf = feldspieler.reduce((s, st) => s + (st.tg_fehlwurfe || 0), 0);
+                                const erfolg = ft + t7m + tgt;
+                                const misserfolg = ff + f7m + tgf;
                                 return ((erfolg / (erfolg + misserfolg) * 100) || 0).toFixed(1) + '%';
                             })()}</td></tr>
                             <tr><td><b>Abwehreffektivität:</b></td><td><b>${(() => {
@@ -2676,7 +2686,8 @@
                             <tr><td><b>Fehler gesamt:</b></td><td><b>${totalFeldTechFehler + totalTWTechFehler + totalFeldFehlpass}</b></td></tr>
 
                             <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #d4a100; border-top: 1px solid #ddd;">📈 Effektivitätswerte</td></tr>
-                            <tr><td><b>Angriffseffektivität:</b></td><td>${(((totalFeldtore + totalFeldTore7m + totalTGTore + totalFeldTurnovers) / (totalFeldtore + totalFeldTore7m + totalTGTore + totalFeldTurnovers + totalFeldFehlwurf + totalFeldFehlwurf7m + totalTGFehlwurfe + totalFeldTechFehler + totalFeldFehlpass) * 100) || 0).toFixed(1)}%</td></tr>
+                            <tr><td><b>Angriffseffektivität:</b></td><td>${(((totalFeldtore + totalFeldTore7m + totalTGTore) / (totalFeldtore + totalFeldTore7m + totalTGTore + totalFeldFehlwurf + totalFeldFehlwurf7m + totalTGFehlwurfe + totalFeldTechFehler + totalFeldFehlpass) * 100) || 0).toFixed(1)}%</td></tr>
+                            <tr><td><b>Wurfeffektivität (Torquote):</b></td><td>${(((totalFeldtore + totalFeldTore7m + totalTGTore) / (totalFeldtore + totalFeldTore7m + totalTGTore + totalFeldFehlwurf + totalFeldFehlwurf7m + totalTGFehlwurfe) * 100) || 0).toFixed(1)}%</td></tr>
                             <tr><td><b>Abwehreffektivität:</b></td><td><b>${(((totalParadenGesamt + totalGegnerFehler) / (totalParadenGesamt + totalGegnerFehler + totalGegenTore) * 100) || 0).toFixed(1)}%</b></td></tr>
                             <tr><td><b>Team-Handlungseffektivität:</b></td><td><b>${((totalHEPos / (totalHEPos + totalHENeg) * 100) || 0).toFixed(1)}%</b></td></tr>
                             <tr><td><b>Turnover (gewonnen):</b></td><td>${totalTurnovers}</td></tr>
@@ -3915,7 +3926,8 @@
                 ['Tech. Fehler gesamt', totTechFehler],
                 ['Fehlwürfe (Feld) gesamt', totFehlwurfe],
                 { header: 'Effektivität', color: PDF_COLORS.yellow },
-                ['Angriffseffektivität', pdfPct(ft + t7m + tgt + feldTurnovers, ff + f7m + tgf + feldTechFehler + feldFehlpasse)],
+                ['Angriffseffektivität', pdfPct(ft + t7m + tgt, ff + f7m + tgf + feldTechFehler + feldFehlpasse)],
+                ['Wurfeffektivität (Torquote)', pdfPct(ft + t7m + tgt, ff + f7m + tgf)],
                 ['Abwehreffektivität', pdfPct(paradenGesamt + gegnerFehler, gegentoreGesamt)],
                 ['Team-Handlungseffektivität', pdfPct(feldPos + twPos, feldNeg + twNeg)],
                 ['Turnover (gewonnen)', feldspieler.reduce((s, st) => s + (st.turnovers || 0), 0) + torwarte.reduce((s, st) => s + (st.turnovers || 0), 0)],
@@ -4073,7 +4085,8 @@
                 ['Fehler (Fehlpass) gesamt', totalFeldFehlpass],
                 ['Fehler gesamt', totalFeldTechFehler + totalTWTechFehler + totalFeldFehlpass],
                 { header: 'Effektivitätswerte', color: PDF_COLORS.yellow },
-                ['Angriffseffektivität', pdfPct(totalFeldtore + totalFeldTore7m + totalTGTore + totalFeldTurnovers, totalFeldFehlwurf + totalFeldFehlwurf7m + totalTGFehlwurfe + totalFeldTechFehler + totalFeldFehlpass)],
+                ['Angriffseffektivität', pdfPct(totalFeldtore + totalFeldTore7m + totalTGTore, totalFeldFehlwurf + totalFeldFehlwurf7m + totalTGFehlwurfe + totalFeldTechFehler + totalFeldFehlpass)],
+                ['Wurfeffektivität (Torquote)', pdfPct(totalFeldtore + totalFeldTore7m + totalTGTore, totalFeldFehlwurf + totalFeldFehlwurf7m + totalTGFehlwurfe)],
                 ['Abwehreffektivität', pdfPct(totalParadenGesamt + totalGegnerFehler, totalGegenTore)],
                 ['Team-Handlungseffektivität', pdfPct(totalHEPos, totalHENeg)],
                 ['Turnover (gewonnen)', totalTurnovers],
