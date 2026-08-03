@@ -2401,6 +2401,7 @@
                                 const neg = feldNeg + twNeg;
                                 return ((pos / (pos + neg) * 100) || 0).toFixed(1) + '%';
                             })()}</b></td></tr>
+                            <tr><td><b>Turnover (gewonnen):</b></td><td>${feldspieler.reduce((s, st) => s + (st.turnovers || 0), 0) + torwarte.reduce((s, st) => s + (st.turnovers || 0), 0)}</td></tr>
                         </table>
                     </div>
                     
@@ -2575,6 +2576,7 @@
                 let totalGegnerFehler = 0;
                 let totalOppTgFehlwurfe = 0;
                 let totalParadenGesamt = 0;
+                let totalTurnovers = 0;
                 
                 for (const game of gameList) {
                     const stats = statsByGame[game.id] || [];
@@ -2608,6 +2610,7 @@
                     totalFeldFehlpass += feldspieler.reduce((s, st) => s + (st.fehlpasse || 0), 0);
                     totalTWTechFehler += torwarte.reduce((s, st) => s + (st.tech_fehler || 0), 0);
                     totalParadenGesamt += torwarte.reduce((s, st) => s + (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0), 0);
+                    totalTurnovers += feldspieler.reduce((s, st) => s + (st.turnovers || 0), 0) + torwarte.reduce((s, st) => s + (st.turnovers || 0), 0);
                     
                     totalHEPos += feldspieler.reduce((sum, st) => {
                         const gtore = (st.tore || 0) + (st.tore7m || 0) + (st.tg_tore || 0);
@@ -2665,6 +2668,7 @@
                             <tr><td><b>Angriffseffektivität:</b></td><td>${((totalFeldtore / (totalFeldtore + totalFeldFehlwurf + totalFeldTechFehler + totalFeldFehlpass) * 100) || 0).toFixed(1)}%</td></tr>
                             <tr><td><b>Abwehreffektivität:</b></td><td><b>${(((totalParadenGesamt + totalGegnerFehler) / (totalParadenGesamt + totalGegnerFehler + totalGegenTore) * 100) || 0).toFixed(1)}%</b></td></tr>
                             <tr><td><b>Team-Handlungseffektivität:</b></td><td><b>${((totalHEPos / (totalHEPos + totalHENeg) * 100) || 0).toFixed(1)}%</b></td></tr>
+                            <tr><td><b>Turnover (gewonnen):</b></td><td>${totalTurnovers}</td></tr>
 
                             <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #7b4fa8; border-top: 1px solid #ddd;">🏃 Tempogegenstöße</td></tr>
                             <tr><td><b>Eigene TG gelaufen:</b></td><td>${totalTGTore + totalTGFehlwurfe}</td></tr>
@@ -3899,6 +3903,7 @@
                 { header: 'Effektivität', color: PDF_COLORS.yellow },
                 ['Abwehreffektivität', pdfPct(paradenGesamt + gegnerFehler, gegentoreGesamt)],
                 ['Team-Handlungseffektivität', pdfPct(feldPos + twPos, feldNeg + twNeg)],
+                ['Turnover (gewonnen)', feldspieler.reduce((s, st) => s + (st.turnovers || 0), 0) + torwarte.reduce((s, st) => s + (st.turnovers || 0), 0)],
                 { header: 'Tempogegenstöße', color: PDF_COLORS.purple },
                 ['Eigene TG gelaufen', tgt + tgf],
                 ['Eigene TG erfolgreich (Tore)', tgt],
@@ -3973,7 +3978,7 @@
             let totalTGTore = 0, totalTGFehlwurfe = 0, totalTGParaden = 0, totalTGGegentore = 0;
             let totalHEPos = 0, totalHENeg = 0;
             let totalFeldtore = 0, totalFeldFehlwurf = 0, totalFeldTechFehler = 0, totalFeldFehlpass = 0;
-            let totalTWTechFehler = 0, totalGegnerFehler = 0, totalParadenGesamt = 0, totalOppTgFehlwurfe = 0;
+            let totalTWTechFehler = 0, totalGegnerFehler = 0, totalParadenGesamt = 0, totalOppTgFehlwurfe = 0, totalTurnovers = 0;
 
             for (const game of gameList) {
                 const stats = statsByGame[game.id] || [];
@@ -3998,6 +4003,7 @@
                 totalFeldFehlpass += feldspieler.reduce((s, st) => s + (st.fehlpasse || 0), 0);
                 totalTWTechFehler += torwarte.reduce((s, st) => s + (st.tech_fehler || 0), 0);
                 totalParadenGesamt += torwarte.reduce((s, st) => s + (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0), 0);
+                totalTurnovers += feldspieler.reduce((s, st) => s + (st.turnovers || 0), 0) + torwarte.reduce((s, st) => s + (st.turnovers || 0), 0);
 
                 totalHEPos += feldspieler.reduce((sum, st) => {
                     const gtore = (st.tore || 0) + (st.tore7m || 0) + (st.tg_tore || 0);
@@ -4051,6 +4057,7 @@
                 ['Angriffseffektivität', pdfPct(totalFeldtore, totalFeldFehlwurf + totalFeldTechFehler + totalFeldFehlpass)],
                 ['Abwehreffektivität', pdfPct(totalParadenGesamt + totalGegnerFehler, totalGegenTore)],
                 ['Team-Handlungseffektivität', pdfPct(totalHEPos, totalHENeg)],
+                ['Turnover (gewonnen)', totalTurnovers],
                 { header: 'Tempogegenstöße', color: PDF_COLORS.purple },
                 ['Eigene TG gelaufen', totalTGTore + totalTGFehlwurfe],
                 ['Eigene TG erfolgreich (Tore)', totalTGTore],
