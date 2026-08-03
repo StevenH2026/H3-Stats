@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🏐 H3-Stats Handball</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; }
@@ -3013,10 +3014,6 @@
                 
                 const gameToArchive = currentGame;
                 
-                // Statistik-HTML aufbereiten - wird sowohl für lokalen PDF-Download als auch
-                // für die automatische Archivierung gebraucht, daher immer rendern
-                await renderSpielStatistik();
-                
                 // Automatische Archivierung im Hintergrund - still bei Fehler/offline,
                 // blockiert nie den Rücksprung zur Spiele-Übersicht. Bei Offline-Spielende
                 // bleibt das Spiel unarchiviert, bis man es manuell über "🗄️ Ins Archiv" nachholt.
@@ -3029,23 +3026,10 @@
                     showToast('⚠️ PDF-Export erst möglich, wenn wieder online');
                 } else if (createPdf) {
                     setTimeout(() => {
-                        const element = document.getElementById('spielstatContent');
-                        if (!element) {
-                            showToast('⚠️ Statistik konnte nicht geladen werden');
-                            return;
-                        }
-                        
-                        const opt = {
-                            margin: [8, 8, 8, 8],
-                            filename: `Spielstatistik_${currentGame.opponent}_${new Date(currentGame.date).toLocaleDateString('de-DE')}.pdf`,
-                            image: { type: 'jpeg', quality: 0.95 },
-                            html2canvas: { scale: 1.5, useCORS: true, logging: false },
-                            jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
-                            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                        };
-                        
                         try {
-                            html2pdf().set(opt).from(element).save();
+                            const { feldspieler, torwarte, coachStatsData } = getCurrentGameStatArrays();
+                            const doc = buildSpielstatistikPdf(gameToArchive, feldspieler, torwarte, coachStatsData);
+                            doc.save(`Spielstatistik_${gameToArchive.opponent}_${new Date(gameToArchive.date).toLocaleDateString('de-DE')}.pdf`);
                             showToast('✅ Spielstatistik PDF heruntergeladen');
                         } catch (pdfErr) {
                             console.error('PDF generation error:', pdfErr);
@@ -3097,23 +3081,10 @@
                 return false;
             }
             
-            const element = document.getElementById('spielstatContent');
-            if (!element) {
-                if (!silent) showToast('⚠️ Statistik konnte nicht geladen werden');
-                return false;
-            }
-            
-            const opt = {
-                margin: [8, 8, 8, 8],
-                filename: `Spielstatistik_${game.opponent}_${new Date(game.date).toLocaleDateString('de-DE')}.pdf`,
-                image: { type: 'jpeg', quality: 0.95 },
-                html2canvas: { scale: 1.5, useCORS: true, logging: false },
-                jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-            };
-            
             try {
-                const blob = await html2pdf().set(opt).from(element).outputPdf('blob');
+                const { feldspieler, torwarte, coachStatsData } = getCurrentGameStatArrays();
+                const doc = buildSpielstatistikPdf(game, feldspieler, torwarte, coachStatsData);
+                const blob = doc.output('blob');
                 
                 const { error } = await sbClient.storage
                     .from(ARCHIV_BUCKET)
@@ -3606,29 +3577,427 @@
             }
         }
         
+        // =====================================================
+        // PDF-EXPORT (jsPDF + autoTable, datenbasiert statt HTML-Rasterung)
+        // =====================================================
+        const PDF_COLORS = {
+            blue:   [24, 95, 165],  // #185fa5
+            green:  [99, 153, 34],  // #639922
+            red:    [226, 75, 74],  // #e24b4a
+            yellow: [212, 161, 0],  // #d4a100
+            purple: [123, 79, 168], // Betreuer
+            gray:   [51, 51, 51]
+        };
+
+        const PDF_FELD_HEADERS = ['Nr','Name','Tore','Fehlw.','Torquote','7m-T','7m-F','7m-Quote','TG-T','TG-F','TG-Quote','Ges.Tore','Ges.Quote','Tech.F','Fehlp.','Gelb','Rot','2min','Disq','HE'];
+        const PDF_FELD_COL_STYLES = { 0: { cellWidth: 8 }, 1: { cellWidth: 26 } };
+        const PDF_TW_HEADERS = ['Nr','Name','Paraden','Par.-Quote','7m-Par','7m-Quote','TG-Par','TG-Quote','Geg.Ges','Geg.Quote','Tech.F','Fehlp.','Gelb','Rot','2min','Disq','HE'];
+        const PDF_TW_COL_STYLES = { 0: { cellWidth: 8 }, 1: { cellWidth: 30 } };
+        const PDF_COACH_HEADERS = ['Designation','Name','Gelb','Rot','2min','Disq'];
+
+        function pdfPct(a, b) {
+            return ((a / (a + b) * 100) || 0).toFixed(0) + '%';
+        }
+
+        function addPdfHeader(doc, title, subtitleLines) {
+            const pageWidth = doc.internal.pageSize.getWidth();
+            try {
+                doc.addImage(CLUB_LOGO_B64, 'PNG', 8, 5, 16, 16);
+            } catch (e) {
+                console.warn('PDF-Logo konnte nicht eingebettet werden:', e);
+            }
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(15);
+            doc.setTextColor(...PDF_COLORS.blue);
+            doc.text(title, 28, 12);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(...PDF_COLORS.gray);
+            let y = 18;
+            (subtitleLines || []).forEach(line => {
+                doc.text(line, 28, y);
+                y += 4.5;
+            });
+            const lineY = Math.max(24, y + 1);
+            doc.setDrawColor(...PDF_COLORS.blue);
+            doc.setLineWidth(0.4);
+            doc.line(8, lineY, pageWidth - 8, lineY);
+            return lineY + 5;
+        }
+
+        function pdfSectionTitle(doc, text, y, color) {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10.5);
+            doc.setTextColor(...(color || PDF_COLORS.gray));
+            doc.text(text, 8, y);
+            return y + 4;
+        }
+
+        function pdfKeyValueTable(doc, startY, rows, tableWidth) {
+            const body = rows.map(r => {
+                if (r.header) {
+                    return [{ content: r.header, colSpan: 2, styles: { fontStyle: 'bold', textColor: r.color || PDF_COLORS.gray, fillColor: [245, 245, 245] } }];
+                }
+                return [{ content: r[0], styles: { fontStyle: 'bold' } }, { content: String(r[1]) }];
+            });
+            doc.autoTable({
+                startY,
+                body,
+                theme: 'plain',
+                styles: { fontSize: 8.5, cellPadding: 1.1 },
+                margin: { left: 8, right: 8 },
+                tableWidth: tableWidth || 95
+            });
+            return doc.lastAutoTable.finalY + 6;
+        }
+
+        function pdfRankingTable(doc, startY, title, color, headers, rows, columnStyles) {
+            if (!rows || rows.length === 0) return startY;
+            startY = pdfSectionTitle(doc, title, startY, color);
+            doc.autoTable({
+                startY,
+                head: [headers],
+                body: rows,
+                theme: 'grid',
+                styles: { fontSize: 7, cellPadding: 1 },
+                headStyles: { fillColor: color, textColor: 255, fontSize: 7, halign: 'center' },
+                bodyStyles: { halign: 'center' },
+                columnStyles: Object.assign({ 1: { halign: 'left' } }, columnStyles || {}),
+                margin: { left: 8, right: 8 }
+            });
+            return doc.lastAutoTable.finalY + 6;
+        }
+
+        function computeFeldspielerTableRows(statsArr, playerIdKey) {
+            return statsArr.map(s => {
+                const pid = playerIdKey ? s[playerIdKey] : s.player_id;
+                const p = players.find(pl => pl.id === pid);
+                if (!p) return null;
+                const feldtore = s.tore || 0;
+                const feldfehl = s.fehlwurfe || 0;
+                const siebentore = s.tore7m || 0;
+                const siebenfehl = s.fehlwurfe7m || 0;
+                const tgtore = s.tg_tore || 0;
+                const tgfehl = s.tg_fehlwurfe || 0;
+                const gesamttore = feldtore + siebentore + tgtore;
+                const gesamtfehlwurf = feldfehl + siebenfehl + tgfehl;
+                const hePos = gesamttore * 3 + (s.assists || 0) * 2 + (s.sieben_m_geholt || 0) + (s.zwei_min_geholt || 0);
+                const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0));
+                const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
+                return {
+                    sortKey: gesamttore,
+                    row: [p.number, p.name, feldtore, feldfehl, pdfPct(feldtore, feldfehl), siebentore, siebenfehl, pdfPct(siebentore, siebenfehl), tgtore, tgfehl, pdfPct(tgtore, tgfehl), gesamttore, pdfPct(gesamttore, gesamtfehlwurf), s.tech_fehler || 0, s.fehlpasse || 0, s.gelb || 0, s.rot || 0, s.zwei_min || 0, s.disq || 0, he]
+                };
+            }).filter(Boolean).sort((a, b) => b.sortKey - a.sortKey).map(x => x.row);
+        }
+
+        function computeTorwartTableRows(statsArr, playerIdKey) {
+            return statsArr.map(s => {
+                const pid = playerIdKey ? s[playerIdKey] : s.player_id;
+                const p = players.find(pl => pl.id === pid);
+                if (!p) return null;
+                const paraden = s.paraden || 0;
+                const gegentore = s.gegentore || 0;
+                const paraden7m = s.paraden_7m || 0;
+                const gegentore7m = s.gegentore_7m || 0;
+                const tgparaden = s.tg_paraden || 0;
+                const tggegentore = s.tg_gegentore || 0;
+                const gegengesamt = gegentore + gegentore7m + tggegentore;
+                const gesamtparaden = paraden + paraden7m + tgparaden;
+                const hePos = gesamtparaden * 3 + (s.assists || 0) * 2 + (s.zwei_min_geholt || 0);
+                const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0));
+                const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
+                return {
+                    sortKey: gesamtparaden,
+                    row: [p.number, p.name, paraden, pdfPct(paraden, gegentore), paraden7m, pdfPct(paraden7m, gegentore7m), tgparaden, pdfPct(tgparaden, tggegentore), gegengesamt, pdfPct(gesamtparaden, gegengesamt), s.tech_fehler || 0, s.fehlpasse || 0, s.gelb || 0, s.rot || 0, s.zwei_min || 0, s.disq || 0, he]
+                };
+            }).filter(Boolean).sort((a, b) => b.sortKey - a.sortKey).map(x => x.row);
+        }
+
+        function computeCoachTableRows(coachStatsArr, coachIdKey) {
+            return coachStatsArr.map(cs => {
+                const cid = coachIdKey ? cs[coachIdKey] : cs.coach_id;
+                const c = coaches.find(coach => coach.id === cid);
+                if (!c) return null;
+                return [c.designation, c.name, cs.gelb || 0, cs.rot || 0, cs.zwei_min || 0, cs.disq || 0];
+            }).filter(Boolean);
+        }
+
+        function getCurrentGameStatArrays() {
+            const stats = Object.values(localStats.players);
+            const feldspieler = stats.filter(s => {
+                const player = players.find(p => p.id === s.player_id);
+                return player && player.position === 'Feld';
+            });
+            const torwarte = stats.filter(s => {
+                const player = players.find(p => p.id === s.player_id);
+                return player && player.position === 'Torwart';
+            });
+            const coachStatsData = Object.values(localStats.coaches);
+            return { feldspieler, torwarte, coachStatsData };
+        }
+
+        function buildSpielstatistikPdf(game, feldspieler, torwarte, coachStatsData) {
+            const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+            const totTore = feldspieler.reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0) + (st.tg_tore || 0), 0);
+            const totGegenTore = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0), 0);
+
+            let y = addPdfHeader(doc, 'Spielstatistik', [
+                `Gegner: ${game.opponent}`,
+                `Datum: ${new Date(game.date).toLocaleDateString('de-DE')}${game.location ? '  ·  Ort: ' + game.location : ''}`,
+                `Ergebnis: ${totTore} : ${totGegenTore}`
+            ]);
+
+            const ft = feldspieler.reduce((s, st) => s + (st.tore || 0), 0);
+            const ff = feldspieler.reduce((s, st) => s + (st.fehlwurfe || 0), 0);
+            const t7m = feldspieler.reduce((s, st) => s + (st.tore7m || 0), 0);
+            const f7m = feldspieler.reduce((s, st) => s + (st.fehlwurfe7m || 0), 0);
+            const tgt = feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0);
+            const tgf = feldspieler.reduce((s, st) => s + (st.tg_fehlwurfe || 0), 0);
+            const totFehlwurfe = ff + f7m;
+            const totTechFehler = feldspieler.concat(torwarte).reduce((s, st) => s + (st.tech_fehler || 0), 0);
+            const p = torwarte.reduce((s, st) => s + (st.paraden || 0), 0);
+            const g = torwarte.reduce((s, st) => s + (st.gegentore || 0), 0);
+            const p7m = torwarte.reduce((s, st) => s + (st.paraden_7m || 0), 0);
+            const g7m = torwarte.reduce((s, st) => s + (st.gegentore_7m || 0), 0);
+            const tgp = torwarte.reduce((s, st) => s + (st.tg_paraden || 0), 0);
+            const tgg = torwarte.reduce((s, st) => s + (st.tg_gegentore || 0), 0);
+            const paradenGesamt = p + p7m + tgp;
+
+            const feldPos = feldspieler.reduce((sum, st) => {
+                const gtore = (st.tore || 0) + (st.tore7m || 0) + (st.tg_tore || 0);
+                return sum + gtore * 3 + (st.assists || 0) * 2 + (st.sieben_m_geholt || 0) + (st.zwei_min_geholt || 0);
+            }, 0);
+            const feldNeg = feldspieler.reduce((sum, st) => {
+                const gfehl = (st.fehlwurfe || 0) + (st.fehlwurfe7m || 0) + (st.tg_fehlwurfe || 0);
+                return sum + gfehl * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0));
+            }, 0);
+            const twPos = torwarte.reduce((sum, st) => {
+                const gparaden = (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0);
+                return sum + gparaden * 3 + (st.assists || 0) * 2 + (st.zwei_min_geholt || 0);
+            }, 0);
+            const twNeg = torwarte.reduce((sum, st) => {
+                const ggegen = (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0);
+                return sum + ggegen * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0));
+            }, 0);
+
+            const overviewRows = [
+                { header: 'Angriff (Spieler)', color: PDF_COLORS.green },
+                ['Tore', ft],
+                ['Fehlwürfe (Feld)', ff],
+                ['Torquote', pdfPct(ft, ff)],
+                ['7m-Tore', t7m],
+                ['7m-Fehlwürfe', f7m],
+                ['7m-Quote', pdfPct(t7m, f7m)],
+                ['TG-Tore', tgt],
+                ['TG-Fehlwürfe', tgf],
+                ['TG-Quote', pdfPct(tgt, tgf)],
+                ['TG-Anteil am Gesamtscore', pdfPct(tgt, totTore - tgt)],
+                { header: 'Abwehr (Torleute)', color: PDF_COLORS.blue },
+                ['Paraden (TW)', p],
+                ['Parade-Quote', pdfPct(p, g)],
+                ['7m-Paraden (TW)', p7m],
+                ['7m-Parade-Quote', pdfPct(p7m, g7m)],
+                ['TG-Paraden', tgp],
+                ['TG-Gegentore', tgg],
+                { header: 'Fehler', color: PDF_COLORS.red },
+                ['Tech. Fehler gesamt', totTechFehler],
+                ['Fehlwürfe (Feld) gesamt', totFehlwurfe],
+                { header: 'Effektivität', color: PDF_COLORS.yellow },
+                ['Team-Handlungseffektivität', pdfPct(feldPos + twPos, feldNeg + twNeg)]
+            ];
+
+            y = pdfSectionTitle(doc, 'Spiel-Übersicht', y, PDF_COLORS.gray);
+            y = pdfKeyValueTable(doc, y, overviewRows);
+
+            y = pdfRankingTable(doc, y, 'Feldspieler-Ranking', PDF_COLORS.green, PDF_FELD_HEADERS, computeFeldspielerTableRows(feldspieler), PDF_FELD_COL_STYLES);
+            y = pdfRankingTable(doc, y, 'Torwart-Statistik', PDF_COLORS.blue, PDF_TW_HEADERS, computeTorwartTableRows(torwarte), PDF_TW_COL_STYLES);
+
+            if (coachStatsData && coachStatsData.length > 0) {
+                pdfRankingTable(doc, y, 'Betreuer-Statistik', PDF_COLORS.purple, PDF_COACH_HEADERS, computeCoachTableRows(coachStatsData));
+            }
+
+            return doc;
+        }
+
+        async function buildSaisonstatistikPdf() {
+            const { data: allGames } = await sbClient.from('games').select('*');
+            const gameList = allGames || [];
+            const gameIds = gameList.map(g => g.id);
+
+            let statsByGame = {};
+            let oppByGame = {};
+            if (gameIds.length > 0) {
+                const { data: allPlayerStats } = await sbClient.from('player_stats').select('*').in('game_id', gameIds);
+                (allPlayerStats || []).forEach(s => {
+                    if (!statsByGame[s.game_id]) statsByGame[s.game_id] = [];
+                    statsByGame[s.game_id].push(s);
+                });
+                const { data: allOpponentStats } = await sbClient.from('opponent_stats').select('*').in('game_id', gameIds);
+                (allOpponentStats || []).forEach(o => { oppByGame[o.game_id] = o; });
+            }
+
+            const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            let y = addPdfHeader(doc, 'Saison-Statistik', [`Stand: ${new Date().toLocaleDateString('de-DE')}`]);
+
+            const gameRows = gameList.map(game => {
+                const stats = statsByGame[game.id] || [];
+                const torwarte = stats.filter(s => { const p = players.find(pl => pl.id === s.player_id); return p && p.position === 'Torwart'; });
+                const feldspieler = stats.filter(s => { const p = players.find(pl => pl.id === s.player_id); return p && p.position === 'Feld'; });
+                const totTore = feldspieler.reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0) + (st.tg_tore || 0), 0);
+                const totGegenTore = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0), 0);
+                const result = totTore > totGegenTore ? 'Gewonnen' : (totTore < totGegenTore ? 'Verloren' : 'Unentschieden');
+                return [game.opponent, new Date(game.date).toLocaleDateString('de-DE'), totTore, totGegenTore, result];
+            });
+
+            doc.autoTable({
+                startY: y,
+                head: [['Gegner', 'Datum', 'Tore', 'Gegentore', 'Ergebnis']],
+                body: gameRows,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 1.3 },
+                headStyles: { fillColor: PDF_COLORS.blue, textColor: 255 },
+                margin: { left: 8, right: 8 },
+                tableWidth: 140
+            });
+            y = doc.lastAutoTable.finalY + 8;
+
+            let totalWins = 0, totalLoss = 0, totalDraw = 0, totalTore = 0, totalGegenTore = 0;
+            let totalTGTore = 0, totalTGFehlwurfe = 0, totalTGParaden = 0, totalTGGegentore = 0;
+            let totalHEPos = 0, totalHENeg = 0;
+            let totalFeldtore = 0, totalFeldFehlwurf = 0, totalFeldTechFehler = 0, totalFeldFehlpass = 0;
+            let totalTWTechFehler = 0, totalGegnerFehler = 0, totalParadenGesamt = 0;
+
+            for (const game of gameList) {
+                const stats = statsByGame[game.id] || [];
+                const opp = oppByGame[game.id] || { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0 };
+                totalGegnerFehler += (opp.fehlwurfe || 0) + (opp.tech_fehler || 0) + (opp.fehlpasse || 0);
+
+                const torwarte = stats.filter(s => { const p = players.find(pl => pl.id === s.player_id); return p && p.position === 'Torwart'; });
+                const feldspieler = stats.filter(s => { const p = players.find(pl => pl.id === s.player_id); return p && p.position === 'Feld'; });
+
+                const totTore = feldspieler.reduce((s, st) => s + (st.tore || 0) + (st.tore7m || 0) + (st.tg_tore || 0), 0);
+                const totGegenTore = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0), 0);
+                totalTore += totTore;
+                totalGegenTore += totGegenTore;
+                totalTGTore += feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0);
+                totalTGFehlwurfe += feldspieler.reduce((s, st) => s + (st.tg_fehlwurfe || 0), 0);
+                totalTGParaden += torwarte.reduce((s, st) => s + (st.tg_paraden || 0), 0);
+                totalTGGegentore += torwarte.reduce((s, st) => s + (st.tg_gegentore || 0), 0);
+                totalFeldtore += feldspieler.reduce((s, st) => s + (st.tore || 0), 0);
+                totalFeldFehlwurf += feldspieler.reduce((s, st) => s + (st.fehlwurfe || 0), 0);
+                totalFeldTechFehler += feldspieler.reduce((s, st) => s + (st.tech_fehler || 0), 0);
+                totalFeldFehlpass += feldspieler.reduce((s, st) => s + (st.fehlpasse || 0), 0);
+                totalTWTechFehler += torwarte.reduce((s, st) => s + (st.tech_fehler || 0), 0);
+                totalParadenGesamt += torwarte.reduce((s, st) => s + (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0), 0);
+
+                totalHEPos += feldspieler.reduce((sum, st) => {
+                    const gtore = (st.tore || 0) + (st.tore7m || 0) + (st.tg_tore || 0);
+                    return sum + gtore * 3 + (st.assists || 0) * 2 + (st.sieben_m_geholt || 0) + (st.zwei_min_geholt || 0);
+                }, 0);
+                totalHENeg += feldspieler.reduce((sum, st) => {
+                    const gfehl = (st.fehlwurfe || 0) + (st.fehlwurfe7m || 0) + (st.tg_fehlwurfe || 0);
+                    return sum + gfehl * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0));
+                }, 0);
+                totalHEPos += torwarte.reduce((sum, st) => {
+                    const gparaden = (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0);
+                    return sum + gparaden * 3 + (st.assists || 0) * 2 + (st.zwei_min_geholt || 0);
+                }, 0);
+                totalHENeg += torwarte.reduce((sum, st) => {
+                    const ggegen = (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0);
+                    return sum + ggegen * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0));
+                }, 0);
+
+                if (totTore > totGegenTore) totalWins++;
+                else if (totTore < totGegenTore) totalLoss++;
+                else totalDraw++;
+            }
+
+            const overviewRows = [
+                { header: 'Allgemein', color: PDF_COLORS.gray },
+                ['Spiele', gameList.length],
+                ['Siege', totalWins],
+                ['Niederlagen', totalLoss],
+                ['Unentschieden', totalDraw],
+                ['Tore gesamt', totalTore],
+                ['Gegentore gesamt', totalGegenTore],
+                ['Ø Tore/Spiel', (totalTore / (gameList.length || 1)).toFixed(1)],
+                ['Ø Gegentore/Spiel', (totalGegenTore / (gameList.length || 1)).toFixed(1)],
+                { header: 'Angriff (Spieler)', color: PDF_COLORS.green },
+                ['TG-Tore gesamt', totalTGTore],
+                ['TG-Fehlwürfe gesamt', totalTGFehlwurfe],
+                ['TG-Quote (Feld)', pdfPct(totalTGTore, totalTGFehlwurfe)],
+                ['TG-Anteil am Gesamtscore', pdfPct(totalTGTore, totalTore - totalTGTore)],
+                { header: 'Abwehr (Torleute)', color: PDF_COLORS.blue },
+                ['TG-Paraden gesamt', totalTGParaden],
+                ['TG-Gegentore gesamt', totalTGGegentore],
+                ['TG-Quote (TW)', pdfPct(totalTGParaden, totalTGGegentore)],
+                { header: 'Fehler', color: PDF_COLORS.red },
+                ['Tech. Fehler gesamt', totalFeldTechFehler + totalTWTechFehler],
+                ['Fehler (Fehlpass) gesamt', totalFeldFehlpass],
+                ['Fehler gesamt', totalFeldTechFehler + totalTWTechFehler + totalFeldFehlpass],
+                { header: 'Effektivitätswerte', color: PDF_COLORS.yellow },
+                ['Angriffseffektivität', pdfPct(totalFeldtore, totalFeldFehlwurf + totalFeldTechFehler + totalFeldFehlpass)],
+                ['Abwehreffektivität', pdfPct(totalParadenGesamt + totalGegnerFehler, totalGegenTore)],
+                ['Team-Handlungseffektivität', pdfPct(totalHEPos, totalHENeg)]
+            ];
+            y = pdfSectionTitle(doc, 'Übersicht', y, PDF_COLORS.gray);
+            y = pdfKeyValueTable(doc, y, overviewRows);
+
+            const playerSeasonStats = {};
+            for (const game of gameList) {
+                const allStats = statsByGame[game.id] || [];
+                for (const stat of allStats) {
+                    if (!playerSeasonStats[stat.player_id]) {
+                        playerSeasonStats[stat.player_id] = {
+                            tore: 0, tore7m: 0, fehlwurfe: 0, fehlwurfe7m: 0, tech_fehler: 0, fehlpasse: 0,
+                            paraden: 0, paraden_7m: 0, gegentore: 0, gegentore_7m: 0, tg_tore: 0, tg_fehlwurfe: 0,
+                            tg_paraden: 0, tg_gegentore: 0, gelb: 0, rot: 0, zwei_min: 0, disq: 0, assists: 0,
+                            sieben_m_geholt: 0, sieben_m_verursacht: 0, zwei_min_geholt: 0
+                        };
+                    }
+                    const acc = playerSeasonStats[stat.player_id];
+                    for (const key of Object.keys(acc)) acc[key] += stat[key] || 0;
+                }
+            }
+
+            const feldspielerSeasonEntries = Object.entries(playerSeasonStats)
+                .filter(([playerId]) => { const p = players.find(pl => pl.id === playerId); return p && p.position === 'Feld'; })
+                .map(([playerId, stats]) => Object.assign({ playerId }, stats));
+            const torwartSeasonEntries = Object.entries(playerSeasonStats)
+                .filter(([playerId]) => { const p = players.find(pl => pl.id === playerId); return p && p.position === 'Torwart'; })
+                .map(([playerId, stats]) => Object.assign({ playerId }, stats));
+
+            y = pdfRankingTable(doc, y, 'Feldspieler-Saisonstatistik', PDF_COLORS.green, PDF_FELD_HEADERS, computeFeldspielerTableRows(feldspielerSeasonEntries, 'playerId'), PDF_FELD_COL_STYLES);
+            y = pdfRankingTable(doc, y, 'Torwart-Saisonstatistik', PDF_COLORS.blue, PDF_TW_HEADERS, computeTorwartTableRows(torwartSeasonEntries, 'playerId'), PDF_TW_COL_STYLES);
+
+            const { data: allCoachStats } = await sbClient.from('coach_stats').select('*');
+            if (allCoachStats && allCoachStats.length > 0) {
+                const coachSummary = {};
+                for (const cs of allCoachStats) {
+                    if (!coachSummary[cs.coach_id]) coachSummary[cs.coach_id] = { gelb: 0, rot: 0, zwei_min: 0, disq: 0 };
+                    coachSummary[cs.coach_id].gelb += cs.gelb || 0;
+                    coachSummary[cs.coach_id].rot += cs.rot || 0;
+                    coachSummary[cs.coach_id].zwei_min += cs.zwei_min || 0;
+                    coachSummary[cs.coach_id].disq += cs.disq || 0;
+                }
+                const coachSeasonEntries = Object.entries(coachSummary).map(([coachId, stats]) => Object.assign({ coachId }, stats));
+                pdfRankingTable(doc, y, 'Betreuer-Saison-Statistik', PDF_COLORS.purple, PDF_COACH_HEADERS, computeCoachTableRows(coachSeasonEntries, 'coachId'));
+            }
+
+            return doc;
+        }
+
         async function exportSpielStatisticPdf() {
             try {
-                const element = document.getElementById('spielstatContent');
-                if (!element) {
-                    showToast('⚠️ Spielstatistik konnte nicht geladen werden');
-                    return;
-                }
-                
                 if (!currentGame) {
                     showToast('⚠️ Kein aktives Spiel');
                     return;
                 }
-                
-                const opt = {
-                    margin: [8, 8, 8, 8],
-                    filename: `Spielstatistik_${currentGame.opponent}_${new Date(currentGame.date).toLocaleDateString('de-DE')}.pdf`,
-                    image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 1.5, useCORS: true, logging: false },
-                    jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
-                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                };
-                
-                html2pdf().set(opt).from(element).save();
+                const { feldspieler, torwarte, coachStatsData } = getCurrentGameStatArrays();
+                const doc = buildSpielstatistikPdf(currentGame, feldspieler, torwarte, coachStatsData);
+                doc.save(`Spielstatistik_${currentGame.opponent}_${new Date(currentGame.date).toLocaleDateString('de-DE')}.pdf`);
                 showToast('✅ Spielstatistik PDF heruntergeladen');
             } catch (err) {
                 console.error('PDF generation error:', err);
@@ -3638,23 +4007,9 @@
         
         async function exportSaisonStatisticPdf() {
             try {
-                const element = document.getElementById('saisonstatContent');
-                if (!element) {
-                    showToast('⚠️ Saisonstatistik konnte nicht geladen werden');
-                    return;
-                }
-                
+                const doc = await buildSaisonstatistikPdf();
                 const today = new Date().toLocaleDateString('de-DE');
-                const opt = {
-                    margin: [8, 8, 8, 8],
-                    filename: `Saisonstatistik_${today}.pdf`,
-                    image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 1.5, useCORS: true, logging: false },
-                    jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
-                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                };
-                
-                html2pdf().set(opt).from(element).save();
+                doc.save(`Saisonstatistik_${today}.pdf`);
                 showToast('✅ Saisonstatistik PDF heruntergeladen');
             } catch (err) {
                 console.error('PDF generation error:', err);
