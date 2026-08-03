@@ -3615,8 +3615,14 @@
             doc.setTextColor(...PDF_COLORS.gray);
             let y = 18;
             (subtitleLines || []).forEach(line => {
-                doc.text(line, 28, y);
-                y += 4.5;
+                const isObj = typeof line === 'object' && line !== null;
+                const text = isObj ? line.text : line;
+                const size = isObj && line.size ? line.size : 9;
+                doc.setFont('helvetica', isObj && line.bold ? 'bold' : 'normal');
+                doc.setFontSize(size);
+                doc.setTextColor(...(isObj && line.color ? line.color : PDF_COLORS.gray));
+                doc.text(text, 28, y);
+                y += Math.max(4.5, size * 0.55);
             });
             const lineY = Math.max(24, y + 1);
             doc.setDrawColor(...PDF_COLORS.blue);
@@ -3746,7 +3752,7 @@
             let y = addPdfHeader(doc, 'Spielstatistik', [
                 `Gegner: ${game.opponent}`,
                 `Datum: ${new Date(game.date).toLocaleDateString('de-DE')}${game.location ? '  ·  Ort: ' + game.location : ''}`,
-                `Ergebnis: ${totTore} : ${totGegenTore}`
+                { text: `Ergebnis: ${totTore} : ${totGegenTore}`, bold: true, size: 12, color: PDF_COLORS.blue }
             ]);
 
             const ft = feldspieler.reduce((s, st) => s + (st.tore || 0), 0);
@@ -3811,6 +3817,9 @@
             y = pdfSectionTitle(doc, 'Spiel-Übersicht', y, PDF_COLORS.gray);
             y = pdfKeyValueTable(doc, y, overviewRows);
 
+            doc.addPage();
+            y = 15;
+
             y = pdfRankingTable(doc, y, 'Feldspieler-Ranking', PDF_COLORS.green, PDF_FELD_HEADERS, computeFeldspielerTableRows(feldspieler), PDF_FELD_COL_STYLES);
             y = pdfRankingTable(doc, y, 'Torwart-Statistik', PDF_COLORS.blue, PDF_TW_HEADERS, computeTorwartTableRows(torwarte), PDF_TW_COL_STYLES);
 
@@ -3862,6 +3871,9 @@
                 tableWidth: 140
             });
             y = doc.lastAutoTable.finalY + 8;
+
+            doc.addPage();
+            y = 15;
 
             let totalWins = 0, totalLoss = 0, totalDraw = 0, totalTore = 0, totalGegenTore = 0;
             let totalTGTore = 0, totalTGFehlwurfe = 0, totalTGParaden = 0, totalTGGegentore = 0;
