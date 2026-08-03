@@ -3498,7 +3498,7 @@
                     <div style="font-size: 22px; font-weight: bold;">🏐 H3-Stats</div>
                 </div>
                 
-                <div class="card">
+                <div class="card" ${upcoming ? `style="cursor: pointer;" onclick="selectGame('${upcoming.id}')"` : ''}>
                     <div class="card-title">📅 Nächstes Spiel</div>
                     ${upcoming ? `
                         <div style="font-size: 18px; font-weight: bold;">vs ${upcoming.opponent}</div>
