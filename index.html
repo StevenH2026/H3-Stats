@@ -1801,10 +1801,10 @@
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🤝 Sonstige</div>
                                 ${readOnly ? '' : `
                                 <div class="stat-grid">
+                                    ${renderStatBtn(player.id, 'turnovers', 'Turnover', '', rausAusSpiel)}
                                     ${renderStatBtn(player.id, 'assists', 'Assist', '', rausAusSpiel)}
                                     ${renderStatBtn(player.id, 'zwei_min_geholt', '2min geholt', '', rausAusSpiel)}
                                     ${renderStatBtn(player.id, 'sieben_m_verursacht', '7m verursacht', '', rausAusSpiel)}
-                                    ${renderStatBtn(player.id, 'turnovers', 'Turnover', '', rausAusSpiel)}
                                 </div>
                                 `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Assist: ${stats.assists || 0} | 2min geholt: ${stats.zwei_min_geholt || 0} | 7m verursacht: ${stats.sieben_m_verursacht || 0} | Turnover: ${stats.turnovers || 0} | Gesamt: ${(stats.assists || 0) + (stats.zwei_min_geholt || 0) + (stats.sieben_m_verursacht || 0) + (stats.turnovers || 0)}</div>
@@ -1867,11 +1867,11 @@
                                 <div style="font-weight: bold; margin-bottom: 0.5rem; color: #185fa5;">🤝 Sonstige</div>
                                 ${readOnly ? '' : `
                                 <div class="stat-grid">
+                                    ${renderStatBtn(player.id, 'turnovers', 'Turnover', '', rausAusSpiel)}
                                     ${renderStatBtn(player.id, 'assists', 'Assist', '', rausAusSpiel)}
                                     ${renderStatBtn(player.id, 'sieben_m_geholt', '7m geholt', '', rausAusSpiel)}
                                     ${renderStatBtn(player.id, 'zwei_min_geholt', '2min geholt', '', rausAusSpiel)}
                                     ${renderStatBtn(player.id, 'sieben_m_verursacht', '7m verursacht', '', rausAusSpiel)}
-                                    ${renderStatBtn(player.id, 'turnovers', 'Turnover', '', rausAusSpiel)}
                                 </div>
                                 `}
                                 <div style="font-size: 14px; margin-top: 0.5rem;">Assist: ${stats.assists || 0} | 7m geholt: ${stats.sieben_m_geholt || 0} | 2min geholt: ${stats.zwei_min_geholt || 0} | 7m verursacht: ${stats.sieben_m_verursacht || 0} | Turnover: ${stats.turnovers || 0} | Gesamt: ${(stats.assists || 0) + (stats.sieben_m_geholt || 0) + (stats.zwei_min_geholt || 0) + (stats.sieben_m_verursacht || 0) + (stats.turnovers || 0)}</div>
@@ -2383,19 +2383,19 @@
                             <tr><td><b>Team-Handlungseffektivität:</b></td><td><b>${(() => {
                                 const feldPos = feldspieler.reduce((sum, st) => {
                                     const gtore = (st.tore || 0) + (st.tore7m || 0) + (st.tg_tore || 0);
-                                    return sum + gtore * 3 + (st.assists || 0) * 2 + (st.sieben_m_geholt || 0) + (st.zwei_min_geholt || 0);
+                                    return sum + gtore * 3 + (st.assists || 0) * 2 + (st.sieben_m_geholt || 0) + (st.zwei_min_geholt || 0) + (st.turnovers || 0) * 2;
                                 }, 0);
                                 const feldNeg = feldspieler.reduce((sum, st) => {
                                     const gfehl = (st.fehlwurfe || 0) + (st.fehlwurfe7m || 0) + (st.tg_fehlwurfe || 0);
-                                    return sum + gfehl * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0)) + (st.turnovers || 0);
+                                    return sum + gfehl * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0));
                                 }, 0);
                                 const twPos = torwarte.reduce((sum, st) => {
                                     const gparaden = (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0);
-                                    return sum + gparaden * 3 + (st.assists || 0) * 2 + (st.zwei_min_geholt || 0);
+                                    return sum + gparaden * 3 + (st.assists || 0) * 2 + (st.zwei_min_geholt || 0) + (st.turnovers || 0) * 2;
                                 }, 0);
                                 const twNeg = torwarte.reduce((sum, st) => {
                                     const ggegen = (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0);
-                                    return sum + ggegen * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0)) + (st.turnovers || 0);
+                                    return sum + ggegen * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0));
                                 }, 0);
                                 const pos = feldPos + twPos;
                                 const neg = feldNeg + twNeg;
@@ -2407,7 +2407,7 @@
                     <div class="card">
                         <div class="card-title">⚽ Feldspieler-Ranking</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehlw.</th><th>Torquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>TG-Tore</th><th>TG-Fehlw.</th><th>TG-Quote</th><th>Tore<br>gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehlw.</th><th>Torquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>TG-Tore</th><th>TG-Fehlw.</th><th>TG-Quote</th><th>Tore<br>gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th>Fehlpass</th><th>Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
                             ${feldspieler
                                 .sort((a, b) => ((b.tore || 0) + (b.tore7m || 0) + (b.tg_tore || 0)) - ((a.tore || 0) + (a.tore7m || 0) + (a.tg_tore || 0)))
                                 .map(s => {
@@ -2425,10 +2425,10 @@
                                     const gesamttore = feldtore + siebentore + tgtore;
                                     const gesamtfehlwurf = feldfehl + siebenfehl + tgfehl;
                                     const gesamtquote = ((gesamttore / (gesamttore + gesamtfehlwurf) * 100) || 0).toFixed(0);
-                                    const hePos = gesamttore * 3 + (s.assists || 0) * 2 + (s.sieben_m_geholt || 0) + (s.zwei_min_geholt || 0);
-                                    const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0)) + (s.turnovers || 0);
+                                    const hePos = gesamttore * 3 + (s.assists || 0) * 2 + (s.sieben_m_geholt || 0) + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
+                                    const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0));
                                     const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldfehl}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenfehl}</td><td>${siebenquote}%</td><td>${tgtore}</td><td>${tgfehl}</td><td>${tgquote}%</td><td><b>${gesamttore}</b></td><td>${gesamtquote}%</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td><td><b>${he}</b></td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldfehl}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenfehl}</td><td>${siebenquote}%</td><td>${tgtore}</td><td>${tgfehl}</td><td>${tgquote}%</td><td><b>${gesamttore}</b></td><td>${gesamtquote}%</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.turnovers || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td><td><b>${he}</b></td></tr>`;
                                 })
                                 .join('')}
                         </table>
@@ -2437,7 +2437,7 @@
                     <div class="card">
                         <div class="card-title">🥅 Torwart-Statistik</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>TG-Paraden</th><th>TG-Quote</th><th>Gegentore gesamt</th><th>Gegentore-Quote</th><th>Tech.<br>Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>TG-Paraden</th><th>TG-Quote</th><th>Gegentore gesamt</th><th>Gegentore-Quote</th><th>Tech.<br>Fehler</th><th>Fehlpass</th><th>Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
                             ${torwarte
                                 .sort((a, b) => ((b.paraden || 0) + (b.paraden_7m || 0) + (b.tg_paraden || 0)) - ((a.paraden || 0) + (a.paraden_7m || 0) + (a.tg_paraden || 0)))
                                 .map(s => {
@@ -2455,10 +2455,10 @@
                                     const gegengesamt = gegentore + gegentore7m + tggegentore;
                                     const gesamtparaden = paraden + paraden7m + tgparaden;
                                     const gegenquote = ((gesamtparaden / (gesamtparaden + gegengesamt) * 100) || 0).toFixed(0);
-                                    const hePos = gesamtparaden * 3 + (s.assists || 0) * 2 + (s.zwei_min_geholt || 0);
-                                    const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0)) + (s.turnovers || 0);
+                                    const hePos = gesamtparaden * 3 + (s.assists || 0) * 2 + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
+                                    const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0));
                                     const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td>${tgparaden}</td><td>${tgquote}%</td><td><b>${gegengesamt}</b></td><td>${gegenquote}%</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td><td><b>${he}</b></td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td>${tgparaden}</td><td>${tgquote}%</td><td><b>${gegengesamt}</b></td><td>${gegenquote}%</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.turnovers || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td><td><b>${he}</b></td></tr>`;
                                 })
                                 .join('')}
                         </table>
@@ -2611,19 +2611,19 @@
                     
                     totalHEPos += feldspieler.reduce((sum, st) => {
                         const gtore = (st.tore || 0) + (st.tore7m || 0) + (st.tg_tore || 0);
-                        return sum + gtore * 3 + (st.assists || 0) * 2 + (st.sieben_m_geholt || 0) + (st.zwei_min_geholt || 0);
+                        return sum + gtore * 3 + (st.assists || 0) * 2 + (st.sieben_m_geholt || 0) + (st.zwei_min_geholt || 0) + (st.turnovers || 0) * 2;
                     }, 0);
                     totalHENeg += feldspieler.reduce((sum, st) => {
                         const gfehl = (st.fehlwurfe || 0) + (st.fehlwurfe7m || 0) + (st.tg_fehlwurfe || 0);
-                        return sum + gfehl * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0)) + (st.turnovers || 0);
+                        return sum + gfehl * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0));
                     }, 0);
                     totalHEPos += torwarte.reduce((sum, st) => {
                         const gparaden = (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0);
-                        return sum + gparaden * 3 + (st.assists || 0) * 2 + (st.zwei_min_geholt || 0);
+                        return sum + gparaden * 3 + (st.assists || 0) * 2 + (st.zwei_min_geholt || 0) + (st.turnovers || 0) * 2;
                     }, 0);
                     totalHENeg += torwarte.reduce((sum, st) => {
                         const ggegen = (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0);
-                        return sum + ggegen * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0)) + (st.turnovers || 0);
+                        return sum + ggegen * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0));
                     }, 0);
                     
                     if (totTore > totGegenTore) totalWins++;
@@ -2753,7 +2753,7 @@
                         <div class="card">
                             <div class="card-title">⚽ Feldspieler-Saisonstatistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehlw.</th><th>Torquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>TG-Tore</th><th>TG-Fehlw.</th><th>TG-Quote</th><th>Tore<br>gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehlw.</th><th>Torquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>TG-Tore</th><th>TG-Fehlw.</th><th>TG-Quote</th><th>Tore<br>gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th>Fehlpass</th><th>Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
                                 ${feldspielerSaisonStats.map(s => {
                                     const p = players.find(pl => pl.id === s.playerId);
                                     if (!p) return '';
@@ -2769,10 +2769,10 @@
                                     const gesamttore = feldtore + siebentore + tgtore;
                                     const gesamtfehlwurf = feldfehl + siebenfehl + tgfehl;
                                     const gesamtquote = ((gesamttore / (gesamttore + gesamtfehlwurf) * 100) || 0).toFixed(0);
-                                    const hePos = gesamttore * 3 + (s.assists || 0) * 2 + (s.sieben_m_geholt || 0) + (s.zwei_min_geholt || 0);
-                                    const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0)) + (s.turnovers || 0);
+                                    const hePos = gesamttore * 3 + (s.assists || 0) * 2 + (s.sieben_m_geholt || 0) + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
+                                    const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0));
                                     const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldfehl}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenfehl}</td><td>${siebenquote}%</td><td>${tgtore}</td><td>${tgfehl}</td><td>${tgquote}%</td><td><b>${gesamttore}</b></td><td>${gesamtquote}%</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td><td><b>${he}</b></td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldfehl}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenfehl}</td><td>${siebenquote}%</td><td>${tgtore}</td><td>${tgfehl}</td><td>${tgquote}%</td><td><b>${gesamttore}</b></td><td>${gesamtquote}%</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.turnovers || 0}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td><td><b>${he}</b></td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
@@ -2796,7 +2796,7 @@
                         <div class="card">
                             <div class="card-title">🥅 Torwart-Saisonstatistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>TG-Paraden</th><th>TG-Quote</th><th>Gegentore gesamt</th><th>Gegentore-Quote</th><th>Tech.<br>Fehler</th><th>Fehlpass</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>TG-Paraden</th><th>TG-Quote</th><th>Gegentore gesamt</th><th>Gegentore-Quote</th><th>Tech.<br>Fehler</th><th>Fehlpass</th><th>Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
                                 ${torwartSaisonStats.map(s => {
                                     const p = players.find(pl => pl.id === s.playerId);
                                     if (!p) return '';
@@ -2812,10 +2812,10 @@
                                     const gegengesamt = gegentore + gegentore7m + tggegentore;
                                     const gesamtparaden = paraden + paraden7m + tgparaden;
                                     const gegenquote = ((gesamtparaden / (gesamtparaden + gegengesamt) * 100) || 0).toFixed(0);
-                                    const hePos = gesamtparaden * 3 + (s.assists || 0) * 2 + (s.zwei_min_geholt || 0);
-                                    const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0)) + (s.turnovers || 0);
+                                    const hePos = gesamtparaden * 3 + (s.assists || 0) * 2 + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
+                                    const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0));
                                     const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td>${tgparaden}</td><td>${tgquote}%</td><td><b>${gegengesamt}</b></td><td>${gegenquote}%</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td><td><b>${he}</b></td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td>${tgparaden}</td><td>${tgquote}%</td><td><b>${gegengesamt}</b></td><td>${gegenquote}%</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.turnovers || 0}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td><td><b>${he}</b></td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
@@ -3629,9 +3629,9 @@
             gray:   [51, 51, 51]
         };
 
-        const PDF_FELD_HEADERS = ['Nr','Name','Tore','Fehlw.','Torquote','7m-T','7m-F','7m-Quote','TG-T','TG-F','TG-Quote','Ges.Tore','Ges.Quote','Tech.F','Fehlp.','Gelb','Rot','2min','Disq','HE'];
+        const PDF_FELD_HEADERS = ['Nr','Name','Tore','Fehlw.','Torquote','7m-T','7m-F','7m-Quote','TG-T','TG-F','TG-Quote','Ges.Tore','Ges.Quote','Tech.F','Fehlp.','Turnover','Gelb','Rot','2min','Disq','HE'];
         const PDF_FELD_COL_STYLES = { 0: { cellWidth: 8 }, 1: { cellWidth: 26 } };
-        const PDF_TW_HEADERS = ['Nr','Name','Paraden','Par.-Quote','7m-Par','7m-Quote','TG-Par','TG-Quote','Geg.Ges','Geg.Quote','Tech.F','Fehlp.','Gelb','Rot','2min','Disq','HE'];
+        const PDF_TW_HEADERS = ['Nr','Name','Paraden','Par.-Quote','7m-Par','7m-Quote','TG-Par','TG-Quote','Geg.Ges','Geg.Quote','Tech.F','Fehlp.','Turnover','Gelb','Rot','2min','Disq','HE'];
         const PDF_TW_COL_STYLES = { 0: { cellWidth: 8 }, 1: { cellWidth: 30 } };
         const PDF_COACH_HEADERS = ['Designation','Name','Gelb','Rot','2min','Disq'];
 
@@ -3765,12 +3765,12 @@
                 const tgfehl = s.tg_fehlwurfe || 0;
                 const gesamttore = feldtore + siebentore + tgtore;
                 const gesamtfehlwurf = feldfehl + siebenfehl + tgfehl;
-                const hePos = gesamttore * 3 + (s.assists || 0) * 2 + (s.sieben_m_geholt || 0) + (s.zwei_min_geholt || 0);
-                const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0)) + (s.turnovers || 0);
+                const hePos = gesamttore * 3 + (s.assists || 0) * 2 + (s.sieben_m_geholt || 0) + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
+                const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0));
                 const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
                 return {
                     sortKey: gesamttore,
-                    row: [p.number, p.name, feldtore, feldfehl, pdfPct(feldtore, feldfehl), siebentore, siebenfehl, pdfPct(siebentore, siebenfehl), tgtore, tgfehl, pdfPct(tgtore, tgfehl), gesamttore, pdfPct(gesamttore, gesamtfehlwurf), s.tech_fehler || 0, s.fehlpasse || 0, s.gelb || 0, s.rot || 0, s.zwei_min || 0, s.disq || 0, he]
+                    row: [p.number, p.name, feldtore, feldfehl, pdfPct(feldtore, feldfehl), siebentore, siebenfehl, pdfPct(siebentore, siebenfehl), tgtore, tgfehl, pdfPct(tgtore, tgfehl), gesamttore, pdfPct(gesamttore, gesamtfehlwurf), s.tech_fehler || 0, s.fehlpasse || 0, s.turnovers || 0, s.gelb || 0, s.rot || 0, s.zwei_min || 0, s.disq || 0, he]
                 };
             }).filter(Boolean).sort((a, b) => b.sortKey - a.sortKey).map(x => x.row);
         }
@@ -3788,12 +3788,12 @@
                 const tggegentore = s.tg_gegentore || 0;
                 const gegengesamt = gegentore + gegentore7m + tggegentore;
                 const gesamtparaden = paraden + paraden7m + tgparaden;
-                const hePos = gesamtparaden * 3 + (s.assists || 0) * 2 + (s.zwei_min_geholt || 0);
-                const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0)) + (s.turnovers || 0);
+                const hePos = gesamtparaden * 3 + (s.assists || 0) * 2 + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
+                const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0));
                 const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
                 return {
                     sortKey: gesamtparaden,
-                    row: [p.number, p.name, paraden, pdfPct(paraden, gegentore), paraden7m, pdfPct(paraden7m, gegentore7m), tgparaden, pdfPct(tgparaden, tggegentore), gegengesamt, pdfPct(gesamtparaden, gegengesamt), s.tech_fehler || 0, s.fehlpasse || 0, s.gelb || 0, s.rot || 0, s.zwei_min || 0, s.disq || 0, he]
+                    row: [p.number, p.name, paraden, pdfPct(paraden, gegentore), paraden7m, pdfPct(paraden7m, gegentore7m), tgparaden, pdfPct(tgparaden, tggegentore), gegengesamt, pdfPct(gesamtparaden, gegengesamt), s.tech_fehler || 0, s.fehlpasse || 0, s.turnovers || 0, s.gelb || 0, s.rot || 0, s.zwei_min || 0, s.disq || 0, he]
                 };
             }).filter(Boolean).sort((a, b) => b.sortKey - a.sortKey).map(x => x.row);
         }
@@ -3853,19 +3853,19 @@
 
             const feldPos = feldspieler.reduce((sum, st) => {
                 const gtore = (st.tore || 0) + (st.tore7m || 0) + (st.tg_tore || 0);
-                return sum + gtore * 3 + (st.assists || 0) * 2 + (st.sieben_m_geholt || 0) + (st.zwei_min_geholt || 0);
+                return sum + gtore * 3 + (st.assists || 0) * 2 + (st.sieben_m_geholt || 0) + (st.zwei_min_geholt || 0) + (st.turnovers || 0) * 2;
             }, 0);
             const feldNeg = feldspieler.reduce((sum, st) => {
                 const gfehl = (st.fehlwurfe || 0) + (st.fehlwurfe7m || 0) + (st.tg_fehlwurfe || 0);
-                return sum + gfehl * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0)) + (st.turnovers || 0);
+                return sum + gfehl * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0));
             }, 0);
             const twPos = torwarte.reduce((sum, st) => {
                 const gparaden = (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0);
-                return sum + gparaden * 3 + (st.assists || 0) * 2 + (st.zwei_min_geholt || 0);
+                return sum + gparaden * 3 + (st.assists || 0) * 2 + (st.zwei_min_geholt || 0) + (st.turnovers || 0) * 2;
             }, 0);
             const twNeg = torwarte.reduce((sum, st) => {
                 const ggegen = (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0);
-                return sum + ggegen * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0)) + (st.turnovers || 0);
+                return sum + ggegen * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0));
             }, 0);
 
             const gegnerFehler = (opp.fehlwurfe || 0) + (opp.tech_fehler || 0) + (opp.fehlpasse || 0) + (opp.tg_fehlwurfe || 0);
@@ -4001,19 +4001,19 @@
 
                 totalHEPos += feldspieler.reduce((sum, st) => {
                     const gtore = (st.tore || 0) + (st.tore7m || 0) + (st.tg_tore || 0);
-                    return sum + gtore * 3 + (st.assists || 0) * 2 + (st.sieben_m_geholt || 0) + (st.zwei_min_geholt || 0);
+                    return sum + gtore * 3 + (st.assists || 0) * 2 + (st.sieben_m_geholt || 0) + (st.zwei_min_geholt || 0) + (st.turnovers || 0) * 2;
                 }, 0);
                 totalHENeg += feldspieler.reduce((sum, st) => {
                     const gfehl = (st.fehlwurfe || 0) + (st.fehlwurfe7m || 0) + (st.tg_fehlwurfe || 0);
-                    return sum + gfehl * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0)) + (st.turnovers || 0);
+                    return sum + gfehl * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0));
                 }, 0);
                 totalHEPos += torwarte.reduce((sum, st) => {
                     const gparaden = (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0);
-                    return sum + gparaden * 3 + (st.assists || 0) * 2 + (st.zwei_min_geholt || 0);
+                    return sum + gparaden * 3 + (st.assists || 0) * 2 + (st.zwei_min_geholt || 0) + (st.turnovers || 0) * 2;
                 }, 0);
                 totalHENeg += torwarte.reduce((sum, st) => {
                     const ggegen = (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0);
-                    return sum + ggegen * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0)) + (st.turnovers || 0);
+                    return sum + ggegen * 2 + (st.tech_fehler || 0) + (st.fehlpasse || 0) + (st.sieben_m_verursacht || 0) + ((st.zwei_min || 0) + (st.rot || 0));
                 }, 0);
 
                 if (totTore > totGegenTore) totalWins++;
