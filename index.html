@@ -3692,6 +3692,44 @@
             return doc.lastAutoTable.finalY + 6;
         }
 
+        function pdfKeyValueRowsToBody(rows) {
+            return rows.map(r => {
+                if (r.header) {
+                    return [{ content: r.header, colSpan: 2, styles: { fontStyle: 'bold', textColor: r.color || PDF_COLORS.gray, fillColor: [245, 245, 245] } }];
+                }
+                return [{ content: r[0], styles: { fontStyle: 'bold' } }, { content: String(r[1]) }];
+            });
+        }
+
+        function pdfKeyValueTwoColumns(doc, startY, leftRows, rightRows) {
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const colGap = 6;
+            const colWidth = (pageWidth - 16 - colGap) / 2;
+            const rightX = 8 + colWidth + colGap;
+
+            doc.autoTable({
+                startY,
+                body: pdfKeyValueRowsToBody(leftRows),
+                theme: 'plain',
+                styles: { fontSize: 8.5, cellPadding: 1.1 },
+                margin: { left: 8, right: pageWidth - 8 - colWidth },
+                tableWidth: colWidth
+            });
+            const leftFinalY = doc.lastAutoTable.finalY;
+
+            doc.autoTable({
+                startY,
+                body: pdfKeyValueRowsToBody(rightRows),
+                theme: 'plain',
+                styles: { fontSize: 8.5, cellPadding: 1.1 },
+                margin: { left: rightX, right: 8 },
+                tableWidth: colWidth
+            });
+            const rightFinalY = doc.lastAutoTable.finalY;
+
+            return Math.max(leftFinalY, rightFinalY) + 6;
+        }
+
         function pdfRankingTable(doc, startY, title, color, headers, rows, columnStyles) {
             if (!rows || rows.length === 0) return startY;
             startY = pdfSectionTitle(doc, title, startY, color);
@@ -3828,7 +3866,7 @@
             const gegnerFehler = (opp.fehlwurfe || 0) + (opp.tech_fehler || 0) + (opp.fehlpasse || 0) + (opp.tg_fehlwurfe || 0);
             const gegentoreGesamt = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0), 0);
 
-            const overviewRows = [
+            const leftOverviewRows = [
                 { header: 'Angriff (Spieler)', color: PDF_COLORS.green },
                 ['Tore', ft],
                 ['Fehlwürfe (Feld)', ff],
@@ -3846,7 +3884,10 @@
                 ['7m-Paraden (TW)', p7m],
                 ['7m-Parade-Quote', pdfPct(p7m, g7m)],
                 ['TG-Paraden', tgp],
-                ['TG-Gegentore', tgg],
+                ['TG-Gegentore', tgg]
+            ];
+
+            const rightOverviewRows = [
                 { header: 'Fehler', color: PDF_COLORS.red },
                 ['Tech. Fehler gesamt', totTechFehler],
                 ['Fehlwürfe (Feld) gesamt', totFehlwurfe],
@@ -3863,7 +3904,7 @@
             ];
 
             y = pdfSectionTitle(doc, 'Spiel-Übersicht', y, PDF_COLORS.gray);
-            y = pdfKeyValueTable(doc, y, overviewRows);
+            y = pdfKeyValueTwoColumns(doc, y, leftOverviewRows, rightOverviewRows);
 
             doc.addPage();
             y = 15;
@@ -3975,7 +4016,7 @@
                 else totalDraw++;
             }
 
-            const overviewRows = [
+            const leftOverviewRows = [
                 { header: 'Allgemein', color: PDF_COLORS.gray },
                 ['Spiele', gameList.length],
                 ['Siege', totalWins],
@@ -3993,7 +4034,10 @@
                 { header: 'Abwehr (Torleute)', color: PDF_COLORS.blue },
                 ['TG-Paraden gesamt', totalTGParaden],
                 ['TG-Gegentore gesamt', totalTGGegentore],
-                ['TG-Quote (TW)', pdfPct(totalTGParaden, totalTGGegentore)],
+                ['TG-Quote (TW)', pdfPct(totalTGParaden, totalTGGegentore)]
+            ];
+
+            const rightOverviewRows = [
                 { header: 'Fehler', color: PDF_COLORS.red },
                 ['Tech. Fehler gesamt', totalFeldTechFehler + totalTWTechFehler],
                 ['Fehler (Fehlpass) gesamt', totalFeldFehlpass],
@@ -4011,7 +4055,7 @@
                 ['Gegner TG-Quote', pdfPct(totalTGGegentore, totalOppTgFehlwurfe)]
             ];
             y = pdfSectionTitle(doc, 'Übersicht', y, PDF_COLORS.gray);
-            y = pdfKeyValueTable(doc, y, overviewRows);
+            y = pdfKeyValueTwoColumns(doc, y, leftOverviewRows, rightOverviewRows);
 
             doc.addPage();
             y = 15;
