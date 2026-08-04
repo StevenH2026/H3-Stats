@@ -1337,6 +1337,13 @@
             selectedCoach = null;
             if (istAnderesSpiel) {
                 gameActions = []; // Reset Action-Log nur bei Wechsel auf ein anderes Spiel
+                // Kader/Stats des vorherigen Spiels NICHT stehen lassen - loadLocalCacheSnapshot()
+                // gleich unten überschreibt das mit dem echten Stand, FALLS für dieses Spiel
+                // schon ein Cache existiert. Existiert noch keiner (Spiel auf diesem Gerät zum
+                // ersten Mal geöffnet, z.B. offline), bleibt es sauber leer statt fälschlich den
+                // Kader/die Stats des zuvor aktiven Spiels weiterzuverwenden.
+                localSquad = { playerIds: [], coachIds: [] };
+                localStats = { players: {}, opponent: { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0, tg_fehlwurfe: 0 }, coaches: {} };
             }
             
             // Beendete Spiele → Spielstatistik (read-only), jetzt ebenfalls aus lokalem Cache -
