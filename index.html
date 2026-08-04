@@ -3187,6 +3187,16 @@
                 if (error) throw error;
                 archivedGameIds = new Set((data || []).filter(f => f.name.endsWith('.pdf')).map(f => f.name.replace(/\.pdf$/, '')));
                 renderGamesList();
+                
+                // Zuverlässiger Nachhol-Punkt für die automatische Archivierung: läuft bei jedem
+                // erfolgreichen Online-Abgleich der Spieleliste (App-Start + jedes Mal, wenn wieder
+                // Netz da ist), unabhängig vom exakten Timing des Queue-Flush-Hooks. Holt also auch
+                // einen verpassten Einzel-Versuch (z.B. durch kurzzeitig falschen isOnline-Status
+                // direkt nach Reconnect) beim nächsten Durchlauf zuverlässig nach.
+                const nachzuholen = games.filter(g => g.ended && !archivedGameIds.has(g.id));
+                for (const g of nachzuholen) {
+                    await archiveGameById(g.id, true);
+                }
             } catch (err) {
                 // Still fehlschlagen (z.B. offline) - Badge bleibt einfach auf letztem bekannten Stand
                 console.warn('Konnte Archiv-Status nicht aktualisieren:', err);
