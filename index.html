@@ -2299,17 +2299,7 @@
                                 const f7m = feldspieler.reduce((s, st) => s + (st.fehlwurfe7m || 0), 0);
                                 return ((t7m / (t7m + f7m) * 100) || 0).toFixed(1) + '%';
                             })()}</td></tr>
-                            <tr><td><b>TG-Tore:</b></td><td>${feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0)}</td></tr>
-                            <tr><td><b>TG-Fehlwürfe:</b></td><td>${feldspieler.reduce((s, st) => s + (st.tg_fehlwurfe || 0), 0)}</td></tr>
-                            <tr><td><b>TG-Quote:</b></td><td>${(() => {
-                                const tgt = feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0);
-                                const tgf = feldspieler.reduce((s, st) => s + (st.tg_fehlwurfe || 0), 0);
-                                return ((tgt / (tgt + tgf) * 100) || 0).toFixed(1) + '%';
-                            })()}</td></tr>
-                            <tr><td><b>TG-Anteil am Gesamtscore:</b></td><td>${(() => {
-                                const tgt = feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0);
-                                return ((tgt / totTore * 100) || 0).toFixed(1) + '%';
-                            })()}</td></tr>
+                            <tr><td><b>Turnover (gewonnen):</b></td><td>${feldspieler.reduce((s, st) => s + (st.turnovers || 0), 0) + torwarte.reduce((s, st) => s + (st.turnovers || 0), 0)}</td></tr>
 
                             <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #185fa5; border-top: 1px solid #ddd;">🥅 Abwehr (Torleute)</td></tr>
                             <tr><td><b>Paraden (TW):</b></td><td>${torwarte.reduce((s, st) => s + (st.paraden || 0), 0)}</td></tr>
@@ -2324,13 +2314,6 @@
                                 const g7m = torwarte.reduce((s, st) => s + (st.gegentore_7m || 0), 0);
                                 return ((p7m / (p7m + g7m) * 100) || 0).toFixed(1) + '%';
                             })()}</td></tr>
-                            <tr><td><b>TG-Paraden:</b></td><td>${torwarte.reduce((s, st) => s + (st.tg_paraden || 0), 0)}</td></tr>
-                            <tr><td><b>TG-Gegentore:</b></td><td>${torwarte.reduce((s, st) => s + (st.tg_gegentore || 0), 0)}</td></tr>
-                            <tr><td><b>TG-Quote:</b></td><td>${(() => {
-                                const tgp = torwarte.reduce((s, st) => s + (st.tg_paraden || 0), 0);
-                                const tgg = torwarte.reduce((s, st) => s + (st.tg_gegentore || 0), 0);
-                                return ((tgp / (tgp + tgg) * 100) || 0).toFixed(1) + '%';
-                            })()}</td></tr>
                             <tr><td><b>Gegentore:</b></td><td>${torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0), 0)}</td></tr>
 
                             <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #e24b4a; border-top: 1px solid #ddd;">⚠️ Fehler</td></tr>
@@ -2341,6 +2324,41 @@
                                 const fehlpass = feldspieler.reduce((s, st) => s + (st.fehlpasse || 0), 0);
                                 return techFehler + fehlpass;
                             })()}</b></td></tr>
+
+                            <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #7b4fa8; border-top: 1px solid #ddd;">🏃 Tempogegenstöße</td></tr>
+                            <tr><td><b>Eigene TG gelaufen:</b></td><td>${(() => {
+                                const tgt = feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0);
+                                const tgf = feldspieler.reduce((s, st) => s + (st.tg_fehlwurfe || 0), 0);
+                                return tgt + tgf;
+                            })()}</td></tr>
+                            <tr><td><b>Eigene TG-Tore:</b></td><td>${feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0)}</td></tr>
+                            <tr><td><b>Eigene TG-Fehlwürfe:</b></td><td>${feldspieler.reduce((s, st) => s + (st.tg_fehlwurfe || 0), 0)}</td></tr>
+                            <tr><td><b>Eigene TG-Quote:</b></td><td>${(() => {
+                                const tgt = feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0);
+                                const tgf = feldspieler.reduce((s, st) => s + (st.tg_fehlwurfe || 0), 0);
+                                return ((tgt / (tgt + tgf) * 100) || 0).toFixed(1) + '%';
+                            })()}</td></tr>
+                            <tr><td><b>TG-Anteil am Gesamtscore:</b></td><td>${(() => {
+                                const tgt = feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0);
+                                return ((tgt / totTore * 100) || 0).toFixed(1) + '%';
+                            })()}</td></tr>
+                            <tr><td><b>Gegner TG gelaufen:</b></td><td>${(() => {
+                                const tgg = torwarte.reduce((s, st) => s + (st.tg_gegentore || 0), 0);
+                                const opp = localStats.opponent || { tg_fehlwurfe: 0 };
+                                return tgg + (opp.tg_fehlwurfe || 0);
+                            })()}</td></tr>
+                            <tr><td><b>TG-Paraden (eigener TW):</b></td><td>${torwarte.reduce((s, st) => s + (st.tg_paraden || 0), 0)}</td></tr>
+                            <tr><td><b>TG-Gegentore:</b></td><td>${torwarte.reduce((s, st) => s + (st.tg_gegentore || 0), 0)}</td></tr>
+                            <tr><td><b>TG-Quote (TW):</b></td><td>${(() => {
+                                const tgp = torwarte.reduce((s, st) => s + (st.tg_paraden || 0), 0);
+                                const tgg = torwarte.reduce((s, st) => s + (st.tg_gegentore || 0), 0);
+                                return ((tgp / (tgp + tgg) * 100) || 0).toFixed(1) + '%';
+                            })()}</td></tr>
+                            <tr><td><b>Gegner TG-Quote:</b></td><td>${(() => {
+                                const tgg = torwarte.reduce((s, st) => s + (st.tg_gegentore || 0), 0);
+                                const opp = localStats.opponent || { tg_fehlwurfe: 0 };
+                                return ((tgg / (tgg + (opp.tg_fehlwurfe || 0)) * 100) || 0).toFixed(1) + '%';
+                            })()}</td></tr>
 
                             <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #d4a100; border-top: 1px solid #ddd;">📈 Effektivitätswerte</td></tr>
                             <tr><td><b>Angriffseffektivität:</b></td><td>${(() => {
@@ -2374,29 +2392,6 @@
                                 const gegentoreGesamt = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0), 0);
                                 return (((paradenGesamt + gegnerFehler) / (paradenGesamt + gegnerFehler + gegentoreGesamt) * 100) || 0).toFixed(1) + '%';
                             })()}</b></td></tr>
-                            <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #7b4fa8; border-top: 1px solid #ddd;">🏃 Tempogegenstöße</td></tr>
-                            <tr><td><b>Eigene TG gelaufen:</b></td><td>${(() => {
-                                const tgt = feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0);
-                                const tgf = feldspieler.reduce((s, st) => s + (st.tg_fehlwurfe || 0), 0);
-                                return tgt + tgf;
-                            })()}</td></tr>
-                            <tr><td><b>Eigene TG erfolgreich (Tore):</b></td><td>${feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0)}</td></tr>
-                            <tr><td><b>Eigene TG-Quote:</b></td><td>${(() => {
-                                const tgt = feldspieler.reduce((s, st) => s + (st.tg_tore || 0), 0);
-                                const tgf = feldspieler.reduce((s, st) => s + (st.tg_fehlwurfe || 0), 0);
-                                return ((tgt / (tgt + tgf) * 100) || 0).toFixed(1) + '%';
-                            })()}</td></tr>
-                            <tr><td><b>Gegner TG gelaufen:</b></td><td>${(() => {
-                                const tgg = torwarte.reduce((s, st) => s + (st.tg_gegentore || 0), 0);
-                                const opp = localStats.opponent || { tg_fehlwurfe: 0 };
-                                return tgg + (opp.tg_fehlwurfe || 0);
-                            })()}</td></tr>
-                            <tr><td><b>Gegner TG erfolgreich (Gegentore):</b></td><td>${torwarte.reduce((s, st) => s + (st.tg_gegentore || 0), 0)}</td></tr>
-                            <tr><td><b>Gegner TG-Quote:</b></td><td>${(() => {
-                                const tgg = torwarte.reduce((s, st) => s + (st.tg_gegentore || 0), 0);
-                                const opp = localStats.opponent || { tg_fehlwurfe: 0 };
-                                return ((tgg / (tgg + (opp.tg_fehlwurfe || 0)) * 100) || 0).toFixed(1) + '%';
-                            })()}</td></tr>
                             <tr><td><b>Team-Handlungseffektivität:</b></td><td><b>${(() => {
                                 const feldPos = feldspieler.reduce((sum, st) => {
                                     const gtore = (st.tore || 0) + (st.tore7m || 0) + (st.tg_tore || 0);
@@ -2418,7 +2413,6 @@
                                 const neg = feldNeg + twNeg;
                                 return ((pos / (pos + neg) * 100) || 0).toFixed(1) + '%';
                             })()}</b></td></tr>
-                            <tr><td><b>Turnover (gewonnen):</b></td><td>${feldspieler.reduce((s, st) => s + (st.turnovers || 0), 0) + torwarte.reduce((s, st) => s + (st.turnovers || 0), 0)}</td></tr>
                         </table>
                     </div>
                     
@@ -2670,35 +2664,30 @@
                             <tr><td><b>Ø Gegentore/Spiel:</b></td><td>${(totalGegenTore / gameList.length).toFixed(1)}</td></tr>
 
                             <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #639922; border-top: 1px solid #ddd;">⚽ Angriff (Spieler)</td></tr>
-                            <tr><td><b>TG-Tore gesamt:</b></td><td>${totalTGTore}</td></tr>
-                            <tr><td><b>TG-Fehlwürfe gesamt:</b></td><td>${totalTGFehlwurfe}</td></tr>
-                            <tr><td><b>TG-Quote (Feld):</b></td><td>${((totalTGTore / (totalTGTore + totalTGFehlwurfe) * 100) || 0).toFixed(1)}%</td></tr>
-                            <tr><td><b>TG-Anteil am Gesamtscore:</b></td><td>${((totalTGTore / totalTore * 100) || 0).toFixed(1)}%</td></tr>
-
-                            <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #185fa5; border-top: 1px solid #ddd;">🥅 Abwehr (Torleute)</td></tr>
-                            <tr><td><b>TG-Paraden gesamt:</b></td><td>${totalTGParaden}</td></tr>
-                            <tr><td><b>TG-Gegentore gesamt:</b></td><td>${totalTGGegentore}</td></tr>
-                            <tr><td><b>TG-Quote (TW):</b></td><td>${((totalTGParaden / (totalTGParaden + totalTGGegentore) * 100) || 0).toFixed(1)}%</td></tr>
+                            <tr><td><b>Turnover (gewonnen):</b></td><td>${totalTurnovers}</td></tr>
 
                             <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #e24b4a; border-top: 1px solid #ddd;">⚠️ Fehler</td></tr>
                             <tr><td><b>Tech.Fehler gesamt:</b></td><td>${totalFeldTechFehler + totalTWTechFehler}</td></tr>
                             <tr><td><b>Fehler (Fehlpass) gesamt:</b></td><td>${totalFeldFehlpass}</td></tr>
                             <tr><td><b>Fehler gesamt:</b></td><td><b>${totalFeldTechFehler + totalTWTechFehler + totalFeldFehlpass}</b></td></tr>
 
+                            <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #7b4fa8; border-top: 1px solid #ddd;">🏃 Tempogegenstöße</td></tr>
+                            <tr><td><b>Eigene TG gelaufen:</b></td><td>${totalTGTore + totalTGFehlwurfe}</td></tr>
+                            <tr><td><b>Eigene TG-Tore:</b></td><td>${totalTGTore}</td></tr>
+                            <tr><td><b>Eigene TG-Fehlwürfe:</b></td><td>${totalTGFehlwurfe}</td></tr>
+                            <tr><td><b>Eigene TG-Quote:</b></td><td>${((totalTGTore / (totalTGTore + totalTGFehlwurfe) * 100) || 0).toFixed(1)}%</td></tr>
+                            <tr><td><b>TG-Anteil am Gesamtscore:</b></td><td>${((totalTGTore / totalTore * 100) || 0).toFixed(1)}%</td></tr>
+                            <tr><td><b>Gegner TG gelaufen:</b></td><td>${totalTGGegentore + totalOppTgFehlwurfe}</td></tr>
+                            <tr><td><b>TG-Paraden (eigener TW):</b></td><td>${totalTGParaden}</td></tr>
+                            <tr><td><b>TG-Gegentore:</b></td><td>${totalTGGegentore}</td></tr>
+                            <tr><td><b>TG-Quote (TW):</b></td><td>${((totalTGParaden / (totalTGParaden + totalTGGegentore) * 100) || 0).toFixed(1)}%</td></tr>
+                            <tr><td><b>Gegner TG-Quote:</b></td><td>${((totalTGGegentore / (totalTGGegentore + totalOppTgFehlwurfe) * 100) || 0).toFixed(1)}%</td></tr>
+
                             <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #d4a100; border-top: 1px solid #ddd;">📈 Effektivitätswerte</td></tr>
                             <tr><td><b>Angriffseffektivität:</b></td><td>${(((totalFeldtore + totalFeldTore7m + totalTGTore) / (totalFeldtore + totalFeldTore7m + totalTGTore + totalFeldFehlwurf + totalFeldFehlwurf7m + totalTGFehlwurfe + totalFeldTechFehler + totalFeldFehlpass) * 100) || 0).toFixed(1)}%</td></tr>
                             <tr><td><b>Wurfeffektivität (Torquote):</b></td><td>${(((totalFeldtore + totalFeldTore7m + totalTGTore) / (totalFeldtore + totalFeldTore7m + totalTGTore + totalFeldFehlwurf + totalFeldFehlwurf7m + totalTGFehlwurfe) * 100) || 0).toFixed(1)}%</td></tr>
                             <tr><td><b>Abwehreffektivität:</b></td><td><b>${(((totalParadenGesamt + totalGegnerFehler) / (totalParadenGesamt + totalGegnerFehler + totalGegenTore) * 100) || 0).toFixed(1)}%</b></td></tr>
                             <tr><td><b>Team-Handlungseffektivität:</b></td><td><b>${((totalHEPos / (totalHEPos + totalHENeg) * 100) || 0).toFixed(1)}%</b></td></tr>
-                            <tr><td><b>Turnover (gewonnen):</b></td><td>${totalTurnovers}</td></tr>
-
-                            <tr><td colspan="2" style="padding-top: 0.75rem; padding-bottom: 0.4rem; font-weight: bold; color: #7b4fa8; border-top: 1px solid #ddd;">🏃 Tempogegenstöße</td></tr>
-                            <tr><td><b>Eigene TG gelaufen:</b></td><td>${totalTGTore + totalTGFehlwurfe}</td></tr>
-                            <tr><td><b>Eigene TG erfolgreich (Tore):</b></td><td>${totalTGTore}</td></tr>
-                            <tr><td><b>Eigene TG-Quote:</b></td><td>${((totalTGTore / (totalTGTore + totalTGFehlwurfe) * 100) || 0).toFixed(1)}%</td></tr>
-                            <tr><td><b>Gegner TG gelaufen:</b></td><td>${totalTGGegentore + totalOppTgFehlwurfe}</td></tr>
-                            <tr><td><b>Gegner TG erfolgreich (Gegentore):</b></td><td>${totalTGGegentore}</td></tr>
-                            <tr><td><b>Gegner TG-Quote:</b></td><td>${((totalTGGegentore / (totalTGGegentore + totalOppTgFehlwurfe) * 100) || 0).toFixed(1)}%</td></tr>
                         </table>
                     </div>
                 `;
