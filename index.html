@@ -393,6 +393,12 @@
             if (game?.ended && !queueHasPendingForGame(gameId)) {
                 localStorage.removeItem('h3_cache_' + gameId);
                 logSync(`CACHE-CLEAR ${gameId} (vollständig synchronisiert)`);
+                
+                // Automatisch nachholen, falls das Spiel offline beendet wurde und die
+                // Archivierung beim endGame()-Aufruf deshalb mangels Netz fehlgeschlagen ist.
+                if (!archivedGameIds.has(gameId)) {
+                    archiveGameById(gameId, true);
+                }
             }
         }
         
@@ -3216,6 +3222,49 @@
             } catch (err) {
                 console.error('Archiv-Upload fehlgeschlagen:', err);
                 if (!silent) showToast('⚠️ Archivierung fehlgeschlagen');
+                return false;
+            }
+        }
+        
+        // Archiviert ein Spiel anhand seiner ID, unabhängig davon, welches Spiel gerade
+        // im UI geöffnet ist - holt Daten frisch aus der DB statt aus dem globalen
+        // localStats-Zustand, der zu diesem Zeitpunkt ein ganz anderes Spiel zeigen kann
+        // (z.B. wenn die Archivierung erst nach Rückkehr ins Netz automatisch nachläuft,
+        // während längst ein anderes Spiel auf dem Bildschirm aktiv ist).
+        async function archiveGameById(gameId, silent) {
+            const game = games.find(g => g.id === gameId);
+            if (!game || !isOnline) return false;
+            
+            try {
+                const { data: statsData } = await sbClient.from('player_stats').select('*').eq('game_id', gameId);
+                const feldspieler = (statsData || []).filter(s => {
+                    const p = players.find(pl => pl.id === s.player_id);
+                    return p && p.position === 'Feld';
+                });
+                const torwarte = (statsData || []).filter(s => {
+                    const p = players.find(pl => pl.id === s.player_id);
+                    return p && p.position === 'Torwart';
+                });
+                const { data: oppData } = await sbClient.from('opponent_stats').select('*').eq('game_id', gameId);
+                const opponentStats = (oppData && oppData.length > 0) ? oppData[0] : { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0, tg_fehlwurfe: 0 };
+                const { data: coachStatsData } = await sbClient.from('coach_stats').select('*').eq('game_id', gameId);
+                
+                const doc = buildSpielstatistikPdf(game, feldspieler, torwarte, coachStatsData || [], opponentStats);
+                const blob = doc.output('blob');
+                
+                const { error } = await sbClient.storage
+                    .from(ARCHIV_BUCKET)
+                    .upload(`${gameId}.pdf`, blob, { contentType: 'application/pdf', upsert: true });
+                if (error) throw error;
+                
+                archivedGameIds.add(gameId);
+                renderGamesList();
+                logSync(`ARCHIVE-OK ${gameId} (automatisch nach Sync nachgeholt)`);
+                if (!silent) showToast('✅ Im Archiv gespeichert');
+                return true;
+            } catch (err) {
+                console.error('Automatische Archivierung fehlgeschlagen:', gameId, err);
+                logSync(`ARCHIVE-FAILED ${gameId} - ${err?.message || err}`);
                 return false;
             }
         }
