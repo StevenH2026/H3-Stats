@@ -373,6 +373,29 @@
         
         let flushInProgress = false;
         
+        // Ermittelt die betroffene Spiel-ID eines Queue-Eintrags, unabhängig vom op-Typ -
+        // wird gebraucht, um nach vollständiger Synchronisation eines beendeten Spiels
+        // dessen Offline-Cache-Snapshot sicher aufzuräumen.
+        function getItemGameId(item) {
+            if (item.op === 'rpc') return item.args?.p_game_id ?? null;
+            if (item.op === 'insert') return item.payload?.game_id ?? null;
+            if (item.op === 'delete') return item.match?.game_id ?? null;
+            if (item.op === 'update' && item.table === 'games') return item.matchVal ?? null;
+            return null;
+        }
+        
+        // Löscht den Cache-Snapshot eines Spiels NUR, wenn es beendet ist und für dieses
+        // Spiel wirklich nichts mehr in der Queue offen ist - vorher bleibt er die einzige
+        // Quelle für die Offline-Ansicht der Spielstatistik.
+        function cleanupCacheIfFullySynced(gameId) {
+            if (!gameId) return;
+            const game = games.find(g => g.id === gameId);
+            if (game?.ended && !queueHasPendingForGame(gameId)) {
+                localStorage.removeItem('h3_cache_' + gameId);
+                logSync(`CACHE-CLEAR ${gameId} (vollständig synchronisiert)`);
+            }
+        }
+        
         async function flushQueue() {
             if (queueBlocked || !sbClient || flushInProgress) return;
             
@@ -408,6 +431,7 @@
                         pendingQueue.shift();
                         saveQueueToStorage();
                         logSync(`OK ${item.op} ${item.table || item.fn}`);
+                        cleanupCacheIfFullySynced(getItemGameId(item));
                     } catch (err) {
                         const isNetworkError = !navigator.onLine
                             || err instanceof TypeError
@@ -430,6 +454,7 @@
                             logSync(`SKIP-DUPLICATE ${item.op} ${item.table} - ${err?.message || err}`);
                             pendingQueue.shift();
                             saveQueueToStorage();
+                            cleanupCacheIfFullySynced(getItemGameId(item));
                             continue;
                         }
                         
@@ -3067,7 +3092,10 @@
                 currentGame.ended = true;
                 cacheSet('games', games);
                 enqueue({ op: 'update', table: 'games', payload: { ended: true }, matchCol: 'id', matchVal: currentGame.id });
-                localStorage.removeItem('h3_cache_' + currentGame.id);
+                // Cache-Snapshot NICHT sofort löschen: er ist die einzige Quelle für die
+                // Offline-Ansicht der Spielstatistik, solange 'ended' und alle Stat-Deltas
+                // noch nicht bestätigt in der DB angekommen sind (siehe flushQueue()).
+                // Löschung erfolgt automatisch, sobald für dieses Spiel nichts mehr aussteht.
                 
                 showToast('✅ Spiel beendet');
                 
