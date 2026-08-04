@@ -1353,9 +1353,14 @@
                 switchTab(document.querySelector('[onclick*="spielstat"]'), 'spielstat');
                 renderSpielStatistik();
                 
-                if (!queueHasPendingForGame(currentGame.id)) {
+                if (isOnline && !queueHasPendingForGame(currentGame.id)) {
                     loadLocalCaches(currentGame.id).then((gotFresh) => {
-                        if (gotFresh && currentGame && currentGame.id === gameId) {
+                        // Erneute Prüfung: falls zwischen Start und Ende dieses Netzwerk-Abgleichs
+                        // (kann auf langsamen/wechselnden Verbindungen mehrere Sekunden dauern)
+                        // bereits neue lokale Änderungen für dieses Spiel entstanden sind, darf das
+                        // Ergebnis NICHT mehr angewendet werden - sonst überschreibt ein verspätet
+                        // ankommender, zum Startzeitpunkt noch "sauberer" Fetch frisch erfasste Daten.
+                        if (gotFresh && currentGame && currentGame.id === gameId && !queueHasPendingForGame(gameId)) {
                             saveLocalCacheSnapshot();
                             renderSpielStatistik();
                         }
@@ -1377,9 +1382,11 @@
             // Nur wenn für dieses Spiel nichts mehr in der Queue offen ist, leise im Hintergrund
             // auffrischen (z.B. Änderungen von einem anderen Gerät) - blockiert die Anzeige nicht
             // und überschreibt nie, solange noch unsynchronisierte lokale Änderungen anstehen.
-            if (!queueHasPendingForGame(currentGame.id)) {
+            if (isOnline && !queueHasPendingForGame(currentGame.id)) {
                 loadLocalCaches(currentGame.id).then((gotFresh) => {
-                    if (gotFresh && currentGame && currentGame.id === gameId) {
+                    // Erneute Prüfung wie oben: verspätet ankommendes Fetch-Ergebnis darf lokal
+                    // in der Zwischenzeit erfasste Kader-/Stat-Änderungen nicht überschreiben.
+                    if (gotFresh && currentGame && currentGame.id === gameId && !queueHasPendingForGame(gameId)) {
                         saveLocalCacheSnapshot();
                         syncGameScore();
                         renderErlassung();
