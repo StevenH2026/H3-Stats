@@ -651,6 +651,10 @@
         
         async function handleAuthClick() {
             if (isAuthenticated) {
+                if (!isOnline) {
+                    alert('🔒 Ausloggen ist offline nicht möglich.\n\nOhne Netz kann keine neue Session geholt werden - ein Ausloggen würde die Erfassung bis zur nächsten WLAN-Verbindung komplett sperren.');
+                    return;
+                }
                 if (!confirm('Ausloggen? Bearbeiten ist danach wieder gesperrt.')) return;
                 await sbClient.auth.signOut();
                 isAuthenticated = false;
