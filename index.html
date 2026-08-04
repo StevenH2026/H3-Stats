@@ -763,8 +763,10 @@
         // wird die "Rolle beantragen"-Abfrage gezeigt.
         async function afterLoginSetup() {
             try {
-                const { data: roles } = await sbClient.rpc('my_roles');
+                const { data: roles, error } = await sbClient.rpc('my_roles');
+                if (error) throw error;
                 currentUserRoles = roles || [];
+                cacheSet('userRoles', currentUserRoles);
                 updateAuthUI();
                 
                 if (currentUserRoles.length > 0) return;
@@ -787,6 +789,15 @@
                 openRoleRequestModal();
             } catch (err) {
                 console.error('Fehler bei afterLoginSetup:', err);
+                // Kein Netz (oder RPC fehlgeschlagen) - auf die beim letzten erfolgreichen
+                // Online-Login lokal hinterlegten Rollen zurückfallen, statt den Nutzer
+                // fälschlich auf "ohne Rolle" zu sperren und die Erfassung zu blockieren.
+                const cachedRoles = cacheGet('userRoles');
+                if (cachedRoles && cachedRoles.length > 0) {
+                    currentUserRoles = cachedRoles;
+                    console.warn('Offline: nutze zwischengespeicherte Rollen', cachedRoles);
+                }
+                updateAuthUI();
             }
         }
         
