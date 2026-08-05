@@ -1847,7 +1847,8 @@
                 const isTorwart = player.position === 'Torwart';
                 const readOnly = !canRecordStats();
                 const rausAusSpiel = (stats.rot || 0) >= 1 || (stats.disq || 0) >= 1 || (stats.zwei_min || 0) >= 3;
-                const gelbGesperrt = (stats.gelb || 0) >= 1;
+                const teamGelbLimitErreicht = Object.values(localStats.players).reduce((s, st) => s + (st.gelb || 0), 0) >= 3;
+                const gelbGesperrt = (stats.gelb || 0) >= 1 || teamGelbLimitErreicht;
                 const rausHinweis = rausAusSpiel ? '<div style="background:#8B0000; color:white; padding:0.4rem; border-radius:4px; font-size:12px; text-align:center; margin-bottom:0.75rem;">🚫 Spieler ist raus (Rote Karte / 3x 2min) – keine weitere Erfassung möglich</div>' : '';
                 
                 if (isTorwart) {
@@ -2005,7 +2006,8 @@
                 
                 const readOnly = !canRecordStats();
                 const rausAusSpiel = (stats.rot || 0) >= 1 || (stats.disq || 0) >= 1 || (stats.zwei_min || 0) >= 3;
-                const gelbGesperrt = (stats.gelb || 0) >= 1;
+                const teamCoachGelbLimitErreicht = Object.values(localStats.coaches).reduce((s, st) => s + (st.gelb || 0), 0) >= 1;
+                const gelbGesperrt = (stats.gelb || 0) >= 1 || teamCoachGelbLimitErreicht;
                 const rausHinweis = rausAusSpiel ? '<div style="background:#8B0000; color:white; padding:0.4rem; border-radius:4px; font-size:12px; text-align:center; margin-bottom:0.75rem;">🚫 Betreuer ist raus (Rote Karte / 3x 2min) – keine weitere Erfassung möglich</div>' : '';
                 
                 return `
@@ -2104,6 +2106,13 @@
                     if (statKey === 'gelb' && (stats.gelb || 0) >= 1) {
                         showToast('🚫 Nur eine Gelbe Karte pro Spieler möglich');
                         return;
+                    }
+                    if (statKey === 'gelb') {
+                        const teamGelbGesamt = Object.values(localStats.players).reduce((s, st) => s + (st.gelb || 0), 0);
+                        if (teamGelbGesamt >= 3) {
+                            showToast('🚫 Team-Limit von 3 Gelben Karten erreicht – nur noch 2min möglich');
+                            return;
+                        }
                     }
                 }
                 
@@ -2249,6 +2258,13 @@
                     if (statKey === 'gelb' && (stats.gelb || 0) >= 1) {
                         showToast('🚫 Nur eine Gelbe Karte pro Betreuer möglich');
                         return;
+                    }
+                    if (statKey === 'gelb') {
+                        const teamCoachGelbGesamt = Object.values(localStats.coaches).reduce((s, st) => s + (st.gelb || 0), 0);
+                        if (teamCoachGelbGesamt >= 1) {
+                            showToast('🚫 Team-Limit von 1 Gelber Karte für Betreuer erreicht – nur noch 2min möglich');
+                            return;
+                        }
                     }
                 }
                 
