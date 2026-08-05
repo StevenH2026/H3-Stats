@@ -702,12 +702,10 @@
                 isAuthenticated = true;
                 updateAuthUI();
                 showToast('🔓 Eingeloggt');
-                loadPlayers();
-                loadCoaches();
-                loadGames();
+                await Promise.all([loadPlayers(), loadCoaches(), loadGames()]);
                 if (!queueBlocked) flushQueue();
-                afterLoginSetup();
-                renderStartseite();
+                await afterLoginSetup();
+                goToTab('start', 'Start');
             } catch (err) {
                 console.error('Login fehlgeschlagen:', err);
                 showToast('❌ Login fehlgeschlagen – Email/Passwort prüfen');
@@ -754,11 +752,9 @@
                     isAuthenticated = true;
                     updateAuthUI();
                     showToast('✅ Registriert und eingeloggt');
-                    loadPlayers();
-                    loadCoaches();
-                    loadGames();
+                    await Promise.all([loadPlayers(), loadCoaches(), loadGames()]);
                     await afterLoginSetup();
-                    renderStartseite();
+                    goToTab('start', 'Start');
                 } else {
                     showToast('✅ Registriert – bitte bestätige deine Email und logg dich danach ein');
                 }
