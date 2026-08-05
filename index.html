@@ -3745,11 +3745,19 @@
             const container = document.getElementById('startContent');
             if (!container) return;
             
-            const heuteStart = new Date();
-            heuteStart.setHours(0, 0, 0, 0);
+            // Kombiniert Datum + Uhrzeit zu einem vergleichbaren Zeitpunkt. Fehlt die Uhrzeit
+            // (z.B. bei älteren Einträgen ohne Zeitangabe), wird 23:59 angenommen, damit das
+            // Spiel den ganzen Tag über als "kommend" zählt statt schon ab Mitternacht als
+            // "vergangen" behandelt zu werden.
+            const gameDateTime = (g) => {
+                const timePart = (g.time && /^\d{2}:\d{2}/.test(g.time)) ? g.time : '23:59';
+                return new Date(`${g.date}T${timePart}`);
+            };
+            
+            const now = new Date();
             const upcoming = games
-                .filter(g => !g.ended && new Date(g.date) >= heuteStart)
-                .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+                .filter(g => !g.ended && gameDateTime(g) >= now)
+                .sort((a, b) => gameDateTime(a) - gameDateTime(b))[0];
             
             const endedGames = games.filter(g => g.ended).sort((a, b) => new Date(b.date) - new Date(a.date));
             const lastGame = endedGames[0];
