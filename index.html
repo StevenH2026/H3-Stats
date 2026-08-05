@@ -442,9 +442,14 @@
                         
                         // "Zuletzt bearbeitet von" nachführen - bewusst NICHT über die Queue
                         // (kein Nachverfolgungs-Zwang, kein Blocker bei Fehler/offline; einfach
-                        // best-effort, wird beim nächsten erfolgreichen Sync ohnehin nachgezogen)
-                        if (item.op === 'rpc' && item.args?.p_game_id && currentUserEmail) {
-                            const editedGameId = item.args.p_game_id;
+                        // best-effort, wird beim nächsten erfolgreichen Sync ohnehin nachgezogen).
+                        // Gilt für JEDE Operation, die ein bestehendes Spiel verändert (Stats per
+                        // RPC, Kader-/Betreuer-Insert/Delete, Score-Sync, Spiel beenden) - nicht
+                        // aber für das initiale Anlegen des Spiels selbst (getItemGameId liefert
+                        // dafür null, da der games-Insert-Payload kein game_id-Feld hat, sondern
+                        // seine eigene id; created_by/last_edited sind dort schon beim Anlegen gesetzt).
+                        const editedGameId = getItemGameId(item);
+                        if (editedGameId && currentUserEmail) {
                             sbClient.from('games').update({
                                 last_edited_by_email: currentUserEmail,
                                 last_edited_at: new Date().toISOString()
