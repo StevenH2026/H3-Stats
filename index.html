@@ -2588,7 +2588,7 @@
                     <div class="card">
                         <div class="card-title">⚽ Feldspieler-Ranking</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehlw.</th><th>Torquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>TG-Tore</th><th>TG-Fehlw.</th><th>TG-Quote</th><th>Tore<br>gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th>Fehlpass</th><th>Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehlw.</th><th>Torquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>TG-Tore</th><th>TG-Fehlw.</th><th>TG-Quote</th><th>Tore<br>gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th style="white-space: nowrap;">Fehlpass</th><th style="white-space: nowrap;">Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
                             ${feldspieler
                                 .sort((a, b) => ((b.tore || 0) + (b.tore7m || 0) + (b.tg_tore || 0)) - ((a.tore || 0) + (a.tore7m || 0) + (a.tg_tore || 0)))
                                 .map(s => {
@@ -2618,7 +2618,7 @@
                     <div class="card">
                         <div class="card-title">🥅 Torwart-Statistik</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>TG-Paraden</th><th>TG-Quote</th><th>Gegentore gesamt</th><th>Gegentore-Quote</th><th>Tech.<br>Fehler</th><th>Fehlpass</th><th>Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>TG-Paraden</th><th>TG-Quote</th><th>Gegentore gesamt</th><th>Gegentore-Quote</th><th>Tech.<br>Fehler</th><th style="white-space: nowrap;">Fehlpass</th><th style="white-space: nowrap;">Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
                             ${torwarte
                                 .sort((a, b) => ((b.paraden || 0) + (b.paraden_7m || 0) + (b.tg_paraden || 0)) - ((a.paraden || 0) + (a.paraden_7m || 0) + (a.tg_paraden || 0)))
                                 .map(s => {
@@ -2954,7 +2954,7 @@
                         <div class="card">
                             <div class="card-title">⚽ Feldspieler-Saisonstatistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehlw.</th><th>Torquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>TG-Tore</th><th>TG-Fehlw.</th><th>TG-Quote</th><th>Tore<br>gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th>Fehlpass</th><th>Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehlw.</th><th>Torquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>TG-Tore</th><th>TG-Fehlw.</th><th>TG-Quote</th><th>Tore<br>gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th style="white-space: nowrap;">Fehlpass</th><th style="white-space: nowrap;">Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
                                 ${feldspielerSaisonStats.map(s => {
                                     const p = players.find(pl => pl.id === s.playerId);
                                     if (!p) return '';
@@ -2997,7 +2997,7 @@
                         <div class="card">
                             <div class="card-title">🥅 Torwart-Saisonstatistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>TG-Paraden</th><th>TG-Quote</th><th>Gegentore gesamt</th><th>Gegentore-Quote</th><th>Tech.<br>Fehler</th><th>Fehlpass</th><th>Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>TG-Paraden</th><th>TG-Quote</th><th>Gegentore gesamt</th><th>Gegentore-Quote</th><th>Tech.<br>Fehler</th><th style="white-space: nowrap;">Fehlpass</th><th style="white-space: nowrap;">Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
                                 ${torwartSaisonStats.map(s => {
                                     const p = players.find(pl => pl.id === s.playerId);
                                     if (!p) return '';
