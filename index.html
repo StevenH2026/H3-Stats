@@ -3648,7 +3648,7 @@
                     ` : '<div class="empty-state">Kein Spiel geplant</div>'}
                 </div>
                 
-                <div class="card" id="startLastGameCard">
+                <div class="card" id="startLastGameCard" ${lastGame ? `style="cursor: pointer;" onclick="selectGame('${lastGame.id}')"` : ''}>
                     <div class="card-title">🏆 Letztes Ergebnis</div>
                     ${lastGame ? `
                         <div style="font-size: 16px; font-weight: bold;">vs ${lastGame.opponent}</div>
