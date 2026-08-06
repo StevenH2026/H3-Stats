@@ -1778,10 +1778,12 @@
                                 </div>
                             </div>
                             
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                                ${readOnly ? '<div style="grid-column: span 2; text-align:center; font-size:12px; opacity:0.85;">🔒 Nur lesend – keine Erfassungsrechte</div>' : `
-                                <button class="btn btn-secondary" style="background: rgba(100, 100, 100, 0.95); border-radius: 4px; font-size: 14px;" onclick="undo()">↩️ Undo</button>
-                                <button class="btn btn-success" style="background: rgba(99, 153, 34, 0.95); border-radius: 4px; font-size: 14px;" onclick="endGame()">✅ Spiel beenden</button>
+                            <div style="display: flex; justify-content: ${readOnly ? 'center' : 'flex-end'};">
+                                ${readOnly ? '<div style="text-align:center; font-size:12px; opacity:0.85;">🔒 Nur lesend – keine Erfassungsrechte</div>' : `
+                                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                    <button class="btn btn-success" style="background: rgba(99, 153, 34, 0.95); border-radius: 4px; font-size: 10px; width: 56px; height: 56px; padding: 0.25rem; line-height: 1.2;" onclick="endGame()">✅<br>Beenden</button>
+                                    <button class="btn btn-secondary" style="background: rgba(100, 100, 100, 0.95); border-radius: 4px; font-size: 10px; width: 56px; height: 56px; padding: 0.25rem; line-height: 1.2;" onclick="undo()">↩️<br>Undo</button>
+                                </div>
                                 `}
                             </div>
                         </div>
@@ -1959,7 +1961,7 @@
                                     ${renderStatBtn(player.id, 'rot', 'Rot', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ff4444; color: white;', rausAusSpiel)}
                                 </div>
                                 `}
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | 2min: ${stats.zwei_min || 0} | Rot: ${stats.rot || 0} | Disq: ${stats.disq || 0} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | 2min: ${stats.zwei_min || 0} | Rot: ${(stats.rot || 0) + (stats.disq || 0)} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
                             </div>
                         </div>
                     `;
@@ -2026,7 +2028,7 @@
                                     ${renderStatBtn(player.id, 'rot', 'Rot', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ff4444; color: white;', rausAusSpiel)}
                                 </div>
                                 `}
-                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | 2min: ${stats.zwei_min || 0} | Rot: ${stats.rot || 0} | Disq: ${stats.disq || 0} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
+                                <div style="font-size: 14px; margin-top: 0.5rem;">Gelb: ${stats.gelb || 0} | 2min: ${stats.zwei_min || 0} | Rot: ${(stats.rot || 0) + (stats.disq || 0)} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
                             </div>
                         </div>
                     `;
@@ -2069,7 +2071,7 @@
                                 ${renderCoachStatBtn(coach.id, 'rot', 'Rot', 'font-size: 11px; padding: 0.5rem 0.25rem; background: #ff4444; color: white;', rausAusSpiel)}
                             </div>
                             `}
-                            <div style="font-size: 14px; margin-top: 0.5rem; text-align: center;">Gelb: ${stats.gelb || 0} | 2min: ${stats.zwei_min || 0} | Rot: ${stats.rot || 0} | Disq: ${stats.disq || 0} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
+                            <div style="font-size: 14px; margin-top: 0.5rem; text-align: center;">Gelb: ${stats.gelb || 0} | 2min: ${stats.zwei_min || 0} | Rot: ${(stats.rot || 0) + (stats.disq || 0)} | Gesamt: ${(stats.gelb || 0) + (stats.rot || 0) + (stats.zwei_min || 0) + (stats.disq || 0)}</div>
                         </div>
                     </div>
                 `;
@@ -2634,7 +2636,7 @@
                     <div class="card">
                         <div class="card-title">⚽ Feldspieler-Ranking</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehlw.</th><th>Torquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>TG-Tore</th><th>TG-Fehlw.</th><th>TG-Quote</th><th>Tore<br>gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th style="white-space: nowrap;">Fehlpass</th><th style="white-space: nowrap;">Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehlw.</th><th>Torquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>TG-Tore</th><th>TG-Fehlw.</th><th>TG-Quote</th><th>Tore<br>gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th style="white-space: nowrap;">Fehlpass</th><th style="white-space: nowrap;">Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>HE</th></tr>
                             ${feldspieler
                                 .sort((a, b) => ((b.tore || 0) + (b.tore7m || 0) + (b.tg_tore || 0)) - ((a.tore || 0) + (a.tore7m || 0) + (a.tg_tore || 0)))
                                 .map(s => {
@@ -2655,7 +2657,7 @@
                                     const hePos = gesamttore * 3 + (s.assists || 0) * 2 + (s.sieben_m_geholt || 0) + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
                                     const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + (s.zwei_min || 0) + (s.rot || 0) * 4; // rot=direkte rote Karte (Gewicht 4), zwei_min deckt 3x2min-Disqualifikation ab (3x Gewicht 1), disq fließt bewusst NICHT ein (reiner Vermerk ohne Gewichtung)
                                     const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldfehl}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenfehl}</td><td>${siebenquote}%</td><td>${tgtore}</td><td>${tgfehl}</td><td>${tgquote}%</td><td><b>${gesamttore}</b></td><td>${gesamtquote}%</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.turnovers || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td><td><b>${he}</b></td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldfehl}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenfehl}</td><td>${siebenquote}%</td><td>${tgtore}</td><td>${tgfehl}</td><td>${tgquote}%</td><td><b>${gesamttore}</b></td><td>${gesamtquote}%</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.turnovers || 0}</td><td>${s.gelb || 0}</td><td>${(s.rot || 0) + (s.disq || 0)}</td><td>${s.zwei_min || 0}</td><td><b>${he}</b></td></tr>`;
                                 })
                                 .join('')}
                         </table>
@@ -2664,7 +2666,7 @@
                     <div class="card">
                         <div class="card-title">🥅 Torwart-Statistik</div>
                         <table style="font-size: 12px; width: 100%;">
-                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>TG-Paraden</th><th>TG-Quote</th><th>Gegentore gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th style="white-space: nowrap;">Fehlpass</th><th style="white-space: nowrap;">Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
+                            <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>TG-Paraden</th><th>TG-Quote</th><th>Gegentore gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th style="white-space: nowrap;">Fehlpass</th><th style="white-space: nowrap;">Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>HE</th></tr>
                             ${torwarte
                                 .sort((a, b) => ((b.paraden || 0) + (b.paraden_7m || 0) + (b.tg_paraden || 0)) - ((a.paraden || 0) + (a.paraden_7m || 0) + (a.tg_paraden || 0)))
                                 .map(s => {
@@ -2685,7 +2687,7 @@
                                     const hePos = gesamtparaden * 3 + (s.assists || 0) * 2 + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
                                     const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + (s.zwei_min || 0) + (s.rot || 0) * 4; // rot=direkte rote Karte (Gewicht 4), zwei_min deckt 3x2min-Disqualifikation ab (3x Gewicht 1), disq fließt bewusst NICHT ein (reiner Vermerk ohne Gewichtung)
                                     const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td>${tgparaden}</td><td>${tgquote}%</td><td><b>${gegengesamt}</b></td><td>${gegenquote}%</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.turnovers || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td><td><b>${he}</b></td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td>${tgparaden}</td><td>${tgquote}%</td><td><b>${gegengesamt}</b></td><td>${gegenquote}%</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.turnovers || 0}</td><td>${s.gelb || 0}</td><td>${(s.rot || 0) + (s.disq || 0)}</td><td>${s.zwei_min || 0}</td><td><b>${he}</b></td></tr>`;
                                 })
                                 .join('')}
                         </table>
@@ -2700,11 +2702,11 @@
                         <div class="card">
                             <div class="card-title">👔 Betreuer-Statistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Designation</th><th>Name</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Designation</th><th>Name</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
                                 ${coachStatsData.map(cs => {
                                     const c = coaches.find(coach => coach.id === cs.coach_id);
                                     if (!c) return '';
-                                    return `<tr><td><b>${c.designation}</b></td><td>${c.name}</td><td>${cs.gelb || 0}</td><td>${cs.rot || 0}</td><td>${cs.zwei_min || 0}</td><td>${cs.disq || 0}</td></tr>`;
+                                    return `<tr><td><b>${c.designation}</b></td><td>${c.name}</td><td>${cs.gelb || 0}</td><td>${(cs.rot || 0) + (cs.disq || 0)}</td><td>${cs.zwei_min || 0}</td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
@@ -3000,7 +3002,7 @@
                         <div class="card">
                             <div class="card-title">⚽ Feldspieler-Saisonstatistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehlw.</th><th>Torquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>TG-Tore</th><th>TG-Fehlw.</th><th>TG-Quote</th><th>Tore<br>gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th style="white-space: nowrap;">Fehlpass</th><th style="white-space: nowrap;">Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Tore</th><th>Fehlw.</th><th>Torquote</th><th>7m-Tore</th><th>7m-Fehlw.</th><th>7m-Quote</th><th>TG-Tore</th><th>TG-Fehlw.</th><th>TG-Quote</th><th>Tore<br>gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th style="white-space: nowrap;">Fehlpass</th><th style="white-space: nowrap;">Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>HE</th></tr>
                                 ${feldspielerSaisonStats.map(s => {
                                     const p = players.find(pl => pl.id === s.playerId);
                                     if (!p) return '';
@@ -3019,7 +3021,7 @@
                                     const hePos = gesamttore * 3 + (s.assists || 0) * 2 + (s.sieben_m_geholt || 0) + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
                                     const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + (s.zwei_min || 0) + (s.rot || 0) * 4; // rot=direkte rote Karte (Gewicht 4), zwei_min deckt 3x2min-Disqualifikation ab (3x Gewicht 1), disq fließt bewusst NICHT ein (reiner Vermerk ohne Gewichtung)
                                     const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldfehl}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenfehl}</td><td>${siebenquote}%</td><td>${tgtore}</td><td>${tgfehl}</td><td>${tgquote}%</td><td><b>${gesamttore}</b></td><td>${gesamtquote}%</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.turnovers || 0}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td><td><b>${he}</b></td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldfehl}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenfehl}</td><td>${siebenquote}%</td><td>${tgtore}</td><td>${tgfehl}</td><td>${tgquote}%</td><td><b>${gesamttore}</b></td><td>${gesamtquote}%</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.turnovers || 0}</td><td>${s.gelb}</td><td>${s.rot + s.disq}</td><td>${s.zwei_min}</td><td><b>${he}</b></td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
@@ -3043,7 +3045,7 @@
                         <div class="card">
                             <div class="card-title">🥅 Torwart-Saisonstatistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>TG-Paraden</th><th>TG-Quote</th><th>Gegentore gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th style="white-space: nowrap;">Fehlpass</th><th style="white-space: nowrap;">Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th><th>HE</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Nr</th><th>Name</th><th>Paraden</th><th>Parade-Quote</th><th>7m-Paraden</th><th>7m-Quote</th><th>TG-Paraden</th><th>TG-Quote</th><th>Gegentore gesamt</th><th>Gesamt-Quote</th><th>Tech.<br>Fehler</th><th style="white-space: nowrap;">Fehlpass</th><th style="white-space: nowrap;">Turnover</th><th>Gelb</th><th>Rot</th><th>2min</th><th>HE</th></tr>
                                 ${torwartSaisonStats.map(s => {
                                     const p = players.find(pl => pl.id === s.playerId);
                                     if (!p) return '';
@@ -3062,7 +3064,7 @@
                                     const hePos = gesamtparaden * 3 + (s.assists || 0) * 2 + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
                                     const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + (s.zwei_min || 0) + (s.rot || 0) * 4; // rot=direkte rote Karte (Gewicht 4), zwei_min deckt 3x2min-Disqualifikation ab (3x Gewicht 1), disq fließt bewusst NICHT ein (reiner Vermerk ohne Gewichtung)
                                     const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
-                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td>${tgparaden}</td><td>${tgquote}%</td><td><b>${gegengesamt}</b></td><td>${gegenquote}%</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.turnovers || 0}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td><td><b>${he}</b></td></tr>`;
+                                    return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td>${tgparaden}</td><td>${tgquote}%</td><td><b>${gegengesamt}</b></td><td>${gegenquote}%</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.turnovers || 0}</td><td>${s.gelb}</td><td>${s.rot + s.disq}</td><td>${s.zwei_min}</td><td><b>${he}</b></td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
@@ -3090,11 +3092,11 @@
                         <div class="card">
                             <div class="card-title">👔 Betreuer-Saison-Statistik</div>
                             <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Designation</th><th>Name</th><th>Gelb</th><th>Rot</th><th>2min</th><th>Disq</th></tr>
+                                <tr style="background: #f5f5f5;"><th>Designation</th><th>Name</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
                                 ${Object.entries(coachSummary).map(([coachId, stats]) => {
                                     const c = coaches.find(coach => coach.id === coachId);
                                     if (!c) return '';
-                                    return `<tr><td><b>${c.designation}</b></td><td>${c.name}</td><td>${stats.gelb}</td><td>${stats.rot}</td><td>${stats.zwei_min}</td><td>${stats.disq}</td></tr>`;
+                                    return `<tr><td><b>${c.designation}</b></td><td>${c.name}</td><td>${stats.gelb}</td><td>${stats.rot + stats.disq}</td><td>${stats.zwei_min}</td></tr>`;
                                 }).join('')}
                             </table>
                         </div>
@@ -4416,11 +4418,11 @@
             gray:   [51, 51, 51]
         };
 
-        const PDF_FELD_HEADERS = ['Nr','Name','Tore','Fehlw.','Torquote','7m-T','7m-F','7m-Quote','TG-T','TG-F','TG-Quote','Ges.Tore','Ges.Quote','Tech.F','Fehlp.','Turnover','Gelb','Rot','2min','Disq','HE'];
+        const PDF_FELD_HEADERS = ['Nr','Name','Tore','Fehlw.','Torquote','7m-T','7m-F','7m-Quote','TG-T','TG-F','TG-Quote','Ges.Tore','Ges.Quote','Tech.F','Fehlp.','Turnover','Gelb','Rot','2min','HE'];
         const PDF_FELD_COL_STYLES = { 0: { cellWidth: 8 }, 1: { cellWidth: 26 } };
-        const PDF_TW_HEADERS = ['Nr','Name','Paraden','Par.-Quote','7m-Par','7m-Quote','TG-Par','TG-Quote','Geg.Ges','Geg.Quote','Tech.F','Fehlp.','Turnover','Gelb','Rot','2min','Disq','HE'];
+        const PDF_TW_HEADERS = ['Nr','Name','Paraden','Par.-Quote','7m-Par','7m-Quote','TG-Par','TG-Quote','Geg.Ges','Geg.Quote','Tech.F','Fehlp.','Turnover','Gelb','Rot','2min','HE'];
         const PDF_TW_COL_STYLES = { 0: { cellWidth: 8 }, 1: { cellWidth: 30 } };
-        const PDF_COACH_HEADERS = ['Designation','Name','Gelb','Rot','2min','Disq'];
+        const PDF_COACH_HEADERS = ['Designation','Name','Gelb','Rot','2min'];
 
         function pdfPct(a, b) {
             return ((a / (a + b) * 100) || 0).toFixed(0) + '%';
@@ -4557,7 +4559,7 @@
                 const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
                 return {
                     sortKey: gesamttore,
-                    row: [p.number, p.name, feldtore, feldfehl, pdfPct(feldtore, feldfehl), siebentore, siebenfehl, pdfPct(siebentore, siebenfehl), tgtore, tgfehl, pdfPct(tgtore, tgfehl), gesamttore, pdfPct(gesamttore, gesamtfehlwurf), s.tech_fehler || 0, s.fehlpasse || 0, s.turnovers || 0, s.gelb || 0, s.rot || 0, s.zwei_min || 0, s.disq || 0, he]
+                    row: [p.number, p.name, feldtore, feldfehl, pdfPct(feldtore, feldfehl), siebentore, siebenfehl, pdfPct(siebentore, siebenfehl), tgtore, tgfehl, pdfPct(tgtore, tgfehl), gesamttore, pdfPct(gesamttore, gesamtfehlwurf), s.tech_fehler || 0, s.fehlpasse || 0, s.turnovers || 0, s.gelb || 0, (s.rot || 0) + (s.disq || 0), s.zwei_min || 0, he]
                 };
             }).filter(Boolean).sort((a, b) => b.sortKey - a.sortKey).map(x => x.row);
         }
@@ -4580,7 +4582,7 @@
                 const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
                 return {
                     sortKey: gesamtparaden,
-                    row: [p.number, p.name, paraden, pdfPct(paraden, gegentore), paraden7m, pdfPct(paraden7m, gegentore7m), tgparaden, pdfPct(tgparaden, tggegentore), gegengesamt, pdfPct(gesamtparaden, gegengesamt), s.tech_fehler || 0, s.fehlpasse || 0, s.turnovers || 0, s.gelb || 0, s.rot || 0, s.zwei_min || 0, s.disq || 0, he]
+                    row: [p.number, p.name, paraden, pdfPct(paraden, gegentore), paraden7m, pdfPct(paraden7m, gegentore7m), tgparaden, pdfPct(tgparaden, tggegentore), gegengesamt, pdfPct(gesamtparaden, gegengesamt), s.tech_fehler || 0, s.fehlpasse || 0, s.turnovers || 0, s.gelb || 0, (s.rot || 0) + (s.disq || 0), s.zwei_min || 0, he]
                 };
             }).filter(Boolean).sort((a, b) => b.sortKey - a.sortKey).map(x => x.row);
         }
@@ -4590,7 +4592,7 @@
                 const cid = coachIdKey ? cs[coachIdKey] : cs.coach_id;
                 const c = coaches.find(coach => coach.id === cid);
                 if (!c) return null;
-                return [c.designation, c.name, cs.gelb || 0, cs.rot || 0, cs.zwei_min || 0, cs.disq || 0];
+                return [c.designation, c.name, cs.gelb || 0, (cs.rot || 0) + (cs.disq || 0), cs.zwei_min || 0];
             }).filter(Boolean);
         }
 
