@@ -109,7 +109,7 @@
         <button class="nav-btn" id="navSpielerBtn" onclick="switchTab(this, 'spieler')">👥 Spieler</button>
         <button class="nav-btn" id="navBetreuerBtn" onclick="switchTab(this, 'betreuer')">🎯 Betreuer</button>
         <button class="nav-btn" onclick="switchTab(this, 'archiv')">📁 Archiv</button>
-        <button class="nav-btn" onclick="switchTab(this, 'admin')">🔑 Admin</button>
+        <button class="nav-btn" id="navAdminBtn" onclick="switchTab(this, 'admin')">🔑 Admin</button>
     </div>
     
     <div class="container">
@@ -665,6 +665,16 @@
         function canRecordStats() {
             return currentUserRoles.includes('trainer') || currentUserRoles.includes('betreuer') || currentUserRoles.includes('admin');
         }
+
+        // Wer den Admin-Tab sehen und bedienen darf - bewusst dieselbe Grenze wie
+        // canManageRoster (Spieler-/Betreuer-Stammdaten), da der Admin-Tab jetzt auch
+        // den CSV-Import für genau diese Stammdaten enthält. Spieler und Betreuer sollen
+        // ihn nicht sehen - das schützt nur die UI, nicht die Datenbank selbst (dafür
+        // sind RLS-Policies auf players/coaches/registration_requests/user_roles nötig,
+        // die hier separat geprüft/nachgezogen werden).
+        function canAccessAdmin() {
+            return currentUserRoles.includes('trainer') || currentUserRoles.includes('admin');
+        }
         
         function updateAuthUI() {
             const btn = document.getElementById('authBtn');
@@ -692,6 +702,20 @@
                 if ((spielerTab && spielerTab.classList.contains('active')) || (betreuerTab && betreuerTab.classList.contains('active'))) {
                     const spieleBtn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.textContent.includes('Spiele'));
                     switchTab(spieleBtn, 'spiele');
+                }
+            }
+
+            // Admin-Tab nur für Trainer + Admin sichtbar - Spieler und Betreuer bekommen
+            // den Button gar nicht erst zu sehen und werden rausgeworfen, falls sie schon
+            // drin waren (z.B. Rollenänderung während offener Sitzung).
+            const adminBtn = document.getElementById('navAdminBtn');
+            if (adminBtn) adminBtn.style.display = canAccessAdmin() ? '' : 'none';
+            if (!canAccessAdmin()) {
+                const adminTab = document.getElementById('admin');
+                if (adminTab && adminTab.classList.contains('active')) {
+                    const startBtn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.textContent.includes('Start'));
+                    switchTab(startBtn, 'start');
+                    showToast('🔒 Kein Zugriff auf den Admin-Bereich');
                 }
             }
             
@@ -3294,8 +3318,8 @@
         }
 
         async function confirmGameImport() {
-            if (!canRecordStats()) {
-                showToast('🔒 Keine Berechtigung, Spiele anzulegen');
+            if (!currentUserRoles.includes('admin')) {
+                showToast('🔒 CSV-Massenimport ist nur für Admin freigegeben');
                 return;
             }
             const toImport = gameImportPreview.filter(r => r.status === 'new');
@@ -3319,10 +3343,17 @@
                         last_edited_by_email: currentUserEmail || null,
                         last_edited_at: new Date().toISOString()
                     };
-                    const { error: gameError } = await sbClient.from('games').insert([newGame]);
-                    if (gameError) throw gameError;
-                    const { error: oppError } = await sbClient.from('opponent_stats').insert([{ game_id: newGame.id, fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0, tg_fehlwurfe: 0 }]);
-                    if (oppError) throw oppError;
+                    // Läuft über die admin_import_game-RPC statt direktem Insert - die Funktion
+                    // prüft is_admin() selbst und macht games+opponent_stats in einer Transaktion.
+                    const { error } = await sbClient.rpc('admin_import_game', {
+                        p_id: newGame.id,
+                        p_opponent: newGame.opponent,
+                        p_date: newGame.date,
+                        p_time: newGame.time,
+                        p_location: newGame.location,
+                        p_created_by_email: currentUserEmail || null
+                    });
+                    if (error) throw error;
                     games.push(newGame);
                     imported++;
                 } catch (err) {
@@ -3333,12 +3364,12 @@
 
             for (const row of toUpdate) {
                 try {
-                    const { error } = await sbClient.from('games').update({
-                        time: row.time,
-                        location: row.location,
-                        last_edited_by_email: currentUserEmail || null,
-                        last_edited_at: new Date().toISOString()
-                    }).eq('id', row.existingGame.id);
+                    const { error } = await sbClient.rpc('admin_import_game_update', {
+                        p_id: row.existingGame.id,
+                        p_time: row.time,
+                        p_location: row.location,
+                        p_edited_by_email: currentUserEmail || null
+                    });
                     if (error) throw error;
                     row.existingGame.time = row.time;
                     row.existingGame.location = row.location;
@@ -3461,6 +3492,10 @@
         }
 
         async function confirmPlayerImport() {
+            if (!currentUserRoles.includes('admin')) {
+                showToast('🔒 CSV-Massenimport ist nur für Admin freigegeben');
+                return;
+            }
             const toImport = playerImportPreview.filter(r => r.status === 'new');
             let imported = 0;
             const errors = [];
@@ -3473,7 +3508,15 @@
                         name: row.name,
                         position: row.position
                     };
-                    const { error } = await sbClient.from('players').insert([newPlayer]);
+                    // Läuft über die admin_import_player-RPC statt direktem Insert - die
+                    // Funktion prüft is_admin() selbst, unabhängig von der write_stammdaten-
+                    // Policy, die für die Einzelanlage weiterhin auch Trainer erlaubt.
+                    const { error } = await sbClient.rpc('admin_import_player', {
+                        p_id: newPlayer.id,
+                        p_number: newPlayer.number,
+                        p_name: newPlayer.name,
+                        p_position: newPlayer.position
+                    });
                     if (error) throw error;
                     players.push(newPlayer);
                     imported++;
@@ -3588,6 +3631,10 @@
         }
 
         async function confirmCoachImport() {
+            if (!currentUserRoles.includes('admin')) {
+                showToast('🔒 CSV-Massenimport ist nur für Admin freigegeben');
+                return;
+            }
             const toImport = coachImportPreview.filter(r => r.status === 'new');
             let imported = 0;
             const errors = [];
@@ -3599,7 +3646,13 @@
                         designation: row.designation,
                         name: row.name
                     };
-                    const { error } = await sbClient.from('coaches').insert([newCoach]);
+                    // Läuft über die admin_import_coach-RPC statt direktem Insert - siehe
+                    // Kommentar bei confirmPlayerImport().
+                    const { error } = await sbClient.rpc('admin_import_coach', {
+                        p_id: newCoach.id,
+                        p_designation: newCoach.designation,
+                        p_name: newCoach.name
+                    });
                     if (error) throw error;
                     coaches.push(newCoach);
                     imported++;
@@ -4032,89 +4085,106 @@
         async function renderAdminPanel() {
             const container = document.getElementById('adminContent');
             if (!container) return;
-            container.innerHTML = '<div class="card"><div class="empty-state">Lade Anfragen...</div></div>';
-            
-            try {
-                const { data, error } = await sbClient
-                    .from('registration_requests')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                
-                if (error) throw error;
-                
-                const requests = data || [];
-                const pending = requests.filter(r => r.status === 'pending');
-                const processed = requests.filter(r => r.status !== 'pending').slice(0, 20);
-                
-                let html = `
-                    <div class="card">
-                        <div class="card-title">🔧 Spielergebnisse reparieren</div>
-                        <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">Berechnet score_us/score_gegner für alle Spiele neu aus den Spieler-Statistiken (behebt veraltete Anzeigen in der Spiele-Liste, z.B. nach einem blockierten Sync).</div>
-                        <button class="btn btn-primary" onclick="repairAllGameScores()">🔧 Alle Ergebnisse neu berechnen</button>
-                    </div>
-
-                    <div class="card">
-                        <div class="card-title">📅 Spiele per CSV importieren</div>
-                        <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">CSV-Datei (UTF-8, komma-getrennt) mit Spielterminen importieren – egal ob aus Handball4All exportiert oder manuell gepflegt. Spalten werden im nächsten Schritt zugeordnet, Duplikate (gleicher Gegner + gleiches Datum) werden erkannt.</div>
-                        <button class="btn btn-success" style="width:100%;" onclick="document.getElementById('gameImportInput').click(); openGameImportModal();">📄 CSV auswählen</button>
-                        <input type="file" id="gameImportInput" accept=".csv" style="display:none;" onchange="handleGameImportFile(event)">
-                    </div>
-
-                    <div class="card">
-                        <div class="card-title">👥 Spieler per CSV importieren</div>
-                        <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">CSV-Datei (UTF-8, komma-getrennt) mit den Spalten <b>Nummer, Name, Position</b> importieren. Zeigt vor dem Import eine Vorschau mit erkannten Duplikaten (Rückennummer schon vergeben).</div>
-                        <button class="btn btn-success" style="width:100%;" onclick="document.getElementById('playerImportInput').click(); openPlayerImportModal();">📄 CSV auswählen</button>
-                        <input type="file" id="playerImportInput" accept=".csv" style="display:none;" onchange="handlePlayerImportFile(event)">
-                    </div>
-
-                    <div class="card">
-                        <div class="card-title">🎯 Betreuer per CSV importieren</div>
-                        <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">CSV-Datei (UTF-8, komma-getrennt) mit den Spalten <b>Designation, Name</b> importieren (Designation = A/B/C/D). Zeigt vor dem Import eine Vorschau mit erkannten Duplikaten (Bezeichnung schon vergeben).</div>
-                        <button class="btn btn-success" style="width:100%;" onclick="document.getElementById('coachImportInput').click(); openCoachImportModal();">📄 CSV auswählen</button>
-                        <input type="file" id="coachImportInput" accept=".csv" style="display:none;" onchange="handleCoachImportFile(event)">
-                    </div>
-                    
-                    ${renderPendingQueuePanel()}
-                    
-                    <div class="card"><div class="card-title">🔑 Offene Rollen-Anfragen</div>`;
-                
-                if (pending.length === 0) {
-                    html += '<div class="empty-state">Keine offenen Anfragen</div>';
-                } else {
-                    html += `<table style="font-size: 13px; width: 100%;">
-                        <tr style="background: #f5f5f5;"><th>Email</th><th>Gewünschte Rolle</th><th>Angefragt am</th><th></th></tr>
-                        ${pending.map(r => `
-                            <tr>
-                                <td>${r.email}</td>
-                                <td><b>${r.requested_role}</b></td>
-                                <td>${new Date(r.created_at).toLocaleDateString('de-DE')}</td>
-                                <td style="display:flex; gap:0.25rem;">
-                                    <button class="btn btn-success" style="padding:0.35rem 0.6rem; font-size:11px;" onclick="approveRequest('${r.id}', '${r.user_id}', '${r.requested_role}')">✅ Genehmigen</button>
-                                    <button class="btn btn-danger" style="padding:0.35rem 0.6rem; font-size:11px;" onclick="rejectRequest('${r.id}')">❌ Ablehnen</button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </table>`;
-                }
-                html += `</div>`;
-                
-                if (processed.length > 0) {
-                    html += `
-                        <div class="card">
-                            <div class="card-title">📜 Bereits bearbeitet</div>
-                            <table style="font-size: 12px; width: 100%;">
-                                <tr style="background: #f5f5f5;"><th>Email</th><th>Rolle</th><th>Status</th><th>Bearbeitet am</th></tr>
-                                ${processed.map(r => `<tr><td>${r.email}</td><td>${r.requested_role}</td><td>${r.status === 'approved' ? '✅ genehmigt' : '❌ abgelehnt'}</td><td>${r.reviewed_at ? new Date(r.reviewed_at).toLocaleDateString('de-DE') : '-'}</td></tr>`).join('')}
-                            </table>
-                        </div>
-                    `;
-                }
-                
-                container.innerHTML = html;
-            } catch (err) {
-                console.error('Error loading registration requests:', err);
-                container.innerHTML = '<div class="card"><div class="empty-state">⚠️ Konnte nicht geladen werden (keine Admin-Rechte oder offline?)</div></div>';
+            if (!canAccessAdmin()) {
+                container.innerHTML = '<div class="card"><div class="empty-state">🔒 Kein Zugriff auf den Admin-Bereich</div></div>';
+                return;
             }
+            container.innerHTML = '<div class="card"><div class="empty-state">Lade...</div></div>';
+
+            // Rollen-Verwaltung (Anfragen genehmigen/ablehnen) ist per RLS strikt auf
+            // is_admin() beschränkt - strenger als der Rest des Admin-Tabs (der auch für
+            // Trainer laut write_stammdaten-Policy auf players/coaches offen ist). Deshalb
+            // hier eine zusätzliche, engere Grenze statt nur canAccessAdmin(): ein Trainer
+            // soll gar nicht erst Buttons sehen, die die Datenbank ohnehin ablehnen würde.
+            const isAdmin = currentUserRoles.includes('admin');
+
+            let html = `
+                <div class="card">
+                    <div class="card-title">🔧 Spielergebnisse reparieren</div>
+                    <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">Berechnet score_us/score_gegner für alle Spiele neu aus den Spieler-Statistiken (behebt veraltete Anzeigen in der Spiele-Liste, z.B. nach einem blockierten Sync).</div>
+                    <button class="btn btn-primary" onclick="repairAllGameScores()">🔧 Alle Ergebnisse neu berechnen</button>
+                </div>
+
+                ${isAdmin ? `
+                <div class="card">
+                    <div class="card-title">📅 Spiele per CSV importieren</div>
+                    <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">CSV-Datei (UTF-8, komma-getrennt) mit Spielterminen importieren – egal ob aus Handball4All exportiert oder manuell gepflegt. Spalten werden im nächsten Schritt zugeordnet, Duplikate (gleicher Gegner + gleiches Datum) werden erkannt.</div>
+                    <button class="btn btn-success" style="width:100%;" onclick="document.getElementById('gameImportInput').click(); openGameImportModal();">📄 CSV auswählen</button>
+                    <input type="file" id="gameImportInput" accept=".csv" style="display:none;" onchange="handleGameImportFile(event)">
+                </div>
+
+                <div class="card">
+                    <div class="card-title">👥 Spieler per CSV importieren</div>
+                    <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">CSV-Datei (UTF-8, komma-getrennt) mit den Spalten <b>Nummer, Name, Position</b> importieren. Zeigt vor dem Import eine Vorschau mit erkannten Duplikaten (Rückennummer schon vergeben).</div>
+                    <button class="btn btn-success" style="width:100%;" onclick="document.getElementById('playerImportInput').click(); openPlayerImportModal();">📄 CSV auswählen</button>
+                    <input type="file" id="playerImportInput" accept=".csv" style="display:none;" onchange="handlePlayerImportFile(event)">
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🎯 Betreuer per CSV importieren</div>
+                    <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">CSV-Datei (UTF-8, komma-getrennt) mit den Spalten <b>Designation, Name</b> importieren (Designation = A/B/C/D). Zeigt vor dem Import eine Vorschau mit erkannten Duplikaten (Bezeichnung schon vergeben).</div>
+                    <button class="btn btn-success" style="width:100%;" onclick="document.getElementById('coachImportInput').click(); openCoachImportModal();">📄 CSV auswählen</button>
+                    <input type="file" id="coachImportInput" accept=".csv" style="display:none;" onchange="handleCoachImportFile(event)">
+                </div>
+                ` : ''}
+                
+                ${renderPendingQueuePanel()}
+            `;
+
+            if (isAdmin) {
+                try {
+                    const { data, error } = await sbClient
+                        .from('registration_requests')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+                    
+                    if (error) throw error;
+                    
+                    const requests = data || [];
+                    const pending = requests.filter(r => r.status === 'pending');
+                    const processed = requests.filter(r => r.status !== 'pending').slice(0, 20);
+                    
+                    html += `<div class="card"><div class="card-title">🔑 Offene Rollen-Anfragen</div>`;
+                    if (pending.length === 0) {
+                        html += '<div class="empty-state">Keine offenen Anfragen</div>';
+                    } else {
+                        html += `<table style="font-size: 13px; width: 100%;">
+                            <tr style="background: #f5f5f5;"><th>Email</th><th>Gewünschte Rolle</th><th>Angefragt am</th><th></th></tr>
+                            ${pending.map(r => `
+                                <tr>
+                                    <td>${r.email}</td>
+                                    <td><b>${r.requested_role}</b></td>
+                                    <td>${new Date(r.created_at).toLocaleDateString('de-DE')}</td>
+                                    <td style="display:flex; gap:0.25rem;">
+                                        <button class="btn btn-success" style="padding:0.35rem 0.6rem; font-size:11px;" onclick="approveRequest('${r.id}', '${r.user_id}', '${r.requested_role}')">✅ Genehmigen</button>
+                                        <button class="btn btn-danger" style="padding:0.35rem 0.6rem; font-size:11px;" onclick="rejectRequest('${r.id}')">❌ Ablehnen</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </table>`;
+                    }
+                    html += `</div>`;
+                    
+                    if (processed.length > 0) {
+                        html += `
+                            <div class="card">
+                                <div class="card-title">📜 Bereits bearbeitet</div>
+                                <table style="font-size: 12px; width: 100%;">
+                                    <tr style="background: #f5f5f5;"><th>Email</th><th>Rolle</th><th>Status</th><th>Bearbeitet am</th></tr>
+                                    ${processed.map(r => `<tr><td>${r.email}</td><td>${r.requested_role}</td><td>${r.status === 'approved' ? '✅ genehmigt' : '❌ abgelehnt'}</td><td>${r.reviewed_at ? new Date(r.reviewed_at).toLocaleDateString('de-DE') : '-'}</td></tr>`).join('')}
+                                </table>
+                            </div>
+                        `;
+                    }
+                } catch (err) {
+                    console.error('Error loading registration requests:', err);
+                    html += '<div class="card"><div class="empty-state">⚠️ Rollen-Anfragen konnten nicht geladen werden</div></div>';
+                }
+            } else {
+                html += `<div class="card"><div class="card-title">🔑 Rollen-Verwaltung</div><div style="font-size:13px; color:#666;">🔒 Nur für Admin sichtbar.</div></div>`;
+            }
+
+            container.innerHTML = html;
         }
         
         async function approveRequest(requestId, userId, role) {
