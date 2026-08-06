@@ -2653,7 +2653,7 @@
                                     const gesamtfehlwurf = feldfehl + siebenfehl + tgfehl;
                                     const gesamtquote = ((gesamttore / (gesamttore + gesamtfehlwurf) * 100) || 0).toFixed(0);
                                     const hePos = gesamttore * 3 + (s.assists || 0) * 2 + (s.sieben_m_geholt || 0) + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
-                                    const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0));
+                                    const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + (s.zwei_min || 0) + (s.rot || 0) * 4; // rot=direkte rote Karte (Gewicht 4), zwei_min deckt 3x2min-Disqualifikation ab (3x Gewicht 1), disq fließt bewusst NICHT ein (reiner Vermerk ohne Gewichtung)
                                     const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
                                     return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldfehl}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenfehl}</td><td>${siebenquote}%</td><td>${tgtore}</td><td>${tgfehl}</td><td>${tgquote}%</td><td><b>${gesamttore}</b></td><td>${gesamtquote}%</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.turnovers || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td><td><b>${he}</b></td></tr>`;
                                 })
@@ -2683,7 +2683,7 @@
                                     const gesamtparaden = paraden + paraden7m + tgparaden;
                                     const gegenquote = ((gesamtparaden / (gesamtparaden + gegengesamt) * 100) || 0).toFixed(0);
                                     const hePos = gesamtparaden * 3 + (s.assists || 0) * 2 + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
-                                    const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0));
+                                    const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + (s.zwei_min || 0) + (s.rot || 0) * 4; // rot=direkte rote Karte (Gewicht 4), zwei_min deckt 3x2min-Disqualifikation ab (3x Gewicht 1), disq fließt bewusst NICHT ein (reiner Vermerk ohne Gewichtung)
                                     const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
                                     return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td>${tgparaden}</td><td>${tgquote}%</td><td><b>${gegengesamt}</b></td><td>${gegenquote}%</td><td>${s.tech_fehler || 0}</td><td>${s.fehlpasse || 0}</td><td>${s.turnovers || 0}</td><td>${s.gelb || 0}</td><td>${s.rot || 0}</td><td>${s.zwei_min || 0}</td><td>${s.disq || 0}</td><td><b>${he}</b></td></tr>`;
                                 })
@@ -3017,7 +3017,7 @@
                                     const gesamtfehlwurf = feldfehl + siebenfehl + tgfehl;
                                     const gesamtquote = ((gesamttore / (gesamttore + gesamtfehlwurf) * 100) || 0).toFixed(0);
                                     const hePos = gesamttore * 3 + (s.assists || 0) * 2 + (s.sieben_m_geholt || 0) + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
-                                    const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0));
+                                    const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + (s.zwei_min || 0) + (s.rot || 0) * 4; // rot=direkte rote Karte (Gewicht 4), zwei_min deckt 3x2min-Disqualifikation ab (3x Gewicht 1), disq fließt bewusst NICHT ein (reiner Vermerk ohne Gewichtung)
                                     const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
                                     return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${feldtore}</td><td>${feldfehl}</td><td>${feldquote}%</td><td>${siebentore}</td><td>${siebenfehl}</td><td>${siebenquote}%</td><td>${tgtore}</td><td>${tgfehl}</td><td>${tgquote}%</td><td><b>${gesamttore}</b></td><td>${gesamtquote}%</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.turnovers || 0}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td><td><b>${he}</b></td></tr>`;
                                 }).join('')}
@@ -3060,7 +3060,7 @@
                                     const gesamtparaden = paraden + paraden7m + tgparaden;
                                     const gegenquote = ((gesamtparaden / (gesamtparaden + gegengesamt) * 100) || 0).toFixed(0);
                                     const hePos = gesamtparaden * 3 + (s.assists || 0) * 2 + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
-                                    const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0));
+                                    const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + (s.zwei_min || 0) + (s.rot || 0) * 4; // rot=direkte rote Karte (Gewicht 4), zwei_min deckt 3x2min-Disqualifikation ab (3x Gewicht 1), disq fließt bewusst NICHT ein (reiner Vermerk ohne Gewichtung)
                                     const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
                                     return `<tr><td><b>${p.number}</b></td><td>${p.name}</td><td>${paraden}</td><td>${parquote}%</td><td>${paraden7m}</td><td>${parquote7m}%</td><td>${tgparaden}</td><td>${tgquote}%</td><td><b>${gegengesamt}</b></td><td>${gegenquote}%</td><td>${s.tech_fehler}</td><td>${s.fehlpasse}</td><td>${s.turnovers || 0}</td><td>${s.gelb}</td><td>${s.rot}</td><td>${s.zwei_min}</td><td>${s.disq}</td><td><b>${he}</b></td></tr>`;
                                 }).join('')}
@@ -4553,7 +4553,7 @@
                 const gesamttore = feldtore + siebentore + tgtore;
                 const gesamtfehlwurf = feldfehl + siebenfehl + tgfehl;
                 const hePos = gesamttore * 3 + (s.assists || 0) * 2 + (s.sieben_m_geholt || 0) + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
-                const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0));
+                const heNeg = gesamtfehlwurf * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + (s.zwei_min || 0) + (s.rot || 0) * 4; // rot=direkte rote Karte (Gewicht 4), zwei_min deckt 3x2min-Disqualifikation ab (3x Gewicht 1), disq fließt bewusst NICHT ein (reiner Vermerk ohne Gewichtung)
                 const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
                 return {
                     sortKey: gesamttore,
@@ -4576,7 +4576,7 @@
                 const gegengesamt = gegentore + gegentore7m + tggegentore;
                 const gesamtparaden = paraden + paraden7m + tgparaden;
                 const hePos = gesamtparaden * 3 + (s.assists || 0) * 2 + (s.zwei_min_geholt || 0) + (s.turnovers || 0) * 2;
-                const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + ((s.zwei_min || 0) + (s.rot || 0));
+                const heNeg = gegengesamt * 2 + (s.tech_fehler || 0) + (s.fehlpasse || 0) + (s.sieben_m_verursacht || 0) + (s.zwei_min || 0) + (s.rot || 0) * 4; // rot=direkte rote Karte (Gewicht 4), zwei_min deckt 3x2min-Disqualifikation ab (3x Gewicht 1), disq fließt bewusst NICHT ein (reiner Vermerk ohne Gewichtung)
                 const he = ((hePos / (hePos + heNeg) * 100) || 0).toFixed(1) + '%';
                 return {
                     sortKey: gesamtparaden,
