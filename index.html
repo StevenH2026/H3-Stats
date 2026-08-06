@@ -1763,7 +1763,7 @@
                                 </div>
                             </div>
                             
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 1rem; margin-bottom: 1rem;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 1rem; margin-bottom: 1rem; align-items: center;">
                                 <div style="text-align: center;">
                                     <div style="opacity: 0.8; margin-bottom: 0.5rem; font-weight: bold;">🔄 Aktionen</div>
                                     ${gameActions.slice().reverse().slice(0, 2).filter(a => a.team === linksTeam).map(a => 
@@ -1776,15 +1776,14 @@
                                         `<div style="padding: 0.35rem; background: rgba(255,255,255,0.1); margin-bottom: 0.3rem; border-radius: 3px;">${a.text}</div>`
                                     ).join('') || '<div style="opacity: 0.5;">-</div>'}
                                 </div>
-                            </div>
-                            
-                            <div style="display: flex; justify-content: ${readOnly ? 'center' : 'flex-end'};">
-                                ${readOnly ? '<div style="text-align:center; font-size:12px; opacity:0.85;">🔒 Nur lesend – keine Erfassungsrechte</div>' : `
-                                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                                    <button class="btn btn-success" style="background: rgba(99, 153, 34, 0.95); border-radius: 4px; font-size: 10px; width: 56px; height: 56px; padding: 0.25rem; line-height: 1.2;" onclick="endGame()">✅<br>Beenden</button>
-                                    <button class="btn btn-secondary" style="background: rgba(100, 100, 100, 0.95); border-radius: 4px; font-size: 10px; width: 56px; height: 56px; padding: 0.25rem; line-height: 1.2;" onclick="undo()">↩️<br>Undo</button>
+                                <div style="text-align: center;">
+                                    ${readOnly ? '<div style="font-size:11px; opacity:0.85; max-width: 70px;">🔒 Nur lesend</div>' : `
+                                    <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                                        <button class="btn btn-success" style="background: rgba(99, 153, 34, 0.95); border-radius: 4px; font-size: 10px; width: 56px; height: 56px; padding: 0.25rem; line-height: 1.2;" onclick="endGame()">✅<br>Beenden</button>
+                                        <button class="btn btn-secondary" style="background: rgba(100, 100, 100, 0.95); border-radius: 4px; font-size: 10px; width: 56px; height: 56px; padding: 0.25rem; line-height: 1.2;" onclick="undo()">↩️<br>Undo</button>
+                                    </div>
+                                    `}
                                 </div>
-                                `}
                             </div>
                         </div>
                     </div>
