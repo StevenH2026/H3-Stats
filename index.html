@@ -273,6 +273,14 @@
             <button class="btn" style="width:100%; background:#eee;" onclick="closeNotifyAdminModal()">Fertig</button>
         </div>
     </div>
+
+    <div id="gameImportModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:3000; align-items:center; justify-content:center; overflow-y:auto; padding:1rem 0;">
+        <div class="card" style="max-width:600px; width:95%; margin:0; max-height:90vh; overflow-y:auto;">
+            <div class="card-title">📅 Spiele CSV-Import</div>
+            <div id="gameImportBody"></div>
+            <button class="btn" style="width:100%; background:#eee; margin-top:1rem;" onclick="closeGameImportModal()">Schließen</button>
+        </div>
+    </div>
     
     <script>
         // Login läuft jetzt über ein Formular (loginModal) statt über einen fest
@@ -3192,6 +3200,269 @@
                 showToast('⚠️ Betreuer-Import fehlgeschlagen');
             }
         }
+
+        // ===== ADMIN: SPIELE CSV-IMPORT =====
+        // Läuft bewusst NICHT über die Offline-Queue (enqueue), sondern macht direkte
+        // sbClient-Calls mit synchroner Fehlersammlung pro Zeile - das lässt sich mit dem
+        // asynchronen "warn and stop"-Queue-Mechanismus nicht sauber im Preview-Dialog
+        // abbilden. Konsequenz: Massenimport funktioniert nur online, nicht offline.
+        let gameImportHeaders = [];
+        let gameImportRows = [];
+        let gameImportMapping = { opponent: '', date: '', time: '', location: '' };
+        let gameImportPreview = [];
+
+        function openGameImportModal() {
+            gameImportHeaders = [];
+            gameImportRows = [];
+            gameImportMapping = { opponent: '', date: '', time: '', location: '' };
+            gameImportPreview = [];
+            document.getElementById('gameImportBody').innerHTML = '<div class="empty-state">Bitte CSV-Datei auswählen (Admin-Karte).</div>';
+            document.getElementById('gameImportModal').style.display = 'flex';
+        }
+
+        function closeGameImportModal() {
+            document.getElementById('gameImportModal').style.display = 'none';
+            document.getElementById('gameImportInput').value = '';
+        }
+
+        // Splittet eine CSV-Zeile unter Berücksichtigung von Anführungszeichen (z.B.
+        // "Halle, Musterstr. 1"), damit Kommas innerhalb eines Feldes (z.B. im Ort) nicht
+        // als Spaltentrenner missverstanden werden.
+        function splitCsvLine(line) {
+            const result = [];
+            let cur = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const c = line[i];
+                if (c === '"') {
+                    if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+                    else inQuotes = !inQuotes;
+                } else if (c === ',' && !inQuotes) {
+                    result.push(cur.trim());
+                    cur = '';
+                } else {
+                    cur += c;
+                }
+            }
+            result.push(cur.trim());
+            return result;
+        }
+
+        function handleGameImportFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const csv = e.target.result;
+                    const lines = csv.split(/\r?\n/).filter(l => l.trim().length > 0);
+                    if (lines.length < 2) {
+                        showToast('❌ CSV-Datei ist leer');
+                        return;
+                    }
+                    gameImportHeaders = splitCsvLine(lines[0]);
+                    gameImportRows = lines.slice(1).map(line => {
+                        const values = splitCsvLine(line);
+                        const obj = {};
+                        gameImportHeaders.forEach((h, i) => { obj[h] = values[i] || ''; });
+                        return obj;
+                    });
+                    autoDetectGameImportMapping();
+                    renderGameImportMapping();
+                } catch (err) {
+                    console.error('Fehler beim Lesen der CSV-Datei:', err);
+                    showToast('❌ Fehler beim Lesen der CSV-Datei');
+                }
+            };
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        // Best-effort-Rateversuch, welche Spalte zu welchem Zielfeld passt - Handball4All-
+        // Exporte und manuell gepflegte Dateien nutzen unterschiedliche Spaltennamen,
+        // deshalb ist das nur ein Vorschlag; der Nutzer bestätigt/korrigiert per Dropdown.
+        function autoDetectGameImportMapping() {
+            const guess = (candidates) => gameImportHeaders.find(h => candidates.some(c => h.toLowerCase().replace(/\s+/g, '') === c)) || '';
+            gameImportMapping.opponent = guess(['gegner', 'gast', 'gastmannschaft', 'opponent', 'mannschaft']);
+            gameImportMapping.date = guess(['datum', 'date', 'spieldatum']);
+            gameImportMapping.time = guess(['uhrzeit', 'zeit', 'time', 'anwurf', 'anwurfzeit']);
+            gameImportMapping.location = guess(['ort', 'halle', 'location', 'spielort']);
+        }
+
+        function updateGameImportMapping(field, value) {
+            gameImportMapping[field] = value;
+        }
+
+        function renderGameImportMapping() {
+            const body = document.getElementById('gameImportBody');
+            const fieldLabels = { opponent: 'Gegner *', date: 'Datum *', time: 'Uhrzeit', location: 'Ort' };
+
+            let html = `<div style="font-size:12px; color:#666; margin-bottom:0.75rem;">${gameImportRows.length} Zeile(n) gefunden. Bitte Spalten zuordnen (Gegner und Datum sind Pflicht):</div>`;
+            Object.keys(fieldLabels).forEach(field => {
+                html += `
+                    <div class="form-group">
+                        <label>${fieldLabels[field]}</label>
+                        <select onchange="updateGameImportMapping('${field}', this.value)">
+                            <option value="">-- keine --</option>
+                            ${gameImportHeaders.map(h => `<option value="${h}" ${gameImportMapping[field] === h ? 'selected' : ''}>${h}</option>`).join('')}
+                        </select>
+                    </div>`;
+            });
+            html += `<button class="btn btn-primary" style="width:100%;" onclick="buildGameImportPreview()">👁️ Vorschau anzeigen</button>`;
+            body.innerHTML = html;
+        }
+
+        // Akzeptiert sowohl 'YYYY-MM-DD' (bereits DB-Format) als auch 'DD.MM.YYYY'
+        // (typisch für Handball4All/deutsche Exporte) und normalisiert auf 'YYYY-MM-DD'.
+        function parseGameImportDate(raw) {
+            if (!raw) return null;
+            raw = raw.trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+            const m = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
+            if (m) {
+                let [, d, mo, y] = m;
+                if (y.length === 2) y = '20' + y;
+                return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+            }
+            return null;
+        }
+
+        function parseGameImportTime(raw) {
+            if (!raw) return '';
+            raw = raw.trim();
+            const m = raw.match(/^(\d{1,2}):(\d{2})/);
+            if (m) return `${m[1].padStart(2, '0')}:${m[2]}`;
+            return '';
+        }
+
+        function buildGameImportPreview() {
+            if (!gameImportMapping.opponent || !gameImportMapping.date) {
+                showToast('❌ Gegner und Datum müssen zugeordnet sein');
+                return;
+            }
+            gameImportPreview = gameImportRows.map(row => {
+                const opponent = (row[gameImportMapping.opponent] || '').trim();
+                const dateRaw = row[gameImportMapping.date] || '';
+                const date = parseGameImportDate(dateRaw);
+                const time = gameImportMapping.time ? parseGameImportTime(row[gameImportMapping.time]) : '';
+                const location = gameImportMapping.location ? (row[gameImportMapping.location] || '').trim() : '';
+
+                if (!opponent || !date) {
+                    return { opponent, date: date || dateRaw, time, location, status: 'invalid', action: 'skip' };
+                }
+                const existing = games.find(g => g.opponent.trim().toLowerCase() === opponent.toLowerCase() && g.date === date);
+                if (existing) {
+                    return { opponent, date, time, location, status: 'duplicate', existingGame: existing, action: 'skip' };
+                }
+                return { opponent, date, time, location, status: 'new', action: 'import' };
+            });
+            renderGameImportPreview();
+        }
+
+        function setGameImportRowAction(index, action) {
+            gameImportPreview[index].action = action;
+        }
+
+        function renderGameImportPreview() {
+            const body = document.getElementById('gameImportBody');
+            const newCount = gameImportPreview.filter(r => r.status === 'new').length;
+            const dupCount = gameImportPreview.filter(r => r.status === 'duplicate').length;
+            const invalidCount = gameImportPreview.filter(r => r.status === 'invalid').length;
+
+            let html = `<div style="font-size:12px; color:#666; margin-bottom:0.75rem;">
+                ✅ ${newCount} neu · ⚠️ ${dupCount} bereits vorhanden · ❌ ${invalidCount} ungültig (fehlt Gegner/Datum)
+            </div>`;
+            html += `<table style="font-size:11px; width:100%;">
+                <tr style="background:#f5f5f5;"><th>Gegner</th><th>Datum</th><th>Uhrzeit</th><th>Ort</th><th>Status</th><th>Aktion</th></tr>
+                ${gameImportPreview.map((r, i) => `
+                    <tr>
+                        <td>${r.opponent || '-'}</td>
+                        <td>${r.date || '-'}</td>
+                        <td>${r.time || '-'}</td>
+                        <td>${r.location || '-'}</td>
+                        <td>${r.status === 'new' ? '✅ neu' : r.status === 'duplicate' ? '⚠️ existiert' : '❌ ungültig'}</td>
+                        <td>${r.status === 'duplicate' ? `
+                            <select onchange="setGameImportRowAction(${i}, this.value)" style="font-size:11px; padding:0.25rem;">
+                                <option value="skip" selected>Überspringen</option>
+                                <option value="update">Zeit/Ort aktualisieren</option>
+                            </select>` : (r.status === 'new' ? '👍' : '—')}
+                        </td>
+                    </tr>
+                `).join('')}
+            </table>`;
+            if (newCount + gameImportPreview.filter(r => r.status === 'duplicate' && r.action === 'update').length > 0) {
+                html += `<button class="btn btn-success" style="width:100%; margin-top:1rem;" onclick="confirmGameImport()">✅ Import ausführen</button>`;
+            }
+            body.innerHTML = html;
+        }
+
+        async function confirmGameImport() {
+            if (!canRecordStats()) {
+                showToast('🔒 Keine Berechtigung, Spiele anzulegen');
+                return;
+            }
+            const toImport = gameImportPreview.filter(r => r.status === 'new');
+            const toUpdate = gameImportPreview.filter(r => r.status === 'duplicate' && r.action === 'update');
+
+            let imported = 0, updated = 0;
+            const errors = [];
+
+            for (const row of toImport) {
+                try {
+                    const newGame = {
+                        id: 'game_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                        opponent: row.opponent,
+                        date: row.date,
+                        time: row.time,
+                        location: row.location,
+                        created_at: new Date().toISOString(),
+                        score_us: 0,
+                        score_gegner: 0,
+                        created_by_email: currentUserEmail || null,
+                        last_edited_by_email: currentUserEmail || null,
+                        last_edited_at: new Date().toISOString()
+                    };
+                    const { error: gameError } = await sbClient.from('games').insert([newGame]);
+                    if (gameError) throw gameError;
+                    const { error: oppError } = await sbClient.from('opponent_stats').insert([{ game_id: newGame.id, fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0, tg_fehlwurfe: 0 }]);
+                    if (oppError) throw oppError;
+                    games.push(newGame);
+                    imported++;
+                } catch (err) {
+                    console.error('Fehler beim Import von', row, err);
+                    errors.push(`${row.opponent} (${row.date}): ${err?.message || err}`);
+                }
+            }
+
+            for (const row of toUpdate) {
+                try {
+                    const { error } = await sbClient.from('games').update({
+                        time: row.time,
+                        location: row.location,
+                        last_edited_by_email: currentUserEmail || null,
+                        last_edited_at: new Date().toISOString()
+                    }).eq('id', row.existingGame.id);
+                    if (error) throw error;
+                    row.existingGame.time = row.time;
+                    row.existingGame.location = row.location;
+                    updated++;
+                } catch (err) {
+                    console.error('Fehler beim Update von', row, err);
+                    errors.push(`${row.opponent} (${row.date}, Update): ${err?.message || err}`);
+                }
+            }
+
+            cacheSet('games', games);
+            renderGamesList();
+
+            let summary = `✅ ${imported} importiert`;
+            if (updated > 0) summary += `, ${updated} aktualisiert`;
+            if (errors.length > 0) summary += `, ${errors.length} fehlgeschlagen`;
+            showToast(summary);
+            if (errors.length > 0) {
+                alert('Fehler bei folgenden Zeilen:\n\n' + errors.join('\n'));
+            }
+            closeGameImportModal();
+        }
         
         function undo() {
             if (!canRecordStats()) {
@@ -3622,6 +3893,13 @@
                         <div class="card-title">🔧 Spielergebnisse reparieren</div>
                         <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">Berechnet score_us/score_gegner für alle Spiele neu aus den Spieler-Statistiken (behebt veraltete Anzeigen in der Spiele-Liste, z.B. nach einem blockierten Sync).</div>
                         <button class="btn btn-primary" onclick="repairAllGameScores()">🔧 Alle Ergebnisse neu berechnen</button>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">📅 Spiele per CSV importieren</div>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">CSV-Datei (UTF-8, komma-getrennt) mit Spielterminen importieren – egal ob aus Handball4All exportiert oder manuell gepflegt. Spalten werden im nächsten Schritt zugeordnet, Duplikate (gleicher Gegner + gleiches Datum) werden erkannt.</div>
+                        <button class="btn btn-success" style="width:100%;" onclick="document.getElementById('gameImportInput').click(); openGameImportModal();">📄 CSV auswählen</button>
+                        <input type="file" id="gameImportInput" accept=".csv" style="display:none;" onchange="handleGameImportFile(event)">
                     </div>
                     
                     ${renderPendingQueuePanel()}
