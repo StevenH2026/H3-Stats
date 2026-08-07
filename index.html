@@ -347,6 +347,12 @@
         }
         
         function enqueue(item) {
+            // Eindeutige Operations-ID pro Eintrag - Grundlage für serverseitige Idempotenz
+            // bei den Increment-RPCs (siehe flushQueue). Verhindert Doppel-Zählung, falls ein
+            // Request beim Server ankommt, die Antwort aber durch eine wacklige Verbindung
+            // (z.B. direkt beim Reconnect) beim Client nicht mehr ankommt und der Eintrag
+            // deshalb erneut verschickt wird.
+            item.opId = item.opId || crypto.randomUUID();
             pendingQueue.push(item);
             saveQueueToStorage();
             logSync(`ENQUEUE ${item.op} ${item.table || item.fn} ${JSON.stringify(item.args || item.payload || item.match || '')}`);
@@ -445,7 +451,7 @@
                     const item = pendingQueue[0];
                     try {
                         if (item.op === 'rpc') {
-                            const { error } = await sbClient.rpc(item.fn, item.args);
+                            const { error } = await sbClient.rpc(item.fn, { ...item.args, p_op_id: item.opId });
                             if (error) throw error;
                         } else if (item.op === 'insert') {
                             const { error } = await sbClient.from(item.table).insert([item.payload]);
