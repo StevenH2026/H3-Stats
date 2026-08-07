@@ -2138,8 +2138,24 @@
             return `<button class="stat-btn" style="${style}" ${disabled ? 'disabled' : ''} onclick="updatePlayerStat('${playerId}', '${statKey}', 1)">${label}</button>`;
         }
         
+        // Schutz gegen Doppel-Tap/Wackelkontakt auf Touch-Ger\u00e4ten: ein zweiter Tap auf
+        // denselben Button (gleicher Spieler/Betreuer/Gegner + gleiche Stat-Spalte) innerhalb
+        // von 400ms wird ignoriert, statt als zweite eigenst\u00e4ndige Erfassung durchzugehen.
+        // Wichtig: das ist NICHT dasselbe wie die Op-ID-Idempotenz beim Sync - die sch\u00fctzt vor
+        // doppelten Netzwerk-Retries, hier geht es um zwei echte, aber ungewollte Taps direkt
+        // am Ger\u00e4t.
+        let lastStatTapTimes = {};
+        function isDoubleTapDebounced(key) {
+            const now = Date.now();
+            const last = lastStatTapTimes[key] || 0;
+            if (now - last < 400) return true;
+            lastStatTapTimes[key] = now;
+            return false;
+        }
+
         function updatePlayerStat(playerId, statKey, delta) {
             if (!currentGame) return;
+            if (isDoubleTapDebounced('player_' + playerId + '_' + statKey + '_' + delta)) return;
             if (!canRecordStats()) {
                 showToast('🔒 Keine Berechtigung, Stats zu erfassen');
                 return;
@@ -2254,6 +2270,7 @@
         
         function updateOpponentStat(statKey, delta) {
             if (!currentGame) return;
+            if (isDoubleTapDebounced('opponent_' + statKey + '_' + delta)) return;
             if (!canRecordStats()) {
                 showToast('🔒 Keine Berechtigung, Stats zu erfassen');
                 return;
@@ -2292,6 +2309,7 @@
         
         function updateCoachStat(coachId, statKey, delta) {
             if (!currentGame) return;
+            if (isDoubleTapDebounced('coach_' + coachId + '_' + statKey + '_' + delta)) return;
             if (!canRecordStats()) {
                 showToast('🔒 Keine Berechtigung, Stats zu erfassen');
                 return;
