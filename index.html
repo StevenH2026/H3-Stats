@@ -552,6 +552,78 @@
             return null;
         }
         
+        // ===== Post-Sync-Verifikation =====
+        // Vergleicht nach vollständigem Sync eines Spiels die tatsächlichen Server-Werte
+        // gegen den lokal erwarteten Stand (localStats) - unabhängig von der genauen
+        // Ursache einer möglichen Diskrepanz. Bei Abweichung wird sofort und deutlich
+        // gewarnt, statt sie erst später manuell im Statistik-Tab zu entdecken.
+        const STAT_FIELDS_TO_VERIFY = ['tore','tore7m','assists','turnovers','fehlwurfe','fehlwurfe7m',
+            'tech_fehler','fehlpasse','einzueins','sieben_m_geholt','zwei_min_geholt',
+            'sieben_m_verursacht','rote_karte','gelb','rot','zwei_min','disq',
+            'paraden','paraden_7m','gegentore','gegentore_7m',
+            'tg_tore','tg_fehlwurfe','tg_paraden','tg_gegentore'];
+        const OPPONENT_FIELDS_TO_VERIFY = ['fehlwurfe','tech_fehler','fehlpasse','tg_fehlwurfe'];
+        
+        async function verifyStatsAfterSync(gameId) {
+            if (!sbClient) return;
+            const discrepancies = [];
+            
+            try {
+                const { data: serverPlayerStats } = await sbClient.from('player_stats').select('*').eq('game_id', gameId);
+                (serverPlayerStats || []).forEach(row => {
+                    const local = localStats.players[row.player_id];
+                    if (!local) return; // Spieler evtl. inzwischen aus dem Kader entfernt - kein Vergleich möglich
+                    STAT_FIELDS_TO_VERIFY.forEach(col => {
+                        const expected = local[col] || 0;
+                        const actual = row[col] || 0;
+                        if (expected !== actual) {
+                            discrepancies.push(`Spieler ${row.player_id} · ${col}: erwartet ${expected}, Server ${actual}`);
+                        }
+                    });
+                });
+                
+                const { data: serverOpp } = await sbClient.from('opponent_stats').select('*').eq('game_id', gameId);
+                if (serverOpp && serverOpp[0] && localStats.opponent) {
+                    OPPONENT_FIELDS_TO_VERIFY.forEach(col => {
+                        const expected = localStats.opponent[col] || 0;
+                        const actual = serverOpp[0][col] || 0;
+                        if (expected !== actual) {
+                            discrepancies.push(`Gegner · ${col}: erwartet ${expected}, Server ${actual}`);
+                        }
+                    });
+                }
+                
+                const { data: serverCoach } = await sbClient.from('coach_stats').select('*').eq('game_id', gameId);
+                (serverCoach || []).forEach(row => {
+                    const local = localStats.coaches[row.coach_id];
+                    if (!local) return;
+                    Object.keys(local).forEach(col => {
+                        if (col === 'game_id' || col === 'coach_id') return;
+                        const expected = local[col];
+                        const actual = row[col];
+                        if (typeof expected === 'number' && (expected || 0) !== (actual || 0)) {
+                            discrepancies.push(`Betreuer ${row.coach_id} · ${col}: erwartet ${expected || 0}, Server ${actual || 0}`);
+                        }
+                    });
+                });
+            } catch (err) {
+                console.warn('Verifikation nach Sync fehlgeschlagen (evtl. offline):', err);
+                return; // Kein Fehlalarm, nur weil die Prüfung selbst gerade nicht online lief
+            }
+            
+            if (discrepancies.length > 0) {
+                logSync(`SYNC-MISMATCH ${gameId}: ${discrepancies.length} Abweichung(en)`);
+                logClientError(
+                    `Sync-Verifikation fehlgeschlagen für Spiel ${gameId}: ${discrepancies.length} Abweichung(en)`,
+                    null,
+                    { gameId, discrepancies }
+                );
+                alert(`⚠️ ACHTUNG: Nach dem Sync von Spiel "${gameId}" stimmen ${discrepancies.length} Wert(e) NICHT mit der Datenbank überein!\n\n${discrepancies.slice(0, 10).join('\n')}${discrepancies.length > 10 ? '\n… (weitere in den Logs)' : ''}\n\nBitte Spielstatistik manuell prüfen.`);
+            } else {
+                logSync(`SYNC-VERIFIED ${gameId} (Server-Werte stimmen mit lokalem Stand überein)`);
+            }
+        }
+        
         // Löscht den Cache-Snapshot eines Spiels NUR, wenn es beendet ist und für dieses
         // Spiel wirklich nichts mehr in der Queue offen ist - vorher bleibt er die einzige
         // Quelle für die Offline-Ansicht der Spielstatistik.
@@ -559,6 +631,12 @@
             if (!gameId) return;
             const game = games.find(g => g.id === gameId);
             if (game?.ended && !queueHasPendingForGame(gameId)) {
+                // Nur verifizieren, wenn localStats aktuell wirklich zu diesem Spiel gehört -
+                // sonst würden wir den Stand eines anderen, gerade geöffneten Spiels vergleichen.
+                if (currentGame && currentGame.id === gameId) {
+                    verifyStatsAfterSync(gameId);
+                }
+                
                 localStorage.removeItem('h3_cache_' + gameId);
                 logSync(`CACHE-CLEAR ${gameId} (vollständig synchronisiert)`);
                 
