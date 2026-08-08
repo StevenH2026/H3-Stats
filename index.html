@@ -499,6 +499,28 @@
             }
         }
         
+        async function cleanupClientLogs() {
+            if (!currentUserRoles.includes('admin')) return;
+            const daysInput = document.getElementById('logCleanupDays');
+            const days = parseInt(daysInput?.value, 10);
+            if (isNaN(days) || days < 0) {
+                showToast('❌ Ungültige Anzahl Tage');
+                return;
+            }
+            if (!confirm(`Alle Fehler-Logs älter als ${days} Tage endgültig löschen?`)) return;
+            
+            try {
+                // Die RPC prüft is_admin() serverseitig selbst - strenger als nur die
+                // RLS-Select-Policy, analog zu admin_delete_all_games / admin_import_game.
+                const { data, error } = await sbClient.rpc('admin_cleanup_client_logs', { days_to_keep: days });
+                if (error) throw error;
+                showToast(`🗑️ ${data ?? 0} alte Log-Einträge gelöscht`);
+            } catch (err) {
+                console.error('Fehler beim Löschen der Client-Logs:', err);
+                showToast('❌ Logs konnten nicht gelöscht werden');
+            }
+        }
+        
         let flushInProgress = false;
         
         // Ermittelt die betroffene Spiel-ID eines Queue-Eintrags, unabhängig vom op-Typ -
@@ -4272,7 +4294,13 @@
                 <div class="card">
                     <div class="card-title">🐞 Fehler-Logs (Client)</div>
                     <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">JS-Fehler/Exceptions aus dem Frontend, serverseitig gesammelt für die aktuelle Testphase. Download als .txt zur Fehleranalyse (letzte 1000 Einträge).</div>
-                    <button class="btn btn-primary" style="width:100%;" onclick="downloadClientLogs()">📥 Logs herunterladen</button>
+                    <button class="btn btn-primary" style="width:100%; margin-bottom:0.5rem;" onclick="downloadClientLogs()">📥 Logs herunterladen</button>
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <label for="logCleanupDays" style="font-size:12px; color:#666; white-space:nowrap;">Älter als</label>
+                        <input type="number" id="logCleanupDays" value="30" min="0" style="width:60px; padding:0.35rem; font-size:12px;">
+                        <label for="logCleanupDays" style="font-size:12px; color:#666; white-space:nowrap;">Tage löschen</label>
+                    </div>
+                    <button class="btn btn-danger" style="width:100%; margin-top:0.5rem;" onclick="cleanupClientLogs()">🗑️ Alte Logs löschen</button>
                 </div>
                 ` : ''}
                 
