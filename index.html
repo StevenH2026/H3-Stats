@@ -566,12 +566,28 @@
         
         async function verifyStatsAfterSync(gameId) {
             if (!sbClient) return;
+            
+            // Erwarteten Stand aus dem PERSISTIERTEN Cache-Snapshot lesen, nicht aus
+            // currentGame/localStats - die App-Sitzung könnte inzwischen ein anderes
+            // Spiel geöffnet haben (Sync kann Minuten dauern). Der Snapshot lebt genau
+            // bis zu diesem Aufruf, das ist der zuverlässige Referenzpunkt.
+            let expectedStats;
+            try {
+                const raw = localStorage.getItem('h3_cache_' + gameId);
+                if (!raw) return; // Kein Snapshot mehr vorhanden - kann nicht verifiziert werden
+                expectedStats = JSON.parse(raw).stats;
+                if (!expectedStats) return;
+            } catch (err) {
+                console.warn('Konnte Cache-Snapshot für Verifikation nicht lesen:', err);
+                return;
+            }
+            
             const discrepancies = [];
             
             try {
                 const { data: serverPlayerStats } = await sbClient.from('player_stats').select('*').eq('game_id', gameId);
                 (serverPlayerStats || []).forEach(row => {
-                    const local = localStats.players[row.player_id];
+                    const local = expectedStats.players?.[row.player_id];
                     if (!local) return; // Spieler evtl. inzwischen aus dem Kader entfernt - kein Vergleich möglich
                     STAT_FIELDS_TO_VERIFY.forEach(col => {
                         const expected = local[col] || 0;
@@ -583,9 +599,9 @@
                 });
                 
                 const { data: serverOpp } = await sbClient.from('opponent_stats').select('*').eq('game_id', gameId);
-                if (serverOpp && serverOpp[0] && localStats.opponent) {
+                if (serverOpp && serverOpp[0] && expectedStats.opponent) {
                     OPPONENT_FIELDS_TO_VERIFY.forEach(col => {
-                        const expected = localStats.opponent[col] || 0;
+                        const expected = expectedStats.opponent[col] || 0;
                         const actual = serverOpp[0][col] || 0;
                         if (expected !== actual) {
                             discrepancies.push(`Gegner · ${col}: erwartet ${expected}, Server ${actual}`);
@@ -595,7 +611,7 @@
                 
                 const { data: serverCoach } = await sbClient.from('coach_stats').select('*').eq('game_id', gameId);
                 (serverCoach || []).forEach(row => {
-                    const local = localStats.coaches[row.coach_id];
+                    const local = expectedStats.coaches?.[row.coach_id];
                     if (!local) return;
                     Object.keys(local).forEach(col => {
                         if (col === 'game_id' || col === 'coach_id') return;
@@ -631,11 +647,10 @@
             if (!gameId) return;
             const game = games.find(g => g.id === gameId);
             if (game?.ended && !queueHasPendingForGame(gameId)) {
-                // Nur verifizieren, wenn localStats aktuell wirklich zu diesem Spiel gehört -
-                // sonst würden wir den Stand eines anderen, gerade geöffneten Spiels vergleichen.
-                if (currentGame && currentGame.id === gameId) {
-                    verifyStatsAfterSync(gameId);
-                }
+                // Verifikation VOR dem Löschen des Snapshots anstoßen - liest den
+                // persistierten Cache direkt, unabhängig davon, welches Spiel gerade
+                // in der App geöffnet ist.
+                verifyStatsAfterSync(gameId);
                 
                 localStorage.removeItem('h3_cache_' + gameId);
                 logSync(`CACHE-CLEAR ${gameId} (vollständig synchronisiert)`);
