@@ -97,6 +97,7 @@
         <div style="display:flex; gap:0.5rem;">
             <button id="authBtn" onclick="handleAuthClick()" style="background:none; border:1px solid rgba(255,255,255,0.5); color:white; border-radius:4px; padding:0.3rem 0.6rem; font-size:11px; cursor:pointer;">🔒 Login</button>
             <button onclick="showSyncLog()" style="background:none; border:1px solid rgba(255,255,255,0.5); color:white; border-radius:4px; padding:0.3rem 0.6rem; font-size:11px; cursor:pointer;">🔍 Log</button>
+            <button onclick="downloadSyncLog()" style="background:none; border:1px solid rgba(255,255,255,0.5); color:white; border-radius:4px; padding:0.3rem 0.6rem; font-size:11px; cursor:pointer;">📥 Log-Datei</button>
         </div>
     </div>
     
@@ -401,6 +402,23 @@
                 return;
             }
             alert(syncLog.slice(-50).join('\n'));
+        }
+        
+        function downloadSyncLog() {
+            if (syncLog.length === 0) {
+                showToast('Sync-Log ist leer');
+                return;
+            }
+            const blob = new Blob([syncLog.join('\n')], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `h3-stats-sync-log_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            showToast(`📥 Sync-Log (${syncLog.length} Zeilen) heruntergeladen`);
         }
         
         // ===== Client-Error-Logging (nur für die aktuelle Testphase) =====
