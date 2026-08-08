@@ -403,6 +403,102 @@
             alert(syncLog.slice(-50).join('\n'));
         }
         
+        // ===== Client-Error-Logging (nur für die aktuelle Testphase) =====
+        // Separat von der pendingQueue: Log-Einträge sind reine Diagnosedaten, ein
+        // doppelter Eintrag ist harmlos - deshalb kein Op-Id/Idempotenz-Aufwand wie bei
+        // den Stat-RPCs, nur ein einfacher lokaler Fallback-Ringpuffer für offline.
+        let errorLogQueue = [];
+        try {
+            errorLogQueue = JSON.parse(localStorage.getItem('h3_error_log_queue')) || [];
+        } catch (err) {
+            errorLogQueue = [];
+        }
+        
+        function saveErrorLogQueue() {
+            try {
+                localStorage.setItem('h3_error_log_queue', JSON.stringify(errorLogQueue));
+            } catch (err) {
+                console.error('Fehler beim Speichern der Error-Log-Queue:', err);
+            }
+        }
+        
+        async function logClientError(message, stack, context) {
+            const entry = {
+                message: String(message || '').slice(0, 2000),
+                stack: stack ? String(stack).slice(0, 4000) : null,
+                context: context || null
+            };
+            if (sbClient && isAuthenticated) {
+                try {
+                    // user_id wird serverseitig per Default (auth.uid()) gesetzt, siehe RLS -
+                    // Client schickt bewusst kein user_id-Feld mit.
+                    const { error } = await sbClient.from('client_logs').insert([entry]);
+                    if (!error) return;
+                } catch (err) {
+                    // fällt durch auf lokalen Fallback
+                }
+            }
+            errorLogQueue.push(entry);
+            if (errorLogQueue.length > 50) errorLogQueue = errorLogQueue.slice(-50);
+            saveErrorLogQueue();
+        }
+        
+        async function flushErrorLogQueue() {
+            if (!sbClient || !isAuthenticated || errorLogQueue.length === 0) return;
+            while (errorLogQueue.length > 0) {
+                const entry = errorLogQueue[0];
+                try {
+                    const { error } = await sbClient.from('client_logs').insert([entry]);
+                    if (error) break;
+                    errorLogQueue.shift();
+                    saveErrorLogQueue();
+                } catch (err) {
+                    break;
+                }
+            }
+        }
+        
+        window.addEventListener('error', (event) => {
+            logClientError(event.message, event.error?.stack, { source: event.filename, line: event.lineno, col: event.colno });
+        });
+        
+        window.addEventListener('unhandledrejection', (event) => {
+            const reason = event.reason;
+            logClientError(reason?.message || String(reason), reason?.stack, { type: 'unhandledrejection' });
+        });
+        
+        async function downloadClientLogs() {
+            if (!currentUserRoles.includes('admin')) return;
+            try {
+                const { data, error } = await sbClient
+                    .from('client_logs')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(1000);
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    showToast('Keine Logs vorhanden');
+                    return;
+                }
+                const lines = data.map(l =>
+                    `[${l.created_at}] user=${l.user_id}\n${l.message}\n${l.stack ? l.stack + '\n' : ''}${l.context ? JSON.stringify(l.context) + '\n' : ''}---`
+                ).join('\n');
+                const blob = new Blob([lines], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `h3-stats-error-logs_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                showToast(`📥 ${data.length} Log-Einträge heruntergeladen`);
+            } catch (err) {
+                console.error('Fehler beim Laden der Client-Logs:', err);
+                showToast('❌ Logs konnten nicht geladen werden');
+            }
+        }
+        
         let flushInProgress = false;
         
         // Ermittelt die betroffene Spiel-ID eines Queue-Eintrags, unabhängig vom op-Typ -
@@ -946,10 +1042,11 @@
             await Promise.all([loadPlayers(), loadCoaches(), loadGames()]);
             setDefaultDate();
             flushQueue();
+            flushErrorLogQueue();
             renderStartseite();
-            window.addEventListener('online', () => { isOnline = true; flushQueue(); });
+            window.addEventListener('online', () => { isOnline = true; flushQueue(); flushErrorLogQueue(); });
             window.addEventListener('offline', () => { isOnline = false; });
-            setInterval(() => { if (!queueBlocked) flushQueue(); }, 30000);
+            setInterval(() => { if (!queueBlocked) flushQueue(); flushErrorLogQueue(); }, 30000);
         });
         
         async function loadPlayers() {
@@ -4170,6 +4267,12 @@
                     <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">CSV-Datei (UTF-8, komma-getrennt) mit den Spalten <b>Designation, Name</b> importieren (Designation = A/B/C/D). Zeigt vor dem Import eine Vorschau mit erkannten Duplikaten (Bezeichnung schon vergeben).</div>
                     <button class="btn btn-success" style="width:100%;" onclick="document.getElementById('coachImportInput').click(); openCoachImportModal();">📄 CSV auswählen</button>
                     <input type="file" id="coachImportInput" accept=".csv" style="display:none;" onchange="handleCoachImportFile(event)">
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🐞 Fehler-Logs (Client)</div>
+                    <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">JS-Fehler/Exceptions aus dem Frontend, serverseitig gesammelt für die aktuelle Testphase. Download als .txt zur Fehleranalyse (letzte 1000 Einträge).</div>
+                    <button class="btn btn-primary" style="width:100%;" onclick="downloadClientLogs()">📥 Logs herunterladen</button>
                 </div>
                 ` : ''}
                 
