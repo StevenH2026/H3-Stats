@@ -1165,6 +1165,14 @@
         }
         
         window.addEventListener('load', async () => {
+            // Eindeutige Sitzungs-ID pro Seitenladung - macht einen stillen Reload
+            // (z.B. durch Speicherdruck auf Android/Chrome) im Sync-Log sichtbar:
+            // taucht innerhalb eines eigentlich durchgehenden Tests eine zweite
+            // PAGE-LOAD-Zeile mit neuer Session-ID auf, ist die Seite zwischendurch
+            // neu gestartet worden, ohne dass es am Bildschirm auffallen musste.
+            const pageSessionId = Math.random().toString(36).slice(2, 8);
+            logSync(`PAGE-LOAD session=${pageSessionId}`);
+            
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('./sw.js').catch(err => console.warn('Service Worker Registrierung fehlgeschlagen:', err));
             }
@@ -1178,6 +1186,13 @@
             flushErrorLogQueue();
             renderStartseite();
             window.addEventListener('online', () => { isOnline = true; flushQueue(); flushErrorLogQueue(); });
+            
+            // Zusätzliche Marker für Chrome's Page-Lifecycle-Events - zeigen, ob der
+            // Tab im Hintergrund "eingefroren" oder verworfen wurde (typisch bei
+            // Speicherdruck auf Android), auch wenn kein vollständiger Reload passiert.
+            document.addEventListener('freeze', () => logSync(`PAGE-FREEZE session=${pageSessionId}`));
+            document.addEventListener('resume', () => logSync(`PAGE-RESUME session=${pageSessionId}`));
+            window.addEventListener('pagehide', (e) => logSync(`PAGE-HIDE session=${pageSessionId} persisted=${e.persisted}`));
             window.addEventListener('offline', () => { isOnline = false; });
             setInterval(() => { if (!queueBlocked) flushQueue(); flushErrorLogQueue(); }, 30000);
         });
