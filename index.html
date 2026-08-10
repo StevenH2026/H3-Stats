@@ -2556,6 +2556,12 @@
                         statKey: statKey,
                         delta: delta
                     });
+                    // Klare, sofortige Bestätigung JEDES erfolgreichen Taps - unabhängig vom
+                    // Online-Status. Ohne dieses Feedback ist bei fehlender Rückmeldung während
+                    // Offline-Phasen (mit spürbarem Ruckeln durch Hintergrund-Retries) nicht
+                    // erkennbar, ob ein Tap angekommen ist - das führte nachweislich zu echten
+                    // zweiten Taps auf denselben Button und dadurch zu doppelt erfassten Werten.
+                    showToast(`✅ ${actionMap[statKey]} · ${player?.name} (${stats[statKey]})`);
                 }
                 
                 if (autoDisq) {
@@ -2609,6 +2615,7 @@
                         statKey: statKey,
                         delta: delta
                     });
+                    showToast(`✅ ${actionMap[statKey]} · Gegner (${localStats.opponent[statKey]})`);
                 }
                 
                 saveLocalCacheSnapshot();
@@ -2677,6 +2684,7 @@
                         statKey: statKey,
                         delta: delta
                     });
+                    showToast(`✅ ${actionMap[statKey]} · ${coach?.designation} (${stats[statKey]})`);
                 }
                 
                 if (autoDisq) {
