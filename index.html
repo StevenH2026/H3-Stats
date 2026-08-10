@@ -2453,12 +2453,16 @@
             // dass zwei echte, unterschiedliche RPC-Aufrufe für denselben Tap nur 245ms
             // auseinander lagen (Android-WebView Doppel-Click-Verhalten) - mehr Marge,
             // um das zuverlässig abzufangen, auch als zweite Ebene neben touch-action.
-            if (now - last < 600) return true;
+            if (now - last < 600) {
+                logSync(`DEBOUNCE-BLOCKED key=${key} gap=${now - last}ms`);
+                return true;
+            }
             lastStatTapTimes[key] = now;
             return false;
         }
 
         function updatePlayerStat(playerId, statKey, delta) {
+            logSync(`updatePlayerStat ENTRY player=${playerId} stat=${statKey} delta=${delta} t=${Date.now()}`);
             if (!currentGame) return;
             if (isDoubleTapDebounced('player_' + playerId + '_' + statKey + '_' + delta)) return;
             if (!canRecordStats()) {
