@@ -28,6 +28,13 @@
         label { display: block; font-size: 12px; font-weight: 600; color: #333; margin-bottom: 0.5rem; }
         input, select { width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
         
+        /* touch-action: manipulation auf ALLEN Buttons - verhindert, dass ältere
+           Android-WebViews (z.B. Tab A 2016) für einen einzigen physischen Tap zwei
+           separate click-Events auslösen (Doppeltipp-Zoom-Erkennungsverzögerung).
+           Direkt zusammenhängend mit der Sync-Wert-Verdopplung: RAISE LOG in der
+           DB-Funktion hat gezeigt, dass zwei echte, unterschiedliche RPC-Aufrufe mit
+           245ms Abstand ankamen - klassisches Timing für dieses Verhalten. */
+        button, .btn, .stat-btn { touch-action: manipulation; }
         .btn { padding: 0.75rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px; min-height: 40px; }
         .btn-primary { background: #185fa5; color: white; }
         .btn-success { background: #639922; color: white; }
@@ -1920,6 +1927,7 @@
         
         function toggleSquadPlayer(playerId) {
             if (!currentGame) return;
+            if (isDoubleTapDebounced('squad_' + playerId)) return;
             if (!canRecordStats()) {
                 showToast('🔒 Keine Berechtigung, den Kader zu ändern');
                 return;
@@ -1959,6 +1967,7 @@
         
         function toggleGameCoach(coachId) {
             if (!currentGame) return;
+            if (isDoubleTapDebounced('coachtoggle_' + coachId)) return;
             if (!canRecordStats()) {
                 showToast('🔒 Keine Berechtigung, den Kader zu ändern');
                 return;
@@ -2440,7 +2449,11 @@
         function isDoubleTapDebounced(key) {
             const now = Date.now();
             const last = lastStatTapTimes[key] || 0;
-            if (now - last < 400) return true;
+            // 600ms statt vormals 400ms: RAISE-LOG-Auswertung in der DB hat gezeigt,
+            // dass zwei echte, unterschiedliche RPC-Aufrufe für denselben Tap nur 245ms
+            // auseinander lagen (Android-WebView Doppel-Click-Verhalten) - mehr Marge,
+            // um das zuverlässig abzufangen, auch als zweite Ebene neben touch-action.
+            if (now - last < 600) return true;
             lastStatTapTimes[key] = now;
             return false;
         }
