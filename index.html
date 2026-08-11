@@ -2866,7 +2866,8 @@
                             const gegnerFehler_ = (opp_.fehlwurfe || 0) + (opp_.tech_fehler || 0) + (opp_.fehlpasse || 0) + (opp_.tg_fehlwurfe || 0);
                             const paradenGesamt_ = torwarte.reduce((s, st) => s + (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0), 0);
                             const gegentoreGesamt_ = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0), 0);
-                            const abwehreffektivitaet = (((paradenGesamt_ + gegnerFehler_) / (paradenGesamt_ + gegnerFehler_ + gegentoreGesamt_) * 100) || 0).toFixed(1) + '%';
+                            const turnoverGesamt_ = feldspieler.reduce((s, st) => s + (st.turnovers || 0), 0) + torwarte.reduce((s, st) => s + (st.turnovers || 0), 0);
+                            const abwehreffektivitaet = (((paradenGesamt_ + gegnerFehler_ + turnoverGesamt_) / (paradenGesamt_ + gegnerFehler_ + turnoverGesamt_ + gegentoreGesamt_) * 100) || 0).toFixed(1) + '%';
 
                             const feldPos_ = feldspieler.reduce((sum, st) => {
                                 const gtore = (st.tore || 0) + (st.tore7m || 0) + (st.tg_tore || 0);
@@ -3302,7 +3303,7 @@
                         ${ueQuerTabelle('#d4a100', '📈', 'Effektivitätswerte', [
                             ['Angriffseffektivität', (((totalFeldtore + totalFeldTore7m + totalTGTore) / (totalFeldtore + totalFeldTore7m + totalTGTore + totalFeldFehlwurf + totalFeldFehlwurf7m + totalTGFehlwurfe + totalFeldTechFehler + totalFeldFehlpass) * 100) || 0).toFixed(1) + '%'],
                             ['Wurfeffektivität (Torquote)', (((totalFeldtore + totalFeldTore7m + totalTGTore) / (totalFeldtore + totalFeldTore7m + totalTGTore + totalFeldFehlwurf + totalFeldFehlwurf7m + totalTGFehlwurfe) * 100) || 0).toFixed(1) + '%'],
-                            ['Abwehreffektivität', `<b>${(((totalParadenGesamt + totalGegnerFehler) / (totalParadenGesamt + totalGegnerFehler + totalGegenTore) * 100) || 0).toFixed(1)}%</b>`],
+                            ['Abwehreffektivität', `<b>${(((totalParadenGesamt + totalGegnerFehler + totalTurnovers) / (totalParadenGesamt + totalGegnerFehler + totalTurnovers + totalGegenTore) * 100) || 0).toFixed(1)}%</b>`],
                             ['Team-Handlungseffektivität', `<b>${((totalHEPos / (totalHEPos + totalHENeg) * 100) || 0).toFixed(1)}%</b>`]
                         ])}
                     </div>
@@ -3599,7 +3600,9 @@
                 // ----- Chart 3: Effektivitäts-Trend (Angriff / Wurf / Abwehr pro Spiel, in einem Chart) -----
                 // Gleiche Formeln wie im PDF-/Saison-Export (pdfPct) bzw. Abwehreffektivität in
                 // Spiel-/Saison-Statistik, hier pro Einzelspiel statt Saison-Summe, um den Verlauf
-                // sichtbar zu machen. Angriff/Wurf nur Feldspieler, Abwehr nur Torwart + Gegner-Fehler.
+                // sichtbar zu machen. Angriff/Wurf nur Feldspieler, Abwehr = Paraden + Gegner-Fehler
+                // + eigene Turnover (Balleroberungen), da ein Turnover einen gegnerischen Angriff
+                // erfolgreich beendet, ohne dass ein Torwart-Paraden- oder Fehlwurf-Ereignis vorliegt.
                 const angriffseffData = [];
                 const wurfeffData = [];
                 const abwehreffData = [];
@@ -3623,7 +3626,8 @@
                     const paradenGesamt = torwarte.reduce((s, st) => s + (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0), 0);
                     const gegentoreGesamt = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0), 0);
                     const gegnerFehler = (opp.fehlwurfe || 0) + (opp.tech_fehler || 0) + (opp.fehlpasse || 0) + (opp.tg_fehlwurfe || 0);
-                    abwehreffData.push(Number((((paradenGesamt + gegnerFehler) / (paradenGesamt + gegnerFehler + gegentoreGesamt) * 100) || 0).toFixed(1)));
+                    const turnoverGesamt = feldspieler.reduce((s, st) => s + (st.turnovers || 0), 0) + torwarte.reduce((s, st) => s + (st.turnovers || 0), 0);
+                    abwehreffData.push(Number((((paradenGesamt + gegnerFehler + turnoverGesamt) / (paradenGesamt + gegnerFehler + turnoverGesamt + gegentoreGesamt) * 100) || 0).toFixed(1)));
                 });
                 
                 if (grafikChartEffektivitaet) grafikChartEffektivitaet.destroy();
@@ -5315,6 +5319,7 @@
 
             const gegnerFehler = (opp.fehlwurfe || 0) + (opp.tech_fehler || 0) + (opp.fehlpasse || 0) + (opp.tg_fehlwurfe || 0);
             const gegentoreGesamt = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0), 0);
+            const turnoverGesamt = feldspieler.reduce((s, st) => s + (st.turnovers || 0), 0) + torwarte.reduce((s, st) => s + (st.turnovers || 0), 0);
 
             const leftOverviewRows = [
                 { header: 'Angriff (Spieler)', color: PDF_COLORS.green },
@@ -5344,7 +5349,7 @@
                 { header: 'Effektivität', color: PDF_COLORS.yellow },
                 ['Angriffseffektivität', pdfPct(ft + t7m + tgt, ff + f7m + tgf + feldTechFehler + feldFehlpasse)],
                 ['Wurfeffektivität (Torquote)', pdfPct(ft + t7m + tgt, ff + f7m + tgf)],
-                ['Abwehreffektivität', pdfPct(paradenGesamt + gegnerFehler, gegentoreGesamt)],
+                ['Abwehreffektivität', pdfPct(paradenGesamt + gegnerFehler + turnoverGesamt, gegentoreGesamt)],
                 ['Team-Handlungseffektivität', pdfPct(feldPos + twPos, feldNeg + twNeg)],
                 ['Turnover (gewonnen)', feldspieler.reduce((s, st) => s + (st.turnovers || 0), 0) + torwarte.reduce((s, st) => s + (st.turnovers || 0), 0)],
                 { header: 'Tempogegenstöße', color: PDF_COLORS.purple },
@@ -5508,7 +5513,7 @@
                 { header: 'Effektivitätswerte', color: PDF_COLORS.yellow },
                 ['Angriffseffektivität', pdfPct(totalFeldtore + totalFeldTore7m + totalTGTore, totalFeldFehlwurf + totalFeldFehlwurf7m + totalTGFehlwurfe + totalFeldTechFehler + totalFeldFehlpass)],
                 ['Wurfeffektivität (Torquote)', pdfPct(totalFeldtore + totalFeldTore7m + totalTGTore, totalFeldFehlwurf + totalFeldFehlwurf7m + totalTGFehlwurfe)],
-                ['Abwehreffektivität', pdfPct(totalParadenGesamt + totalGegnerFehler, totalGegenTore)],
+                ['Abwehreffektivität', pdfPct(totalParadenGesamt + totalGegnerFehler + totalTurnovers, totalGegenTore)],
                 ['Team-Handlungseffektivität', pdfPct(totalHEPos, totalHENeg)],
                 ['Turnover (gewonnen)', totalTurnovers],
                 { header: 'Tempogegenstöße', color: PDF_COLORS.purple },
