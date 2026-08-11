@@ -3495,7 +3495,7 @@
         // =====================================================
         // GRAFIKEN (Saison-Übersicht als Diagramme)
         // =====================================================
-        let grafikChartTore, grafikChartTorschuetzen, grafikChartEffektivitaet, grafikChartTorwarte, grafikChartAbwehreffektivitaet;
+        let grafikChartTore, grafikChartTorschuetzen, grafikChartEffektivitaet, grafikChartTorwarte;
         
         async function renderGrafiken() {
             const container = document.getElementById('grafikenContent');
@@ -3537,16 +3537,12 @@
                         <div style="position: relative; height: 320px;"><canvas id="chartTorschuetzen"></canvas></div>
                     </div>
                     <div class="card">
-                        <div class="card-title">📈 Effektivitäts-Trend (Angriff)</div>
+                        <div class="card-title">📈 Effektivitäts-Trend (Angriff / Wurf / Abwehr)</div>
                         <div style="position: relative; height: 260px;"><canvas id="chartEffektivitaet"></canvas></div>
                     </div>
                     <div class="card">
                         <div class="card-title">🥅 Paraden vs. Gegentore je Torwart</div>
                         <div style="position: relative; height: 280px;"><canvas id="chartTorwarte"></canvas></div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title">🛡️ Abwehreffektivität im Saisonverlauf</div>
-                        <div style="position: relative; height: 260px;"><canvas id="chartAbwehreffektivitaet"></canvas></div>
                     </div>
                 `;
                 
@@ -3600,12 +3596,13 @@
                     }
                 });
                 
-                // ----- Chart 3: Effektivitäts-Trend (Angriffs-/Wurfeffektivität pro Spiel) -----
-                // Gleiche Formel wie im PDF-/Saison-Export (pdfPct), hier pro Einzelspiel statt
-                // Saison-Summe, um den Verlauf sichtbar zu machen. Nur Feldspieler, wie an den
-                // anderen Stellen im Code (feldTechFehler/feldFehlpasse-Variablennamen dort).
+                // ----- Chart 3: Effektivitäts-Trend (Angriff / Wurf / Abwehr pro Spiel, in einem Chart) -----
+                // Gleiche Formeln wie im PDF-/Saison-Export (pdfPct) bzw. Abwehreffektivität in
+                // Spiel-/Saison-Statistik, hier pro Einzelspiel statt Saison-Summe, um den Verlauf
+                // sichtbar zu machen. Angriff/Wurf nur Feldspieler, Abwehr nur Torwart + Gegner-Fehler.
                 const angriffseffData = [];
                 const wurfeffData = [];
+                const abwehreffData = [];
                 endedGameList.forEach(game => {
                     const stats = statsByGame[game.id] || [];
                     const feldspieler = stats.filter(s => players.find(p => p.id === s.player_id)?.position === 'Feld');
@@ -3620,6 +3617,13 @@
                     const erfolg = ft + t7m + tgt;
                     angriffseffData.push(Number(((erfolg / (erfolg + ff + f7m + tgf + feldTechFehler + feldFehlpasse) * 100) || 0).toFixed(1)));
                     wurfeffData.push(Number(((erfolg / (erfolg + ff + f7m + tgf) * 100) || 0).toFixed(1)));
+
+                    const torwarte = stats.filter(s => players.find(p => p.id === s.player_id)?.position === 'Torwart');
+                    const opp = oppByGame[game.id] || { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0, tg_fehlwurfe: 0 };
+                    const paradenGesamt = torwarte.reduce((s, st) => s + (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0), 0);
+                    const gegentoreGesamt = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0), 0);
+                    const gegnerFehler = (opp.fehlwurfe || 0) + (opp.tech_fehler || 0) + (opp.fehlpasse || 0) + (opp.tg_fehlwurfe || 0);
+                    abwehreffData.push(Number((((paradenGesamt + gegnerFehler) / (paradenGesamt + gegnerFehler + gegentoreGesamt) * 100) || 0).toFixed(1)));
                 });
                 
                 if (grafikChartEffektivitaet) grafikChartEffektivitaet.destroy();
@@ -3629,7 +3633,8 @@
                         labels,
                         datasets: [
                             { label: 'Angriffseffektivität %', data: angriffseffData, borderColor: '#d4a100', backgroundColor: '#d4a100', tension: 0.2 },
-                            { label: 'Wurfeffektivität %', data: wurfeffData, borderColor: '#7b4fa8', backgroundColor: '#7b4fa8', tension: 0.2 }
+                            { label: 'Wurfeffektivität %', data: wurfeffData, borderColor: '#7b4fa8', backgroundColor: '#7b4fa8', tension: 0.2 },
+                            { label: 'Abwehreffektivität %', data: abwehreffData, borderColor: '#185fa5', backgroundColor: '#185fa5', tension: 0.2 }
                         ]
                     },
                     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
@@ -3667,32 +3672,6 @@
                         options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
                     });
                 }
-                
-                // ----- Chart 5: Abwehreffektivität im Saisonverlauf -----
-                // Gleiche Formel wie in Spiel-/Saison-Statistik: (Paraden gesamt + Gegner-Fehler)
-                // / (Paraden gesamt + Gegner-Fehler + Gegentore gesamt) * 100.
-                const abwehreffData = [];
-                endedGameList.forEach(game => {
-                    const stats = statsByGame[game.id] || [];
-                    const torwarte = stats.filter(s => players.find(p => p.id === s.player_id)?.position === 'Torwart');
-                    const opp = oppByGame[game.id] || { fehlwurfe: 0, tech_fehler: 0, fehlpasse: 0, tg_fehlwurfe: 0 };
-                    const paradenGesamt = torwarte.reduce((s, st) => s + (st.paraden || 0) + (st.paraden_7m || 0) + (st.tg_paraden || 0), 0);
-                    const gegentoreGesamt = torwarte.reduce((s, st) => s + (st.gegentore || 0) + (st.gegentore_7m || 0) + (st.tg_gegentore || 0), 0);
-                    const gegnerFehler = (opp.fehlwurfe || 0) + (opp.tech_fehler || 0) + (opp.fehlpasse || 0) + (opp.tg_fehlwurfe || 0);
-                    abwehreffData.push(Number((((paradenGesamt + gegnerFehler) / (paradenGesamt + gegnerFehler + gegentoreGesamt) * 100) || 0).toFixed(1)));
-                });
-                
-                if (grafikChartAbwehreffektivitaet) grafikChartAbwehreffektivitaet.destroy();
-                grafikChartAbwehreffektivitaet = new Chart(document.getElementById('chartAbwehreffektivitaet'), {
-                    type: 'line',
-                    data: {
-                        labels,
-                        datasets: [
-                            { label: 'Abwehreffektivität %', data: abwehreffData, borderColor: '#185fa5', backgroundColor: '#185fa5', tension: 0.2 }
-                        ]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } }
-                });
             } catch (err) {
                 console.error('Error rendering Grafiken:', err);
                 container.innerHTML = '<div class="card empty-state">Fehler beim Laden der Grafiken</div>';
