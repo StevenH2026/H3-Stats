@@ -117,7 +117,7 @@
         <button class="nav-btn" onclick="switchTab(this, 'saisonstat')">🏆 Saison-Statistik</button>
         <button class="nav-btn" onclick="switchTab(this, 'grafiken')">📊 Grafiken</button>
         <button class="nav-btn" id="navSpielerBtn" onclick="switchTab(this, 'spieler')">👥 Spieler</button>
-        <button class="nav-btn" id="navBetreuerBtn" onclick="switchTab(this, 'betreuer')">🎯 Betreuer</button>
+        <button class="nav-btn" id="navBetreuerBtn" onclick="switchTab(this, 'betreuer')">🎯 Coaches</button>
         <button class="nav-btn" onclick="switchTab(this, 'archiv')">📁 Archiv</button>
         <button class="nav-btn" id="navAdminBtn" onclick="switchTab(this, 'admin')">🔑 Admin</button>
     </div>
@@ -155,7 +155,7 @@
             
             <div class="card" id="seasonResetCard" style="display: none; border: 2px solid #e24b4a;">
                 <div class="card-title" style="color: #e24b4a;">⚠️ Saison-Reset (nur Admin)</div>
-                <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">Löscht ALLE Spiele und Statistiken unwiderruflich. Spieler- und Betreuer-Stammdaten bleiben erhalten.</div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">Löscht ALLE Spiele und Statistiken unwiderruflich. Spieler- und Coach-Stammdaten bleiben erhalten.</div>
                 <button class="btn btn-danger" style="width: 100%;" onclick="resetSeason()">🗑️ Alle Spiele löschen</button>
             </div>
             
@@ -196,7 +196,7 @@
         <!-- TAB: BETREUER -->
         <div id="betreuer" class="tab">
             <div class="card">
-                <div class="card-title">🎯 Betreuer</div>
+                <div class="card-title">🎯 Coaches</div>
                 <div id="coachesList"></div>
             </div>
         </div>
@@ -269,7 +269,7 @@
                 <label>Gewünschte Rolle</label>
                 <select id="roleRequestSelect">
                     <option value="trainer">Trainer</option>
-                    <option value="betreuer">Betreuer</option>
+                    <option value="betreuer">Coach</option>
                     <option value="spieler">Spieler</option>
                 </select>
             </div>
@@ -307,7 +307,7 @@
 
     <div id="coachImportModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:3000; align-items:center; justify-content:center; overflow-y:auto; padding:1rem 0;">
         <div class="card" style="max-width:600px; width:95%; margin:0; max-height:90vh; overflow-y:auto;">
-            <div class="card-title">🎯 Betreuer CSV-Import</div>
+            <div class="card-title">🎯 Coaches CSV-Import</div>
             <div id="coachImportBody"></div>
             <button class="btn" style="width:100%; background:#eee; margin-top:1rem;" onclick="closeCoachImportModal()">Schließen</button>
         </div>
@@ -649,7 +649,7 @@
                         const expected = local[col];
                         const actual = row[col];
                         if (typeof expected === 'number' && (expected || 0) !== (actual || 0)) {
-                            discrepancies.push(`Betreuer ${row.coach_id} · ${col}: erwartet ${expected || 0}, Server ${actual || 0}`);
+                            discrepancies.push(`Coach ${row.coach_id} · ${col}: erwartet ${expected || 0}, Server ${actual || 0}`);
                             corrections.push({ kind: 'coach', coachId: row.coach_id, col, delta: (expected || 0) - (actual || 0) });
                         }
                     });
@@ -1532,7 +1532,7 @@
                 document.getElementById('newCoachName').value = '';
                 
                 renderCoachesList();
-                showToast('✅ Betreuer gespeichert');
+                showToast('✅ Coach gespeichert');
             } catch (err) {
                 console.error('Error adding coach:', err);
                 showToast('❌ Fehler beim Speichern');
@@ -1540,7 +1540,7 @@
         }
         
         async function deleteCoach(coachId) {
-            if (!confirm('Betreuer wirklich löschen?')) return;
+            if (!confirm('Coach wirklich löschen?')) return;
             
             try {
                 const { error } = await sbClient
@@ -1551,7 +1551,7 @@
                 if (error) throw error;
                 coaches = coaches.filter(c => c.id !== coachId);
                 renderCoachesList();
-                showToast('✅ Betreuer gelöscht');
+                showToast('✅ Coach gelöscht');
             } catch (err) {
                 console.error('Error deleting coach:', err);
                 showToast('❌ Fehler beim Löschen');
@@ -1565,7 +1565,7 @@
                 <div style="margin-bottom: 1rem;">
                     <button class="btn btn-primary" style="width:100%;" onclick="toggleAddCoachForm()">➕ Einzeln hinzufügen</button>
                 </div>
-                <div style="font-size:11px; color:#999; margin-bottom:1rem;">📄 CSV-Import für mehrere Betreuer findest du im 🔑 Admin-Bereich.</div>
+                <div style="font-size:11px; color:#999; margin-bottom:1rem;">📄 CSV-Import für mehrere Coaches findest du im 🔑 Admin-Bereich.</div>
                 
                 <div id="addCoachForm" style="display:none; background:#f9f9f9; padding:1rem; border-radius:4px; margin-bottom:1rem;">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
@@ -1584,8 +1584,8 @@
             
             if (coaches.length === 0) {
                 html += isAuthenticated
-                    ? '<div class="empty-state">Noch keine Betreuer</div>'
-                    : '<div class="empty-state">🔒 Bitte einloggen, um die Betreuerliste zu sehen</div>';
+                    ? '<div class="empty-state">Noch keine Coaches</div>'
+                    : '<div class="empty-state">🔒 Bitte einloggen, um die Coach-Liste zu sehen</div>';
             } else {
                 html += `
                     <table style="font-size: 13px;">
@@ -1887,7 +1887,7 @@
                     <div class="card">
                         <div class="card-title">🎯 ${currentGame.opponent} - Kader auswählen</div>
                         <div style="font-size: 12px; margin-bottom: 1rem;">
-                            Feldspieler: ${kaderFeld.length}/16 | Torwarte: ${kaderTW.length}/4 | Betreuer: ${currentCoaches.length}
+                            Feldspieler: ${kaderFeld.length}/16 | Torwarte: ${kaderTW.length}/4 | Coaches: ${currentCoaches.length}
                         </div>
                         ${readOnly ? '<div style="font-size: 12px; color: #999;">🔒 Nur lesend – keine Berechtigung, den Kader zu ändern</div>' : ''}
                     </div>
@@ -1923,7 +1923,7 @@
                     </div>
                     
                     <div class="card">
-                        <div class="card-title">👔 Betreuer</div>
+                        <div class="card-title">👔 Coaches</div>
                         <div class="player-grid">
                             ${coaches.map(c => `
                                 <button class="player-btn ${currentCoaches.includes(c.id) ? 'selected' : ''}" 
@@ -2383,7 +2383,7 @@
                 const rausAusSpiel = (stats.rot || 0) >= 1 || (stats.disq || 0) >= 1 || (stats.zwei_min || 0) >= 3;
                 const teamCoachGelbLimitErreicht = Object.values(localStats.coaches).reduce((s, st) => s + (st.gelb || 0), 0) >= 1;
                 const gelbGesperrt = (stats.gelb || 0) >= 1 || teamCoachGelbLimitErreicht;
-                const rausHinweis = rausAusSpiel ? '<div style="background:#8B0000; color:white; padding:0.4rem; border-radius:4px; font-size:12px; text-align:center; margin-bottom:0.75rem;">🚫 Betreuer ist raus (Rote Karte / 3x 2min) – keine weitere Erfassung möglich</div>' : '';
+                const rausHinweis = rausAusSpiel ? '<div style="background:#8B0000; color:white; padding:0.4rem; border-radius:4px; font-size:12px; text-align:center; margin-bottom:0.75rem;">🚫 Coach ist raus (Rote Karte / 3x 2min) – keine weitere Erfassung möglich</div>' : '';
                 
                 return `
                     <div class="card">
@@ -2660,17 +2660,17 @@
                 if (delta > 0) {
                     const rausAusSpiel = (stats.rot || 0) >= 1 || (stats.disq || 0) >= 1 || (stats.zwei_min || 0) >= 3;
                     if (rausAusSpiel) {
-                        showToast('🚫 Betreuer ist raus – keine weitere Erfassung möglich');
+                        showToast('🚫 Coach ist raus – keine weitere Erfassung möglich');
                         return;
                     }
                     if (statKey === 'gelb' && (stats.gelb || 0) >= 1) {
-                        showToast('🚫 Nur eine Gelbe Karte pro Betreuer möglich');
+                        showToast('🚫 Nur eine Gelbe Karte pro Coach möglich');
                         return;
                     }
                     if (statKey === 'gelb') {
                         const teamCoachGelbGesamt = Object.values(localStats.coaches).reduce((s, st) => s + (st.gelb || 0), 0);
                         if (teamCoachGelbGesamt >= 1) {
-                            showToast('🚫 Team-Limit von 1 Gelber Karte für Betreuer erreicht – nur noch 2min möglich');
+                            showToast('🚫 Team-Limit von 1 Gelber Karte für Coaches erreicht – nur noch 2min möglich');
                             return;
                         }
                     }
@@ -3070,7 +3070,7 @@
                 if (coachStatsData && coachStatsData.length > 0) {
                     html += `
                         <div class="card">
-                            <div class="card-title">👔 Betreuer-Statistik</div>
+                            <div class="card-title">👔 Coaches-Statistik</div>
                             <table style="font-size: 12px; width: 100%;">
                                 <tr style="background: #f5f5f5;"><th>Designation</th><th>Name</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
                                 ${coachStatsData.map(cs => {
@@ -3472,7 +3472,7 @@
                     
                     html += `
                         <div class="card">
-                            <div class="card-title">👔 Betreuer-Saison-Statistik</div>
+                            <div class="card-title">👔 Coaches-Saison-Statistik</div>
                             <table style="font-size: 12px; width: 100%;">
                                 <tr style="background: #f5f5f5;"><th>Designation</th><th>Name</th><th>Gelb</th><th>Rot</th><th>2min</th></tr>
                                 ${Object.entries(coachSummary).map(([coachId, stats]) => {
@@ -4216,7 +4216,7 @@
                 `).join('')}
             </table>`;
             if (newCount > 0) {
-                html += `<button class="btn btn-success" style="width:100%; margin-top:1rem;" onclick="confirmCoachImport()">✅ ${newCount} Betreuer importieren</button>`;
+                html += `<button class="btn btn-success" style="width:100%; margin-top:1rem;" onclick="confirmCoachImport()">✅ ${newCount} Coaches importieren</button>`;
             }
             body.innerHTML = html;
         }
@@ -4257,7 +4257,7 @@
             cacheSet('coaches', coaches);
             renderCoachesList();
 
-            let summary = `✅ ${imported} Betreuer importiert`;
+            let summary = `✅ ${imported} Coaches importiert`;
             if (errors.length > 0) summary += `, ${errors.length} fehlgeschlagen`;
             showToast(summary);
             if (errors.length > 0) {
@@ -4712,7 +4712,7 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-title">🎯 Betreuer per CSV importieren</div>
+                    <div class="card-title">🎯 Coaches per CSV importieren</div>
                     <div style="font-size: 12px; color: #666; margin-bottom: 0.75rem;">CSV-Datei (UTF-8, komma-getrennt) mit den Spalten <b>Designation, Name</b> importieren (Designation = A/B/C/D). Zeigt vor dem Import eine Vorschau mit erkannten Duplikaten (Bezeichnung schon vergeben).</div>
                     <button class="btn btn-success" style="width:100%;" onclick="document.getElementById('coachImportInput').click(); openCoachImportModal();">📄 CSV auswählen</button>
                     <input type="file" id="coachImportInput" accept=".csv" style="display:none;" onchange="handleCoachImportFile(event)">
@@ -4793,7 +4793,7 @@
                     const { data: userList, error: userListError } = await sbClient.rpc('admin_list_users');
                     if (userListError) throw userListError;
                     
-                    const ROLE_LABELS = { trainer: 'Trainer', betreuer: 'Betreuer', spieler: 'Spieler', admin: 'Admin' };
+                    const ROLE_LABELS = { trainer: 'Trainer', betreuer: 'Coach', spieler: 'Spieler', admin: 'Admin' };
                     
                     html += `
                         <div class="card">
@@ -4813,7 +4813,7 @@
                                         <td>
                                             <select id="newRole_${u.user_id}" style="font-size:11px; padding:0.2rem; vertical-align:middle; width:90px;">
                                                 <option value="trainer">Trainer</option>
-                                                <option value="betreuer">Betreuer</option>
+                                                <option value="betreuer">Coach</option>
                                                 <option value="spieler">Spieler</option>
                                                 <option value="admin">Admin</option>
                                             </select>
@@ -5035,7 +5035,7 @@
                 return;
             }
             
-            const confirmation = prompt('ACHTUNG: Das löscht ALLE Spiele und Statistiken unwiderruflich (Spieler-/Betreuer-Stammdaten bleiben erhalten).\n\nZum Bestätigen "LÖSCHEN" eintippen:');
+            const confirmation = prompt('ACHTUNG: Das löscht ALLE Spiele und Statistiken unwiderruflich (Spieler-/Coach-Stammdaten bleiben erhalten).\n\nZum Bestätigen "LÖSCHEN" eintippen:');
             if (confirmation !== 'LÖSCHEN') {
                 showToast('Abgebrochen – nichts gelöscht');
                 return;
@@ -5387,7 +5387,7 @@
             y = pdfRankingTable(doc, y, 'Torwart-Statistik', PDF_COLORS.blue, PDF_TW_HEADERS, computeTorwartTableRows(torwarte), PDF_TW_COL_STYLES);
 
             if (coachStatsData && coachStatsData.length > 0) {
-                pdfRankingTable(doc, y, 'Betreuer-Statistik', PDF_COLORS.purple, PDF_COACH_HEADERS, computeCoachTableRows(coachStatsData));
+                pdfRankingTable(doc, y, 'Coaches-Statistik', PDF_COLORS.purple, PDF_COACH_HEADERS, computeCoachTableRows(coachStatsData));
             }
 
             return doc;
@@ -5584,7 +5584,7 @@
                     coachSummary[cs.coach_id].disq += cs.disq || 0;
                 }
                 const coachSeasonEntries = Object.entries(coachSummary).map(([coachId, stats]) => Object.assign({ coachId }, stats));
-                pdfRankingTable(doc, y, 'Betreuer-Saison-Statistik', PDF_COLORS.purple, PDF_COACH_HEADERS, computeCoachTableRows(coachSeasonEntries, 'coachId'));
+                pdfRankingTable(doc, y, 'Coaches-Saison-Statistik', PDF_COLORS.purple, PDF_COACH_HEADERS, computeCoachTableRows(coachSeasonEntries, 'coachId'));
             }
 
             return doc;
