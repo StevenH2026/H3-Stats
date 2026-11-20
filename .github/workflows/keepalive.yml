@@ -1,7 +1,8 @@
 # Hält das Supabase-Projekt im Free-Tarif aktiv.
-# Free-Projekte werden nach etwa einer Woche ohne Aktivität pausiert (Risiko: Winter- und Sommerpause).
-# Dieser Workflow ruft alle drei Tage die Funktion public.keepalive() auf. Sie führt eine echte
-# Datenbankabfrage aus, liefert aber keine Daten (nur die Serverzeit).
+# Free-Projekte werden pausiert, wenn sie über eine Woche zu wenig Datenbankaktivität haben.
+# Laut Supabase reichen "typischerweise ein paar Anfragen pro Tag". Alle drei Tage ein SELECT now()
+# reichte NICHT (Pausierungs-Warnung am 20.11.2026). Deshalb: dreimal täglich, und keepalive()
+# schreibt einen Zeitstempel in public.keepalive_heartbeat (echte Schreibaktivität, keine Nutzdaten).
 # Schlägt der Aufruf fehl (zum Beispiel weil das Projekt pausiert ist), schlägt der Lauf fehl und GitHub
 # schickt eine Fehlermail. Das ist der Alarm.
 #
@@ -13,7 +14,7 @@ name: Keep-alive Supabase
 
 on:
   schedule:
-    - cron: '23 6 */3 * *'
+    - cron: '23 5,13,21 * * *'
   workflow_dispatch:
 
 permissions: {}
